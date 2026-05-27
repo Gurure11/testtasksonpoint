@@ -642,7 +642,7 @@
 
 <script>
   // ==================== CONFIGURATION ====================
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAaXIikx9Hfk0--e4tQdTau8qyJEktzHka9cVp2k9i9gMW6eeoLMyVY8-ELPIX3zfK/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxms4I90vLTdDKdg4ORU8eQVv5jTmqlz6qPm2nITWoSD1uQIJqfe2zTBWZcFpxlIFM/exec';
   const SHEET_ID = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
 
   const SHEET_ROUTES = {
@@ -765,16 +765,33 @@
     setButtonLoading('loginBtn', true, 'Signing in...');
     showMessage('Checking Users tab...', 'info', 'loginMessage');
     try {
-      const res = await fetch(SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'login', sheetId: SHEET_ID, sheetTab: 'Users', payload: { email, password } }),
-        redirect: 'follow'
-      });
-      const text = await res.text();
-      const json = text ? JSON.parse(text) : {};
-      if (!res.ok || json.success === false) throw new Error(json.message || json.error || 'Login failed.');
-      currentUser = json.user;
+      const loginPayload = { action: 'login', sheetId: SHEET_ID, sheetTab: 'Users', payload: { email, password } };
+      let json = null;
+      let lastError = null;
+
+      // Use GET first because Google Apps Script Web Apps are most reliable cross-origin with simple GET requests.
+      try {
+        const url = `${SCRIPT_URL}?action=login&sheetId=${encodeURIComponent(SHEET_ID)}&sheetTab=Users&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&_=${Date.now()}`;
+        const res = await fetch(url, { method: 'GET', cache: 'no-store', redirect: 'follow' });
+        const text = await res.text();
+        json = text ? JSON.parse(text) : {};
+        if (!res.ok || json.success === false) throw new Error(json.message || json.error || 'Login failed.');
+      } catch (getErr) {
+        lastError = getErr;
+        // Fallback to POST for deployments already using doPost login.
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(loginPayload),
+          redirect: 'follow'
+        });
+        const text = await res.text();
+        json = text ? JSON.parse(text) : {};
+        if (!res.ok || json.success === false) throw new Error(json.message || json.error || lastError?.message || 'Login failed.');
+      }
+
+      currentUser = json.user || json.data || null;
+      if (!currentUser || !currentUser.Email) throw new Error('Login succeeded but no user details were returned. Check the Users tab headers.');
       const storage = remember ? localStorage : sessionStorage;
       storage.setItem('quickbase_user', JSON.stringify(currentUser));
       document.getElementById('loginPassword').value = '';
@@ -782,7 +799,7 @@
       document.getElementById('appShell').style.display = 'flex';
       await loadCurrentSection();
     } catch(e) {
-      showMessage(e.message || 'Login failed.', 'error', 'loginMessage');
+      showMessage(e.message || 'Login failed. Check the Apps Script deployment and Users tab.', 'error', 'loginMessage');
     } finally {
       setButtonLoading('loginBtn', false);
     }
@@ -1717,9 +1734,7 @@ Please log in to QuickBase to review and update this item.`
   document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', () => {
       currentSection = link.getAttribute('data-section');
-      document.getElementById('loginBtn')?.addEventListener('click', loginUser);
-  document.getElementById('loginPassword')?.addEventListener('keydown', e => { if (e.key === 'Enter') loginUser(); });
-  if (getCurrentUser()) loadCurrentSection(); else showLoginScreen();
+      loadCurrentSection();
     });
   });
 
