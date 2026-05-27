@@ -507,8 +507,6 @@
     .auto-weekly { background: #ede9fe; color: #5b21b6; }
     .auto-monthly { background: #fce7f3; color: #9d174d; }
 
-
-
     /* Login and rights layer */
     .login-screen {
       min-height: 100vh;
@@ -785,7 +783,6 @@
       let json = null;
       let lastError = null;
 
-      // Use GET first because Google Apps Script Web Apps are most reliable cross-origin with simple GET requests.
       try {
         const url = `${SCRIPT_URL}?action=login&sheetId=${encodeURIComponent(SHEET_ID)}&sheetTab=Users&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&_=${Date.now()}`;
         const res = await fetch(url, { method: 'GET', cache: 'no-store', redirect: 'follow' });
@@ -794,7 +791,6 @@
         if (!res.ok || json.success === false) throw new Error(json.message || json.error || 'Login failed.');
       } catch (getErr) {
         lastError = getErr;
-        // Fallback to POST for deployments already using doPost login.
         const res = await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -943,7 +939,6 @@ Please log in to QuickBase to review and update this item.`,
       const res = await apiPost(action, payload);
       showMessage(successMessage, 'success', messageId);
       
-      // Auto-email assignee using Gmail (backend)
       let emailSent = false;
       if (SEND_EMAIL_NOTIFICATIONS && payload.assignedEmail && payload.assignedEmail.trim() !== '') {
         showMessage('Sending email notification to assignee via Gmail...', 'info', messageId);
@@ -965,8 +960,7 @@ Please log in to QuickBase to review and update this item.`,
         showMessage('No assignee email provided. Email not sent.', 'info', messageId);
       }
       
-      // Ask user if they want to share via WhatsApp (only if email was attempted or not needed)
-      const assigneePhone = null; // We'll prompt user for WhatsApp number or use name to construct
+      const assigneePhone = null;
       const wantsWhatsApp = confirm(`Task "${payload.title || payload.taskName}" created successfully!\n\nDo you want to share this task with the assignee via WhatsApp?\n\nClick OK to share on WhatsApp, Cancel to skip.`);
       if (wantsWhatsApp) {
         let phoneNumber = prompt("Enter assignee's WhatsApp phone number (with country code, e.g., +27...):\nIf you don't have the number, you can share the task link manually.", "");
@@ -1268,11 +1262,11 @@ Please log in to QuickBase to review and update this item.`,
         </div>
 
         <div class="panel"><div class="panel-header"><h2>📊 KPI Performance</h2><button class="btn-primary" onclick="currentSection='kpis';loadCurrentSection()">View All →</button></div>
-          <div class="table-wrapper"><table><thead><tr><th>KPI Name</th><th>Target</th><th>Actual</th><th>Department</th><th>Status</th></tr></thead><tbody>${kpiArray.slice(0,5).map(k => `<tr><td><strong>${escapeHtml(k.KPIName || k.Name || '')}</strong></td><td>${escapeHtml(k['Target Value'] || k.Target || '')}</td><td>${escapeHtml(k['Actual Value'] || k.Actual || '')}</td><td>${escapeHtml(k['Related Department'] || k.Department || '')}</td><td><span class="badge ${(parseFloat(k['Actual Value'] || k.Actual) >= parseFloat(k['Target Value'] || k.Target)) ? 'badge-low' : 'badge-high'}">${(parseFloat(k['Actual Value'] || k.Actual) >= parseFloat(k['Target Value'] || k.Target)) ? '✓ On Track' : '⚠️ Behind'}</span></td></tr>`).join('') || '<tr><td colspan="5">No KPI data</td></tr>'}</tbody>}</div>
+          <div class="table-wrapper"><table><thead><tr><th>KPI Name</th><th>Target</th><th>Actual</th><th>Department</th><th>Status</th></tr></thead><tbody>${kpiArray.slice(0,5).map(k => `<tr><td><strong>${escapeHtml(k.KPIName || k.Name || '')}</strong></td><td>${escapeHtml(k['Target Value'] || k.Target || '')}</td><td>${escapeHtml(k['Actual Value'] || k.Actual || '')}</td><td>${escapeHtml(k['Related Department'] || k.Department || '')}</td><td><span class="badge ${(parseFloat(k['Actual Value'] || k.Actual) >= parseFloat(k['Target Value'] || k.Target)) ? 'badge-low' : 'badge-high'}">${(parseFloat(k['Actual Value'] || k.Actual) >= parseFloat(k['Target Value'] || k.Target)) ? '✓ On Track' : '⚠️ Behind'}</span></td>`).join('') || '<tr><td colspan="5">No KPI data</td></tr>'}</tbody>}</div>
         </div>
 
         <div class="panel"><div class="panel-header"><h2>⏱️ SLA Management</h2><button class="btn-primary" onclick="currentSection='sla';loadCurrentSection()">View All →</button></div>
-          <div class="table-wrapper"><table><thead><tr><th>SLA Name</th><th>Priority</th><th>First Response</th><th>Resolution Target</th><th>Status</th></tr></thead><tbody>${slaArray.slice(0,5).map(s => `<tr><td><strong>${escapeHtml(getCellValue(s, 'SLA Name'))}</strong></td><td><span class="badge badge-high">${escapeHtml(s.Priority || '')}</span></td><td>${escapeHtml(getCellValue(s, 'First Response'))}</td><td>${escapeHtml(getCellValue(s, 'Resolution Target'))}</td><td><span class="badge badge-low">${escapeHtml(s.Status || 'Active')}</span></td></tr>`).join('') || '<tr><td colspan="5">No SLA records</td></tr>'}</tbody>}</div>
+          <div class="table-wrapper"><table><thead><tr><th>SLA Name</th><th>Priority</th><th>First Response</th><th>Resolution Target</th><th>Status</th></tr></thead><tbody>${slaArray.slice(0,5).map(s => `<tr><td><strong>${escapeHtml(getCellValue(s, 'SLA Name'))}</strong></td><td><span class="badge badge-high">${escapeHtml(s.Priority || '')}</span></td><td>${escapeHtml(getCellValue(s, 'First Response'))}</td><td>${escapeHtml(getCellValue(s, 'Resolution Target'))}</td><td><span class="badge badge-low">${escapeHtml(s.Status || 'Active')}</span></td>`).join('') || '<tr><td colspan="5">No SLA records</td></tr>'}</tbody>}</div>
         </div>`;
 
       wireDashboardForms();
@@ -1769,6 +1763,21 @@ Please log in to QuickBase to review and update this item.`
     }
   }
 
+  // FIXED HIRING REQUESTS SECTION - now with stable form and proper API calls
+  async function renderHiringRequests() {
+    const route = SHEET_ROUTES.hiringRequests;
+    let data = [];
+    try {
+      data = await apiGet('hiringRequests');
+      if (!Array.isArray(data)) data = [];
+    } catch(e) {
+      console.warn("Hiring requests fetch failed", e);
+      data = [];
+    }
+    // Use renderDataEntryTable for consistency but ensure it never loops
+    renderDataEntryTable(route.displayTab, data, route.columns, route.saveAction, route.sheetTab);
+  }
+
   async function renderKPIs() {
     const route = SHEET_ROUTES.kpis;
     const data = await safeGet(route.action);
@@ -1790,6 +1799,39 @@ Please log in to QuickBase to review and update this item.`
   async function renderDivisions() { const route = SHEET_ROUTES.divisions; const data = await safeGet(route.action); renderDataEntryTable(route.displayTab, data, route.columns, route.saveAction, route.sheetTab); }
   async function renderAutomatedTasks() { const route = SHEET_ROUTES.automatedTasks; const data = await safeGet(route.action); renderDataEntryTable(route.displayTab, data, route.columns, route.saveAction, route.sheetTab); }
 
+  // Helper function for approval display
+  window.approvalText = function(row, level) {
+    const status = row[level] || '';
+    if (status === 'Approved') return '✅ Approved';
+    if (status === 'Pending') return '⏳ Pending';
+    if (status === 'Rejected') return '❌ Rejected';
+    return status || 'Pending';
+  };
+
+  window.submitHiringApproval = async function(ticketNumber) {
+    if (!confirm(`Approve hiring request ${ticketNumber}? This will mark both approvals as approved and notify HR.`)) return;
+    try {
+      const updatePayload = {
+        action: 'updateHiringApproval',
+        sheetId: SHEET_ID,
+        ticketNumber: ticketNumber,
+        approvedBy: currentUser?.['Full Name'] || currentUser?.Email || 'Executive',
+        approvalLevel: 'both',
+        status: 'Approved',
+        sheetTab: 'Hiring Requests'
+      };
+      const res = await apiPost('updateHiringApproval', updatePayload);
+      if (res && res.success !== false) {
+        alert(`Hiring request ${ticketNumber} approved. HR will be notified.`);
+        await renderApprovals();
+      } else {
+        throw new Error(res?.message || 'Approval failed');
+      }
+    } catch(e) {
+      alert(`Approval error: ${e.message}`);
+    }
+  };
+
   function renderDataEntryTable(title, data, columns, actionName, sheetTabName = title) {
     const main = document.getElementById('mainContent');
     const dataArray = Array.isArray(data) ? data : [];
@@ -1798,12 +1840,21 @@ Please log in to QuickBase to review and update this item.`
       <div class="top-bar"><div class="page-title"><h1>${title}</h1><p>Sheet tab: ${sheetTabName}</p></div><button class="refresh-btn" onclick="loadCurrentSection()">↻ Refresh</button></div>
       <div class="panel"><div class="panel-header"><h2>➕ Enter New ${title}</h2></div><div style="padding:20px">
         <div class="form-row">
-          ${columns.map(c => `<div class="form-field"><label>${escapeHtml(c)}</label>${c === 'Assigned To' ? `<select id="${fieldId(c)}">${userOptionsHtml()}</select>` : c === 'Assigned Email' ? `<input id="${fieldId(c)}" readonly placeholder="Auto-filled email">` : c === 'Description' || c.includes('Description') ? `<textarea id="${fieldId(c)}" rows="2"></textarea>` : c === 'Status' ? `<select id="${fieldId(c)}"><option>Active</option><option>Open</option><option>Closed</option><option>Inactive</option><option>Paused</option></select>` : c === 'Priority' ? `<select id="${fieldId(c)}"><option>Medium</option><option>Low</option><option>High</option><option>Critical</option></select>` : c === 'Frequency' ? `<select id="${fieldId(c)}"><option>Daily</option><option>Weekly</option><option>Monthly</option></select>` : (c === 'Next Run' || c === 'Created Date') ? `<input id="${fieldId(c)}" type="date">` : `<input id="${fieldId(c)}" placeholder="${escapeHtml(c)}">`}</div>`).join('')}
+          ${columns.map(c => `<div class="form-field"><label>${escapeHtml(c)}</label>${
+            c === 'Assigned To' ? `<select id="${fieldId(c)}">${userOptionsHtml()}</select>` : 
+            c === 'Assigned Email' ? `<input id="${fieldId(c)}" readonly placeholder="Auto-filled email">` : 
+            c === 'Description' || c.includes('Description') ? `<textarea id="${fieldId(c)}" rows="2"></textarea>` : 
+            c === 'Status' ? `<select id="${fieldId(c)}"><option>Active</option><option>Open</option><option>Closed</option><option>Inactive</option><option>Paused</option><option>Waiting Approval</option></select>` : 
+            c === 'Priority' ? `<select id="${fieldId(c)}"><option>Medium</option><option>Low</option><option>High</option><option>Critical</option></select>` : 
+            c === 'Frequency' ? `<select id="${fieldId(c)}"><option>Daily</option><option>Weekly</option><option>Monthly</option></select>` : 
+            (c === 'Next Run' || c === 'Created Date' || c === 'Request Date') ? `<input id="${fieldId(c)}" type="date">` : 
+            `<input id="${fieldId(c)}" placeholder="${escapeHtml(c)}">`
+          }</div>`).join('')}
         </div>
         <button class="btn-primary" id="saveDataEntryBtn">💾 Save ${title}</button>
         <div id="dataEntryMessage" class="message-bar"></div>
       </div></div>
-      <div class="panel"><div class="panel-header"><h2>📋 ${title}</h2></div><div class="table-wrapper"><table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${dataArray.length ? dataArray.map(row => `<tr>${columns.map(c => `<td>${escapeHtml(getCellValue(row, c))}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}" style="text-align:center">No data found</td></tr>`}</tbody>}</div></div>`;
+      <div class="panel"><div class="panel-header"><h2>📋 ${title}</h2></div><div class="table-wrapper"><table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${dataArray.length ? dataArray.map(row => `<tr>${columns.map(c => `<td>${escapeHtml(getCellValue(row, c))}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}" style="text-align:center">No data found</td></tr>`}</tbody></div></div>`;
 
     if (columns.includes('Assigned To') && columns.includes('Assigned Email')) {
       wireAssigneeEmail(fieldId('Assigned To'), fieldId('Assigned Email'));
@@ -1816,6 +1867,7 @@ Please log in to QuickBase to review and update this item.`
       payload.sheetName = sheetTabName;
       payload.tabName = sheetTabName;
       if (columns.includes('Created Date') && !payload['Created Date']) payload['Created Date'] = new Date().toISOString().slice(0,10);
+      if (columns.includes('Request Date') && !payload['Request Date']) payload['Request Date'] = new Date().toISOString().slice(0,10);
       const firstColumn = columns[0];
       if (!payload[firstColumn]) return showMessage(`${firstColumn} is required`, 'error', 'dataEntryMessage');
       await saveWithSyncAndNotify('saveDataEntryBtn', 'dataEntryMessage', actionName, payload, `${title} record saved and synchronised.`, { afterSuccess: () => setTimeout(() => loadCurrentSection(), 1000) });
@@ -1825,7 +1877,7 @@ Please log in to QuickBase to review and update this item.`
   function renderSimpleTable(title, data, columns, sheetTabName = title) {
     const main = document.getElementById('mainContent');
     const dataArray = Array.isArray(data) ? data : [];
-    main.innerHTML = `<div class="top-bar"><div class="page-title"><h1>${title}</h1><p>Sheet tab: ${sheetTabName}</p></div><button class="refresh-btn" onclick="loadCurrentSection()">↻ Refresh</button></div><div class="panel"><div class="panel-header"><h2>📋 ${title}</h2></div><div class="table-wrapper"><table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${dataArray.length ? dataArray.map(row => `<tr>${columns.map(c => `<td>${escapeHtml(getCellValue(row, c))}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}" style="text-align:center">No data found</td></tr>`}</tbody>}</div></div>`;
+    main.innerHTML = `<div class="top-bar"><div class="page-title"><h1>${title}</h1><p>Sheet tab: ${sheetTabName}</p></div><button class="refresh-btn" onclick="loadCurrentSection()">↻ Refresh</button></div><div class="panel"><div class="panel-header"><h2>📋 ${title}</h2></div><div class="table-wrapper"><table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${dataArray.length ? dataArray.map(row => `<tr>${columns.map(c => `<td>${escapeHtml(getCellValue(row, c))}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}" style="text-align:center">No data found</td></tr>`}</tbody></div></div>`;
   }
 
   async function loadCurrentSection() {
