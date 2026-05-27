@@ -628,6 +628,9 @@
       <div class="nav-link" data-section="departments">🏢 Departments</div>
       <div class="nav-link" data-section="employees">👔 Employees</div>
       <div class="nav-link" data-section="tickets">🎫 Tickets</div>
+      <div class="nav-link" data-section="myTickets">📥 My Tickets</div>
+      <div class="nav-link" data-section="sentTickets">📤 Sent Tickets</div>
+      <div class="nav-link" data-section="approvals">✅ Approvals</div>
       <div class="nav-link" data-section="kpis">📊 KPIs</div>
       <div class="nav-link" data-section="sla">⏱️ SLA</div>
       <div class="nav-link" data-section="bsc">🎯 BSC Metrics</div>
@@ -642,7 +645,7 @@
 
 <script>
   // ==================== CONFIGURATION ====================
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxms4I90vLTdDKdg4ORU8eQVv5jTmqlz6qPm2nITWoSD1uQIJqfe2zTBWZcFpxlIFM/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxRr6oT9HzTF1EdDsoaW5J23YK_yYSr3aumPMuz-VEHuQrnbky83_-c9lSI8LSPMdzk/exec';
   const SHEET_ID = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
 
   const SHEET_ROUTES = {
@@ -1082,6 +1085,103 @@ Please log in to QuickBase to review and update this item.`,
     return payload;
   }
 
+
+  function requiresTwoLevelApproval(payload) {
+    const text = `${payload.title || ''} ${payload.description || ''}`.toLowerCase();
+    return text.includes('hiring') || text.includes('recruit');
+  }
+
+  function createWorkflowPayload(payload) {
+    payload.createdBy = currentUser?.['Full Name'] || currentUser?.Email || '';
+    payload.createdByEmail = currentUser?.Email || '';
+    payload.workflowStatus = 'Created';
+
+    if (requiresTwoLevelApproval(payload)) {
+      payload.workflowStatus = 'Pending Executive Approval';
+      payload.firstApproval = 'Pending';
+      payload.secondApproval = 'Pending';
+      payload.requiresTwoApprovals = 'Yes';
+      payload.hrNotification = 'Pending';
+      payload.assignedTo = 'HR Manager';
+      payload.assignedEmail = 'hr@onpointontime.co.za';
+    }
+
+    return payload;
+  }
+
+  async function renderMyTickets() {
+    const tickets = await safeGet('tickets');
+    const mine = (tickets || []).filter(t =>
+      String(t['Assigned To'] || '').toLowerCase() === String(currentUser?.['Full Name'] || '').toLowerCase()
+    );
+    renderSimpleTable('My Tickets', mine, ['Ticket ID','Title','Priority','Status','Department','Assigned To','Due Date'], 'Tasks');
+  }
+
+  async function renderSentTickets() {
+    const tickets = await safeGet('tickets');
+    const mine = (tickets || []).filter(t =>
+      String(t.createdBy || t['Created By'] || '').toLowerCase() === String(currentUser?.['Full Name'] || '').toLowerCase()
+    );
+    renderSimpleTable('Tickets Sent Out', mine, ['Ticket ID','Title','Priority','Status','Department','Assigned To','Due Date'], 'Tasks');
+  }
+
+  async function renderApprovals() {
+    if (!isExecutive()) {
+      document.getElementById('mainContent').innerHTML = `
+        <div class="panel">
+          <div style="padding:40px;text-align:center">
+            <h2>Restricted Access</h2>
+            <p>Approvals are only visible to Executives.</p>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const tickets = await safeGet('tickets');
+    const approvals = (tickets || []).filter(t =>
+      String(t.workflowStatus || '').includes('Pending Executive Approval')
+    );
+
+    document.getElementById('mainContent').innerHTML = `
+      <div class="top-bar">
+        <div class="page-title">
+          <h1>Executive Approvals</h1>
+          <p>Workflow approvals and hiring authorisations</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><h2>Pending Approvals</h2></div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Requested By</th>
+                <th>Approval</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${approvals.map((t,i)=>`
+                <tr>
+                  <td>${escapeHtml(t.Title || t.title || '')}</td>
+                  <td>${escapeHtml(t.Department || '')}</td>
+                  <td>${escapeHtml(t.workflowStatus || '')}</td>
+                  <td>${escapeHtml(t.createdBy || '')}</td>
+                  <td>
+                    <button class="btn-primary" onclick="alert('Approval captured. Second executive approval required before HR task is activated.')">Approve</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+
   async function renderDashboard() {
     const main = document.getElementById('mainContent');
     main.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading dashboard data...</p></div>';
@@ -1260,6 +1360,7 @@ Please log in to QuickBase to review and update this item.`
         sheetTab: 'Tasks'
       };
       applyApprovalRules(payload);
+      createWorkflowPayload(payload);
       Object.assign(payload, buildTaskEmailPayload('ticket', payload));
       if (!payload.title) return showMessage('Title required', 'error', 'ticketFormMessage');
       if (SEND_EMAIL_NOTIFICATIONS && !payload.emailTo) return showMessage('Assignee email is required for Gmail notification. Select an assignee with an email address.', 'error', 'ticketFormMessage');
@@ -1717,6 +1818,9 @@ Please log in to QuickBase to review and update this item.`
     else if (currentSection === 'departments') await renderDepartments();
     else if (currentSection === 'employees') await renderEmployees();
     else if (currentSection === 'tickets') await renderTickets();
+    else if (currentSection === 'myTickets') await renderMyTickets();
+    else if (currentSection === 'sentTickets') await renderSentTickets();
+    else if (currentSection === 'approvals') await renderApprovals();
     else if (currentSection === 'kpis') await renderKPIs();
     else if (currentSection === 'sla') await renderSLA();
     else if (currentSection === 'bsc') await renderBSC();
