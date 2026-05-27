@@ -631,6 +631,7 @@
       <div class="nav-link" data-section="myTickets">📥 My Tickets</div>
       <div class="nav-link" data-section="sentTickets">📤 Sent Tickets</div>
       <div class="nav-link" data-section="approvals">✅ Approvals</div>
+      <div class="nav-link" data-section="hiringRequests">🧑‍💼 Hiring Requests</div>
       <div class="nav-link" data-section="kpis">📊 KPIs</div>
       <div class="nav-link" data-section="sla">⏱️ SLA</div>
       <div class="nav-link" data-section="bsc">🎯 BSC Metrics</div>
@@ -645,7 +646,7 @@
 
 <script>
   // ==================== CONFIGURATION ====================
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxRr6oT9HzTF1EdDsoaW5J23YK_yYSr3aumPMuz-VEHuQrnbky83_-c9lSI8LSPMdzk/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxWpDjcvcgn1F8PvW7rCss9KZt-HeYc8AsGORmP4yXViWZROH2lmhHrfigtcpG6tCeQ/exec';
   const SHEET_ID = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
 
   const SHEET_ROUTES = {
@@ -656,7 +657,8 @@
     bsc: { action: 'bscMetrics', saveAction: 'addBscMetrics', sheetTab: 'BSC', displayTab: 'BSC Metrics', columns: ['BSC Name', 'BSC Description', 'Target Score', 'Actual Score', 'Related Department', 'Frequency'] },
     divisions: { action: 'divisions', saveAction: 'addDivision', sheetTab: 'divisions', displayTab: 'Divisions', columns: ['Division ID', 'Division Name', 'Head', 'Region', 'Status'] },
     automatedTasks: { action: 'automatedTasks', saveAction: 'addAutomatedTask', sheetTab: 'Automated Tasks', displayTab: 'Automated Tasks', columns: ['Task ID', 'Task Name', 'Description', 'Frequency', 'Assigned To', 'Assigned Email', 'Department', 'Next Run', 'Status'] },
-    users: { action: 'users', saveAction: 'addUser', sheetTab: 'Users', displayTab: 'Users', columns: ['User ID', 'Full Name', 'Email', 'Department', 'Role', 'Status', 'Join Date', 'Password', 'User Rights'] }
+    users: { action: 'users', saveAction: 'addUser', sheetTab: 'Users', displayTab: 'Users', columns: ['User ID', 'Full Name', 'Email', 'Department', 'Roles', 'Status', 'Join Date', 'Password', 'User Rights'] },
+    hiringRequests: { action: 'hiringRequests', saveAction: 'addHiringRequest', sheetTab: 'Hiring Requests', displayTab: 'Hiring Requests', columns: ['Ticket Number', 'Request Date', 'Requested By', 'Requested By Email', 'Department', 'Position', 'Reason', 'Priority', 'Status', 'Approval 1', 'Approval 1 By', 'Approval 1 Date', 'Approval 2', 'Approval 2 By', 'Approval 2 Date', 'HR Task Status'] }
   };
 
   function getRouteByAction(action) {
@@ -726,15 +728,26 @@
     return String(value || '').split(/[;,|]/).map(v => v.trim().toLowerCase()).filter(Boolean);
   }
 
+  function getUserRole(user = currentUser) {
+    return String(user?.Roles || user?.Role || user?.role || '').trim();
+  }
+
   function userHasRight(right) {
     if (!currentUser) return false;
-    const role = String(currentUser.Role || '').toLowerCase();
+    const role = getUserRole(currentUser).toLowerCase();
     const rights = normalizeRights(currentUser['User Rights'] || currentUser.UserRights || currentUser.Rights);
-    return role === 'executive' || rights.includes('all') || rights.includes(right.toLowerCase());
+    const wanted = String(right || '').toLowerCase();
+    if (role === 'executive') return true;
+    if (role === 'manager' && ['create', 'view', 'tickets', 'hiring', 'hiring requests', 'submit hiring request'].includes(wanted)) return true;
+    return rights.includes('all') || rights.includes(wanted);
   }
 
   function isExecutive(user = currentUser) {
-    return String(user?.Role || '').trim().toLowerCase() === 'executive';
+    return getUserRole(user).toLowerCase() === 'executive';
+  }
+
+  function isManager(user = currentUser) {
+    return getUserRole(user).toLowerCase() === 'manager';
   }
 
   function requireLogin() {
@@ -795,6 +808,7 @@
 
       currentUser = json.user || json.data || null;
       if (!currentUser || !currentUser.Email) throw new Error('Login succeeded but no user details were returned. Check the Users tab headers.');
+      currentUser.Roles = currentUser.Roles || getUserRole(currentUser) || '';
       const storage = remember ? localStorage : sessionStorage;
       storage.setItem('quickbase_user', JSON.stringify(currentUser));
       document.getElementById('loginPassword').value = '';
@@ -1131,56 +1145,62 @@ Please log in to QuickBase to review and update this item.`,
         <div class="panel">
           <div style="padding:40px;text-align:center">
             <h2>Restricted Access</h2>
-            <p>Approvals are only visible to Executives.</p>
+            <p>Approvals waiting are only visible to Executives.</p>
           </div>
         </div>`;
       return;
     }
 
-    const tickets = await safeGet('tickets');
-    const approvals = (tickets || []).filter(t =>
-      String(t.workflowStatus || '').includes('Pending Executive Approval')
+    const rows = await safeGet('hiringRequests');
+    const approvals = (rows || []).filter(r =>
+      String(r.Status || '').toLowerCase().includes('waiting') ||
+      String(r['Approval 1'] || '').toLowerCase() === 'pending' ||
+      String(r['Approval 2'] || '').toLowerCase() === 'pending'
     );
 
     document.getElementById('mainContent').innerHTML = `
       <div class="top-bar">
         <div class="page-title">
-          <h1>Executive Approvals</h1>
-          <p>Workflow approvals and hiring authorisations</p>
+          <h1>Approvals Waiting</h1>
+          <p>Executive hiring approvals · two approvals required before HR task is sent</p>
         </div>
+        <button class="refresh-btn" onclick="renderApprovals()">↻ Refresh</button>
       </div>
 
       <div class="panel">
-        <div class="panel-header"><h2>Pending Approvals</h2></div>
+        <div class="panel-header"><h2>Hiring Requests Waiting Approval</h2></div>
         <div class="table-wrapper">
           <table>
             <thead>
               <tr>
-                <th>Title</th>
+                <th>Ticket Number</th>
+                <th>Position</th>
                 <th>Department</th>
-                <th>Status</th>
                 <th>Requested By</th>
-                <th>Approval</th>
+                <th>Approval 1</th>
+                <th>Approval 2</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              ${approvals.map((t,i)=>`
+              ${approvals.length ? approvals.map(r=>`
                 <tr>
-                  <td>${escapeHtml(t.Title || t.title || '')}</td>
-                  <td>${escapeHtml(t.Department || '')}</td>
-                  <td>${escapeHtml(t.workflowStatus || '')}</td>
-                  <td>${escapeHtml(t.createdBy || '')}</td>
-                  <td>
-                    <button class="btn-primary" onclick="alert('Approval captured. Second executive approval required before HR task is activated.')">Approve</button>
-                  </td>
+                  <td>${escapeHtml(r['Ticket Number'])}</td>
+                  <td>${escapeHtml(r.Position)}</td>
+                  <td>${escapeHtml(r.Department)}</td>
+                  <td>${escapeHtml(r['Requested By'])}</td>
+                  <td>${escapeHtml(approvalText(r, 'Approval 1'))}</td>
+                  <td>${escapeHtml(approvalText(r, 'Approval 2'))}</td>
+                  <td>${escapeHtml(r.Status)}</td>
+                  <td><button class="btn-primary" onclick="submitHiringApproval('${escapeHtml(r['Ticket Number'])}')">Approve</button></td>
                 </tr>
-              `).join('')}
+              `).join('') : '<tr><td colspan="8" style="text-align:center">No approvals waiting</td></tr>'}
             </tbody>
           </table>
         </div>
       </div>`;
   }
-
 
   async function renderDashboard() {
     const main = document.getElementById('mainContent');
@@ -1214,7 +1234,7 @@ Please log in to QuickBase to review and update this item.`,
             <h1>Operations Dashboard</h1>
             <p>On Point Group · 📊 ${ticketsArray.length} tickets loaded</p>
           </div>
-          <div><span class="user-chip">👤 ${escapeHtml(currentUser?.['Full Name'] || 'User')} · ${escapeHtml(currentUser?.Role || '')}<span class="rights-chip">${escapeHtml(currentUser?.['User Rights'] || 'standard')}</span></span> <button class="logout-btn" onclick="logout()">Logout</button></div>
+          <div><span class="user-chip">👤 ${escapeHtml(currentUser?.['Full Name'] || 'User')} · ${escapeHtml(getUserRole(currentUser) || '')}<span class="rights-chip">${escapeHtml(currentUser?.['User Rights'] || 'standard')}</span></span> <button class="logout-btn" onclick="logout()">Logout</button></div>
         </div>
 
         <div class="task-status-grid">
@@ -1821,6 +1841,7 @@ Please log in to QuickBase to review and update this item.`
     else if (currentSection === 'myTickets') await renderMyTickets();
     else if (currentSection === 'sentTickets') await renderSentTickets();
     else if (currentSection === 'approvals') await renderApprovals();
+    else if (currentSection === 'hiringRequests') await renderHiringRequests();
     else if (currentSection === 'kpis') await renderKPIs();
     else if (currentSection === 'sla') await renderSLA();
     else if (currentSection === 'bsc') await renderBSC();
