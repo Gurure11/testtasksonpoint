@@ -609,9 +609,9 @@
 
 <script>
   // ==================== CONFIGURATION ====================
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyg6G81GaP67Ux6LBhyoUwLIq7DnmtLvRSqJ-OicUvP8iL9XvMMTT9GRE7M5fCnEuki/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAaXIikx9Hfk0--e4tQdTau8qyJEktzHka9cVp2k9i9gMW6eeoLMyVY8-ELPIX3zfK/exec';
   const SHEET_ID = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
-  const USERS_SHEET_TAB = 'Quick';
+  const USERS_SHEET_TAB = 'Users';
   const USERS_TAB_NAME = 'Users';
 
   const SHEET_ROUTES = {
@@ -674,37 +674,41 @@
   let SYSTEM_USERS = [...FALLBACK_USERS];
 
   // ========== LOGIN FUNCTIONS ==========
-  async function fetchUsersFromSheet() {
-    try {
-      const url = `${SCRIPT_URL}?action=users&sheetId=${SHEET_ID}&sheetTab=${USERS_SHEET_TAB}&_=${Date.now()}`;
-      const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-      if (!res.ok) throw new Error('Failed to fetch users');
-      const text = await res.text();
-      let data = text ? JSON.parse(text) : [];
-      if (data && data.data && Array.isArray(data.data)) data = data.data;
-      if (!Array.isArray(data)) data = [];
-      return data.filter(row => row['Email'] && row['Password']);
-    } catch(e) {
-      console.warn('Could not fetch users from sheet, using fallback', e);
-      return [];
-    }
-  }
-
   async function validateLogin(email, password) {
-    const users = await fetchUsersFromSheet();
-    const matchedUser = users.find(u => 
-      String(u['Email']).trim().toLowerCase() === email.trim().toLowerCase() && 
-      String(u['Password']).trim() === password.trim()
-    );
-    if (matchedUser) {
-      return {
-        Email: matchedUser['Email'],
-        Role: matchedUser['Role'] || 'User',
-        'Full Name': matchedUser['Full Name'] || matchedUser['Name'] || email.split('@')[0],
-        Department: matchedUser['Department'] || 'General'
-      };
+    const params = new URLSearchParams({
+      action: 'validateLogin',
+      sheetId: SHEET_ID,
+      email: email.trim(),
+      password: password.trim(),
+      _: String(Date.now())
+    });
+
+    const url = `${SCRIPT_URL}?${params.toString()}`;
+    let res;
+    try {
+      res = await fetch(url, { method: 'GET', cache: 'no-store', redirect: 'follow' });
+    } catch (networkErr) {
+      throw new Error(`Could not reach the Google Apps Script web app. Check the deployment URL and access permissions. ${networkErr.message || networkErr}`);
     }
-    return null;
+
+    const text = await res.text();
+    let json = {};
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch (parseErr) {
+      throw new Error(`The Apps Script response was not valid JSON. Response started with: ${text.slice(0, 120)}`);
+    }
+
+    if (!res.ok || json.success === false) {
+      throw new Error(json.message || json.error || `Login request failed with HTTP ${res.status}`);
+    }
+
+    const user = json.user || null;
+    if (user && user.success === false) {
+      throw new Error(user.error || 'Login rejected.');
+    }
+
+    return user && user.Email ? user : null;
   }
 
   function showLoginScreen() {
@@ -730,15 +734,20 @@
         return;
       }
       errorDiv.textContent = 'Validating...';
-      const user = await validateLogin(email, pwd);
-      if (user) {
-        currentUser = user;
-        localStorage.setItem('quickbase_user', JSON.stringify(user));
-        isAuthenticated = true;
-        document.getElementById('loginOverlay').remove();
-        loadCurrentSection();
-      } else {
-        errorDiv.textContent = 'Invalid email or password. Please check the Users sheet.';
+      try {
+        const user = await validateLogin(email, pwd);
+        if (user) {
+          currentUser = user;
+          localStorage.setItem('quickbase_user', JSON.stringify(user));
+          isAuthenticated = true;
+          document.getElementById('loginOverlay').remove();
+          loadCurrentSection();
+        } else {
+          errorDiv.textContent = 'Invalid email or password. Please check the Users sheet.';
+        }
+      } catch (err) {
+        console.error('Login failed:', err);
+        errorDiv.textContent = err.message || 'Login failed. Check the Apps Script deployment and Users tab.';
       }
     });
   }
@@ -945,7 +954,7 @@ Please log in to QuickBase to review and update this item.`,
         }
       }
       
-      alert(`${successMessage}${emailSent ? ' Email notification sent.' : ''}`);
+      alert(successMessage);
       if (typeof options.afterSuccess === 'function') options.afterSuccess(res);
       return res;
     } catch(e) {
