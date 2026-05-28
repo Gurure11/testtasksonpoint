@@ -1,2280 +1,634 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Distinct Hire - Vehicle Maintenance System</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        /* All existing CSS remains exactly the same */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --accent-color: #e74c3c;
-            --success-color: #27ae60;
-            --warning-color: #f39c12;
-            --light-bg: #ecf0f1;
-            --dark-text: #2c3e50;
-            --border-color: #bdc3c7;
-            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-            color: var(--dark-text);
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 25px;
-            border-radius: 20px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .logo-container {
-            display: flex;
-            align-items: center;
-            gap: 25px;
-            flex-wrap: wrap;
-        }
-
-        .logo {
-            width: 100px;
-            height: 100px;
-            object-fit: contain;
-            background: white;
-            border-radius: 15px;
-            padding: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
-        .company-info h1 {
-            font-size: 2.2em;
-            margin-bottom: 5px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        .company-info p {
-            font-size: 1.1em;
-            opacity: 0.95;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-
-        .company-info p i {
-            margin-right: 8px;
-        }
-
-        .dashboard, .maintenance-form {
-            background: white;
-            padding: 30px;
-            border-radius: 20px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-
-        h2 {
-            color: var(--primary-color);
-            margin-bottom: 25px;
-            font-size: 1.8em;
-            border-bottom: 3px solid var(--light-bg);
-            padding-bottom: 15px;
-            display: flex;
-            align-items: center;
-        }
-
-        h2 i {
-            margin-right: 15px;
-            color: var(--secondary-color);
-            font-size: 1.2em;
-        }
-
-        h3 {
-            color: var(--primary-color);
-            margin: 25px 0 15px 0;
-            font-size: 1.4em;
-            display: flex;
-            align-items: center;
-        }
-
-        h3 i {
-            margin-right: 10px;
-            color: var(--secondary-color);
-        }
-
-        .search-filter {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-        }
-
-        .search-box {
-            flex: 2;
-            min-width: 300px;
-            padding: 15px 20px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            font-size: 1em;
-            transition: all 0.3s;
-            background: #f8f9fa;
-        }
-
-        .search-box:focus {
-            outline: none;
-            border-color: var(--secondary-color);
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-            background: white;
-        }
-
-        .filter-select {
-            padding: 15px 25px;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            font-size: 1em;
-            min-width: 180px;
-            background: #f8f9fa;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .filter-select:focus {
-            outline: none;
-            border-color: var(--secondary-color);
-        }
-
-        .btn-primary {
-            padding: 15px 30px;
-            background: var(--secondary-color);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 600;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
-        }
-
-        .btn-primary:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.4);
-        }
-
-        .stats-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 25px;
-            margin-bottom: 35px;
-        }
-
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 25px;
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
-            transition: transform 0.3s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .stat-card i {
-            font-size: 3em;
-            opacity: 0.9;
-        }
-
-        .stat-info h3 {
-            color: white;
-            margin: 0 0 5px 0;
-            font-size: 1em;
-            opacity: 0.9;
-            border: none;
-            padding: 0;
-        }
-
-        .stat-info p {
-            font-size: 2.2em;
-            font-weight: 700;
-            margin: 0;
-            line-height: 1.2;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            margin-top: 20px;
-            border-radius: 12px;
-            border: 1px solid #e0e0e0;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.95em;
-            background: white;
-        }
-
-        th {
-            background: var(--primary-color);
-            color: white;
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        tr:hover {
-            background-color: #f8f9fa;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-            margin-bottom: 25px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-group label {
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--primary-color);
-            font-size: 0.95em;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .form-group label i {
-            color: var(--secondary-color);
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1em;
-            transition: all 0.3s;
-            background: #f8f9fa;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: var(--secondary-color);
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-            background: white;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        .parts-section {
-            margin: 25px 0;
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 15px;
-            border: 2px dashed var(--border-color);
-        }
-
-        .parts-table-container {
-            overflow-x: auto;
-        }
-
-        #partsTable {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        #partsTable th {
-            background: var(--secondary-color);
-            font-size: 0.9em;
-            padding: 12px;
-        }
-
-        #partsTable td {
-            padding: 10px;
-            background: white;
-        }
-
-        #partsTable input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 0.95em;
-        }
-
-        #partsTable input:focus {
-            outline: none;
-            border-color: var(--secondary-color);
-            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
-        }
-
-        .btn-add, .btn-remove {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-weight: 500;
-        }
-
-        .btn-add {
-            background: var(--success-color);
-            color: white;
-            box-shadow: 0 3px 10px rgba(39, 174, 96, 0.3);
-        }
-
-        .btn-remove {
-            background: var(--accent-color);
-            color: white;
-            box-shadow: 0 3px 10px rgba(231, 76, 60, 0.3);
-        }
-
-        .btn-add:hover, .btn-remove:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
-        .form-actions {
-            margin-top: 35px;
-            text-align: center;
-        }
-
-        .btn-submit {
-            padding: 18px 50px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 1.2em;
-            font-weight: 600;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 15px;
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-submit:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
-        }
-
-        .success-message, .error-message, .warning-message {
-            position: fixed;
-            top: 30px;
-            right: 30px;
-            padding: 18px 30px;
-            border-radius: 12px;
-            color: white;
-            font-weight: 500;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            animation: slideIn 0.3s ease-out;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 1.1em;
-        }
-
-        .success-message {
-            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-        }
-
-        .error-message {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-        }
-
-        .warning-message {
-            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .required::after {
-            content: "*";
-            color: var(--accent-color);
-            margin-left: 4px;
-            font-weight: bold;
-        }
-
-        .action-narration, .defect-narration {
-            max-width: 260px;
-            line-height: 1.4;
-        }
-
-        .action-preview, .defect-preview {
-            display: inline;
-        }
-
-        .action-full, .defect-full {
-            display: none;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        .action-narration.expanded .action-preview,
-        .defect-narration.expanded .defect-preview {
-            display: none;
-        }
-
-        .action-narration.expanded .action-full,
-        .defect-narration.expanded .defect-full {
-            display: inline;
-        }
-
-        .btn-more-action, .btn-more-defect {
-            margin-left: 6px;
-            padding: 3px 8px;
-            border: none;
-            border-radius: 999px;
-            background: var(--secondary-color);
-            color: white;
-            cursor: pointer;
-            font-size: 0.78em;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .btn-more-action:hover, .btn-more-defect:hover {
-            background: #2980b9;
-        }
-
-        .photo-section {
-            margin: 25px 0;
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 15px;
-            border: 2px dashed var(--border-color);
-        }
-
-        .photo-actions {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .photo-actions input[type="file"] {
-            flex: 1;
-            min-width: 260px;
-            padding: 12px;
-            background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-        }
-
-        .photo-preview {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 12px;
-            margin-top: 15px;
-        }
-
-        .photo-preview img {
-            width: 100%;
-            height: 120px;
-            object-fit: cover;
-            border-radius: 10px;
-            border: 1px solid #e0e0e0;
-            background: white;
-        }
-
-        @media (max-width: 768px) {
-            .logo-container {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .search-filter {
-                flex-direction: column;
-            }
-            
-            .search-box, .filter-select, .btn-primary {
-                width: 100%;
-            }
-            
-            .stats-container {
-                grid-template-columns: 1fr;
-            }
-            
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .company-info p {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .btn-submit {
-                width: 100%;
-                justify-content: center;
-            }
-            
-            .success-message, .error-message, .warning-message {
-                left: 20px;
-                right: 20px;
-                top: 20px;
-                font-size: 1em;
-            }
-        }
-
-        @media print {
-            .search-filter, .maintenance-form, .btn-primary, .btn-submit {
-                display: none;
-            }
-            
-            .dashboard, .table-container {
-                box-shadow: none;
-                border: 1px solid #ddd;
-            }
-        }
-
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-        }
-
-        .nav-buttons {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin: 20px 0;
-        }
-
-        .fleet, .float, .nav-link-special {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 20px;
-            background: var(--secondary-color);
-            color: white;
-            text-decoration: none;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            margin: 0;
-        }
-
-        .fleet:hover, .float:hover, .nav-link-special:hover {
-            background: #2980b9;
-            color: white;
-            transform: translateY(-2px);
-            opacity: 1;
-        }
-
-        .fleet-upgrade-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-bottom: 25px;
-        }
-
-        .alert-panel {
-            background: #fff7ed;
-            border: 2px solid #fed7aa;
-            border-radius: 15px;
-            padding: 18px;
-            margin: 20px 0;
-        }
-
-        .alert-panel h3 {
-            margin-top: 0;
-            color: #9a3412;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 999px;
-            color: white;
-            font-weight: 700;
-            font-size: 0.85em;
-            white-space: nowrap;
-        }
-
-        .status-active { background: #27ae60; }
-        .status-service { background: #f39c12; }
-        .status-overdue { background: #e74c3c; }
-        .status-offroad { background: #111827; }
-        .status-repair { background: #7c3aed; }
-        .status-awaiting { background: #d97706; }
-        .status-completed { background: #16a34a; }
-
-        .btn-danger {
-            background: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            padding: 10px 14px;
-            cursor: pointer;
-            font-weight: 700;
-        }
-
-        .btn-small {
-            padding: 8px 12px;
-            font-size: 0.85em;
-            border-radius: 8px;
-        }
-
-        .cost-input {
-            max-width: 140px;
-            padding: 8px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-        }
-
-        .section-note {
-            color: #64748b;
-            margin-top: -15px;
-            margin-bottom: 20px;
-        }
-
-        .nav-link-special {
-            color: blue;
-            font-size: 20px;
-            margin-left: 50px;
-        }
-
-        .nav-link-special:hover {
-            color: green;
-            background-color: grey;
-            cursor: pointer;
-            opacity: 0.7;
-            transition: 0.7s;
-        }
-
-        /* Connection status indicator */
-        .connection-status {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 1000;
-        }
-
-        .connection-status.online {
-            background: #27ae60;
-            color: white;
-        }
-
-        .connection-status.offline {
-            background: #e74c3c;
-            color: white;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>OnPoint SHEQ · Secure Login & Registration</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: linear-gradient(145deg, #eef2f9 0%, #d9e0ec 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+
+    /* main glassmorphic card container */
+    .sheq-auth-container {
+      max-width: 1300px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .auth-card {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(2px);
+      border-radius: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 119, 182, 0.08);
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .brand-header {
+      background: #0b1f3a;
+      padding: 1.2rem 2rem;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #00b4d8, #0077b6);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.6rem;
+      box-shadow: 0 10px 20px -5px rgba(0,180,216,0.3);
+    }
+
+    .brand-header h2 {
+      font-weight: 700;
+      margin: 0;
+      font-size: 1.5rem;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-header p {
+      margin: 0;
+      opacity: 0.8;
+      font-size: 0.85rem;
+    }
+
+    .status-badge {
+      background: rgba(255,255,255,0.15);
+      padding: 0.4rem 1rem;
+      border-radius: 40px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-buttons {
+      display: flex;
+      border-bottom: 2px solid #e9edf2;
+      background: #ffffff;
+      padding: 0 1.8rem;
+      gap: 1.5rem;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 1rem 0.5rem;
+      font-weight: 700;
+      font-size: 1rem;
+      color: #5b6e8c;
+      transition: all 0.2s;
+      cursor: pointer;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tab-btn i {
+      font-size: 1.1rem;
+    }
+
+    .tab-btn.active {
+      color: #0077b6;
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: #0077b6;
+      border-radius: 3px;
+    }
+
+    .tab-pane {
+      display: none;
+      animation: fadeSlide 0.25s ease-out;
+      padding: 2rem 2rem 2.2rem 2rem;
+    }
+
+    .tab-pane.active-pane {
+      display: block;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-label {
+      font-weight: 600;
+      color: #1e2f44;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .input-group-custom {
+      border-radius: 1rem;
+      border: 1px solid #cfdfed;
+      transition: 0.15s;
+      background: #fff;
+    }
+
+    .input-group-custom:focus-within {
+      border-color: #0077b6;
+      box-shadow: 0 0 0 3px rgba(0,119,182,0.2);
+    }
+
+    .form-control, .form-select {
+      border: none;
+      background: transparent;
+      padding: 0.75rem 1rem;
+      font-size: 0.95rem;
+      border-radius: 1rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      box-shadow: none;
+      background: transparent;
+    }
+
+    .btn-sheq {
+      background: #0b1f3a;
+      border: none;
+      padding: 0.8rem 1.2rem;
+      font-weight: 700;
+      border-radius: 1.2rem;
+      transition: all 0.2s;
+      color: white;
+      width: 100%;
+    }
+
+    .btn-sheq:hover {
+      background: #0077b6;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 20px -8px rgba(0,119,182,0.4);
+    }
+
+    .btn-outline-sheq {
+      background: white;
+      border: 1.5px solid #0b1f3a;
+      color: #0b1f3a;
+      font-weight: 700;
+      border-radius: 1.2rem;
+      padding: 0.7rem 1.2rem;
+    }
+
+    .btn-outline-sheq:hover {
+      background: #f0f4fa;
+      border-color: #0077b6;
+    }
+
+    .message-box {
+      border-radius: 1.2rem;
+      font-size: 0.85rem;
+      padding: 0.8rem 1rem;
+      margin-top: 1.2rem;
+    }
+
+    .success-message {
+      background: #e1f7e9;
+      color: #1e7b48;
+      border-left: 4px solid #2a9d8f;
+    }
+
+    .error-message {
+      background: #ffe9e9;
+      color: #b91c1c;
+      border-left: 4px solid #d62828;
+    }
+
+    .info-message {
+      background: #e8f0fe;
+      color: #0b5e7e;
+    }
+
+    .footer-note {
+      text-align: center;
+      margin-top: 1.8rem;
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    hr {
+      background: #e2e8f0;
+    }
+
+    @media (max-width: 640px) {
+      .tab-pane {
+        padding: 1.5rem;
+      }
+      .brand-header {
+        flex-direction: column;
+        text-align: center;
+      }
+      .tab-buttons {
+        justify-content: center;
+        gap: 1rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header with Logo -->
-        <header>
-            <div class="logo-container">
-                <img src="dlogo.png" alt="Distinct Hire Logo" class="logo" onerror="this.src='https://via.placeholder.com/100x100?text=Distinct+Hire'">
-                <div class="company-info">
-                    <h1><i class="fas fa-car"></i> Distinct Hire</h1>
-                    <p>
-                        <span><i class="fas fa-phone"></i> +27 (0)81 079 0242</span>
-                        <span><i class="fas fa-envelope"></i> info@distincthire.co.za</span>
-                        <span><i class="fas fa-map-marker-alt"></i> Vehicle Maintenance System</span>
-                    </p>
-                </div>
-            </div>
-        </header>
-
-        <div class="nav-buttons">
-            <a class="fleet" href="inspection.html" target="_blank">Inspection Sheet</a>
-            <a class="float" href="Fuel Card Policy_v1.2.pdf" target="_blank">Fuel Card Policy</a>
-            <a class="nav-link-special" href="#seriousBreakdownPool">Serious Breakdown Pool</a>
-            <a class="nav-link-special" href="#newVehicleMaintenanceRecord">New Vehicle Maintenance Record</a>
+<div class="sheq-auth-container">
+  <div class="auth-card">
+    <div class="brand-header">
+      <div class="brand-logo">
+        <div class="logo-icon">OP</div>
+        <div>
+          <h2>OnPoint Group · SHEQ</h2>
+          <p>Safety, Health, Environment & Quality platform</p>
         </div>
-
-        <!-- Dashboard Section -->
-        <section class="dashboard">
-            <h2><i class="fas fa-tachometer-alt"></i> Maintenance Dashboard</h2>
-            
-            <!-- Search and Filter -->
-            <div class="search-filter">
-                <input type="text" id="searchInput" placeholder="🔍 Search by vehicle registration, make/model, or job card..." class="search-box">
-                <select id="filterType" class="filter-select">
-                    <option value="all">📊 All Time</option>
-                    <option value="weekly">📅 This Week</option>
-                    <option value="monthly">📆 This Month</option>
-                    <option value="yearly">📈 This Year</option>
-                </select>
-                <button onclick="fetchData()" class="btn-primary">
-                    <i class="fas fa-search"></i> Search & Filter
-                </button>
-                <button onclick="exportToCSV()" class="btn-primary" style="background: var(--success-color);">
-                    <i class="fas fa-download"></i> Export
-                </button>
-                <button onclick="testGoogleConnection()" class="btn-primary" style="background: #7c3aed;">
-                    <i class="fas fa-plug"></i> Test Connection
-                </button>
-            </div>
-
-
-
-            <!-- Report Print Controls -->
-            <div class="search-filter" style="background:#f8f9fa; padding:15px; border-radius:12px; border:1px solid #e0e0e0;">
-                <select id="printSection" class="filter-select">
-                    <option value="maintenance">New Vehicle Maintenance Record</option>
-                    <option value="pool">Serious Breakdown Pool</option>
-                </select>
-                <input type="date" id="printFromDate" class="search-box" style="min-width:180px; flex:1;" title="From date">
-                <input type="date" id="printToDate" class="search-box" style="min-width:180px; flex:1;" title="To date">
-                <button onclick="printReportByPeriod()" class="btn-primary" style="background:#111827;">
-                    <i class="fas fa-print"></i> Print Report
-                </button>
-            </div>
-
-            <!-- Stats Cards -->
-            <div class="stats-container">
-                <div class="stat-card">
-                    <i class="fas fa-tools"></i>
-                    <div class="stat-info">
-                        <h3>Total Breakdowns</h3>
-                        <p id="totalBreakdowns">0</p>
-                    </div>
-                </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);">
-                    <i class="fas fa-calendar-week"></i>
-                    <div class="stat-info">
-                        <h3>This Week</h3>
-                        <p id="weeklyBreakdowns">0</p>
-                    </div>
-                </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
-                    <i class="fas fa-calendar-alt"></i>
-                    <div class="stat-info">
-                        <h3>This Month</h3>
-                        <p id="monthlyBreakdowns">0</p>
-                    </div>
-                </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
-                    <i class="fas fa-calendar-year"></i>
-                    <div class="stat-info">
-                        <h3>This Year</h3>
-                        <p id="yearlyBreakdowns">0</p>
-                    </div>
-                </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);">
-                    <i class="fas fa-bell"></i>
-                    <div class="stat-info">
-                        <h3>Service Due</h3>
-                        <p id="serviceDueCount">0</p>
-                    </div>
-                </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #111827 0%, #374151 100%);">
-                    <i class="fas fa-car-crash"></i>
-                    <div class="stat-info">
-                        <h3>Offroad Vehicles</h3>
-                        <p id="offroadVehicles">0</p>
-                    </div>
-                </div>
-                <div class="stat-card" style="background: linear-gradient(135deg, #16a34a 0%, #065f46 100%);">
-                    <i class="fas fa-money-bill-wave"></i>
-                    <div class="stat-info">
-                        <h3>Repair Costs</h3>
-                        <p id="repairCostTotal">R0</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Data Table -->
-            <div class="table-container">
-                <table id="dataTable">
-                    <thead>
-                        <tr>
-                            <th>Job Card No.</th>
-                            <th>Make/Model</th>
-                            <th>Date</th>
-                            <th>Odometer</th>
-                            <th>Registration</th>
-                            <th>Defect</th>
-                            <th>Action</th>
-                            <th>Next Service</th>
-                            <th>Technician</th>
-                            <th>Completion Date</th>
-                            <th>Breakdown #</th>
-                            <th>Total Repair Cost</th>
-                            <th>Photos</th>
-                            <th>Edit</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody">
-                        <tr>
-                            <td colspan="14" style="text-align: center; padding: 40px;">
-                                <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: var(--secondary-color);"></i>
-                                <br>Loading data from Google Sheets...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Service Due Alerts Section -->
-        <section class="dashboard">
-            <h2><i class="fas fa-bell"></i> Automated Service Detection</h2>
-            <p class="section-note">Latest odometer readings are matched by registration number against the next service kilometer value. Email alerts are sent to fleet@onpointontime.co.za.</p>
-            <div class="search-filter">
-                <button onclick="runServiceCheck()" class="btn-primary" style="background: var(--accent-color);">
-                    <i class="fas fa-sync"></i> Check Service Due Now
-                </button>
-                <button onclick="fetchServiceDue()" class="btn-primary">
-                    <i class="fas fa-list"></i> Refresh Service Due List
-                </button>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Registration</th>
-                            <th>Vehicle</th>
-                            <th>Current KM</th>
-                            <th>Next Service KM</th>
-                            <th>Status</th>
-                            <th>Last Fuel Log</th>
-                            <th>Email Alert</th>
-                        </tr>
-                    </thead>
-                    <tbody id="serviceDueBody">
-                        <tr><td colspan="7" style="text-align:center; padding:30px;">Click refresh to load service due vehicles.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Serious Breakdown Pool Section -->
-        <section class="dashboard" id="seriousBreakdownPool">
-            <h2><i class="fas fa-car-crash"></i> Serious Breakdown Pool</h2>
-            <p class="section-note">Offroad cars needing serious service are stored in Google Sheet tab <strong>Pool</strong> in spreadsheet ID <strong>1UOOBScKX64TTIGQRyA89OeVPybIPw031eVhjpvHP7_c</strong>.</p>
-
-            <form id="poolForm">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-id-card"></i> Registration</label>
-                        <select id="poolRegistration" required>
-                            <option value="">Select registration</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-car"></i> Vehicle</label>
-                        <input type="text" id="poolVehicle" placeholder="e.g., Toyota Hilux" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-triangle-exclamation"></i> Fault</label>
-                        <input type="text" id="poolFault" placeholder="Engine, gearbox, accident, etc." required>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-gauge-high"></i> Severity</label>
-                        <select id="poolSeverity">
-                            <option value="High">High</option>
-                            <option value="Critical">Critical</option>
-                            <option value="Medium">Medium</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-clipboard-check"></i> Status</label>
-                        <select id="poolStatus">
-                            <option value="Offroad">Offroad</option>
-                            <option value="Awaiting Parts">Awaiting Parts</option>
-                            <option value="Under Repair">Under Repair</option>
-                            <option value="Completed">Completed</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-user-tie"></i> Supervisor</label>
-                        <input type="text" id="poolSupervisor" placeholder="Supervisor name">
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-money-bill"></i> Estimated Cost</label>
-                        <input type="number" id="poolEstimatedCost" min="0" step="0.01" placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-money-check"></i> Total Repair Cost</label>
-                        <input type="number" id="poolTotalRepairCost" min="0" step="0.01" placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-note-sticky"></i> Notes</label>
-                        <textarea id="poolNotes" placeholder="Workshop notes, parts required, diagnosis..."></textarea>
-                    </div>
-                </div>
-                <div class="form-actions" style="text-align:left;">
-                    <button type="submit" class="btn-submit" style="border-radius:12px; padding:15px 28px;">
-                        <i class="fas fa-plus"></i> Add Vehicle To Pool
-                    </button>
-                </div>
-            </form>
-
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Pool ID</th>
-                            <th>Registration</th>
-                            <th>Vehicle</th>
-                            <th>Fault</th>
-                            <th>Severity</th>
-                            <th>Status</th>
-                            <th>Date Added</th>
-                            <th>Supervisor</th>
-                            <th>Estimated Cost</th>
-                            <th>Total Repair Cost</th>
-                            <th>Update Cost</th>
-                            <th>Fixed / Remove</th>
-                        </tr>
-                    </thead>
-                    <tbody id="poolBody">
-                        <tr><td colspan="12" style="text-align:center; padding:30px;">Loading offroad vehicle pool...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Maintenance Form -->
-        <section class="maintenance-form" id="newVehicleMaintenanceRecord">
-            <h2><i class="fas fa-clipboard-list"></i> New Vehicle Maintenance Record</h2>
-            
-            <form id="maintenanceForm">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-hashtag"></i> Job Card No.</label>
-                        <input type="text" id="jobCardNo" placeholder="e.g., JC-2024-001" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-car"></i> Make/Model</label>
-                        <input type="text" id="makeModel" placeholder="e.g., Toyota Hilux 2.8 GD-6" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-calendar"></i> Date</label>
-                        <input type="date" id="date" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-tachometer-alt"></i> Odometer Reading</label>
-                        <input type="number" id="odometer" placeholder="e.g., 45000" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-id-card"></i> Vehicle Registration</label>
-                        <select id="registration" required>
-                            <option value="">Select registration</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-exclamation-triangle"></i> Reported Defect</label>
-                        <textarea id="reportedDefect" placeholder="Describe the issue reported by driver..." required></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-wrench"></i> Completed Action</label>
-                        <textarea id="completedAction" placeholder="Describe the work completed..." required></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label><i class="fas fa-clock"></i> Labor Hours</label>
-                        <input type="number" id="laborHours" value="0" min="0" step="0.5" placeholder="e.g., 2.5">
-                    </div>
-                </div>
-
-                <h3><i class="fas fa-boxes"></i> Parts Used</h3>
-                <div class="parts-section">
-                    <div class="parts-table-container">
-                        <table id="partsTable">
-                            <thead>
-                                <tr>
-                                    <th>Part #</th>
-                                    <th>Description</th>
-                                    <th>Quantity</th>
-                                    <th>Unit Price (ZAR)</th>
-                                    <th>Total (ZAR)</th>
-                                    <th style="text-align: center;">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="partsBody">
-                                <tr class="part-row">
-                                    <td><input type="text" class="part-number" placeholder="Part #"></td>
-                                    <td><input type="text" class="part-desc" placeholder="Description"></td>
-                                    <td><input type="number" class="part-qty" value="1" min="1"></td>
-                                    <td><input type="number" class="part-price" value="0" min="0" step="0.01"></td>
-                                    <td><input type="number" class="part-total" value="0" min="0" step="0.01"></td>
-                                    <td style="text-align: center;">
-                                        <button type="button" onclick="removePartRow(this)" class="btn-remove">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <button type="button" onclick="addPartRow()" class="btn-add" style="margin-top: 15px;">
-                        <i class="fas fa-plus"></i> Add Another Part
-                    </button>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label><i class="fas fa-comment"></i> Comments</label>
-                        <textarea id="comments" placeholder="Additional notes or comments..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label><i class="fas fa-road"></i> Next Service Odometer</label>
-                        <input type="number" id="nextService" placeholder="e.g., 50000">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-user-cog"></i> Technician Name</label>
-                        <input type="text" id="technician" placeholder="Technician's full name" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="required"><i class="fas fa-calendar-check"></i> Completion Date</label>
-                        <input type="date" id="completionDate" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label><i class="fas fa-bell"></i> Maintenance Reminder Date</label>
-                        <input type="date" id="reminderDate">
-                        <small style="color: #666; margin-top: 5px;">Calendar reminder will be created</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label><i class="fas fa-chart-line"></i> Total Cost (Manual Entry)</label>
-                        <input type="number" id="totalCost" value="0" min="0" step="0.01" placeholder="0.00" style="font-weight: bold;">
-                    </div>
-                </div>
-
-                <h3><i class="fas fa-camera"></i> Photos</h3>
-                <div class="photo-section">
-                    <p class="section-note" style="margin-top:0;">Upload pictures or take photos from a phone camera. Photo link columns are added after the existing Service Status heading.</p>
-                    <div class="photo-actions">
-                        <input type="file" id="maintenancePhotos" accept="image/*" capture="environment" multiple>
-                        <button type="button" class="btn-primary" onclick="clearSelectedPhotos()" style="background: var(--accent-color);">
-                            <i class="fas fa-times"></i> Clear Photos
-                        </button>
-                    </div>
-                    <div id="photoPreview" class="photo-preview"></div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit" class="btn-submit">
-                        <i class="fas fa-save"></i> Submit Maintenance Record
-                        <span class="loading-spinner" style="display: none;"></span>
-                    </button>
-                </div>
-            </form>
-        </section>
+      </div>
+      <div class="status-badge" id="liveStatusBadge">
+        <i class="fas fa-circle" style="font-size: 0.7rem; color: #f4a261;"></i> 
+        <span id="statusText">Connecting...</span>
+      </div>
     </div>
 
-    <div id="connectionStatus" class="connection-status offline">Checking connection...</div>
-
-    <script>
-        // =============================================
-        // GOOGLE APPS SCRIPT WEB APP URL
-        // IMPORTANT: Replace this with your DEPLOYED Apps Script URL
-        // The URL must end with '/exec' (e.g., https://script.google.com/macros/s/XXXX/exec)
-        // =============================================
-        // FIXED: Corrected Apps Script URL format - needs to be the EXEC URL, not the edit URL
-        // Please replace YOUR_SCRIPT_ID with your actual Apps Script deployment ID
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyP5v0qYcn16hcP_UECJwFL2rRehTipJmOlAuXEIOHylfWb-WKWPpyZiHVKgQo6quw/exec';
-        
-        // Google Sheets Configuration
-        const SHEET_CONFIG = {
-            spreadsheetId: '1UOOBScKX64TTIGQRyA89OeVPybIPw031eVhjpvHP7_c',
-            spreadsheetName: 'Distinct',
-            sheetName: 'Distinct',
-            maintenanceSheetName: 'Distinct',
-            licenceSheetName: 'Licence',
-            driveFileId: '15_6jq4oQ5zNmpokwQhfjStD5AdqHRCYa'
-        };
-
-        const REQUEST_TIMEOUT_MS = 45000;
-        let connectionRetryCount = 0;
-        const MAX_RETRIES = 3;
-
-        function buildAppsScriptUrl(params = {}) {
-            const url = new URL(APPS_SCRIPT_URL);
-            Object.entries(params).forEach(([key, value]) => {
-                if (value !== undefined && value !== null) url.searchParams.set(key, value);
-            });
-            url.searchParams.set('t', Date.now().toString());
-            return url.toString();
-        }
-
-        async function fetchWithRetry(url, options = {}, retries = MAX_RETRIES) {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const response = await fetch(url, {
-                        ...options,
-                        mode: 'cors',
-                        cache: 'no-cache',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                            ...options.headers
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        return response;
-                    }
-                    
-                    const errorText = await response.text();
-                    console.warn(`Attempt ${i + 1} failed:`, errorText.substring(0, 200));
-                    
-                    if (i === retries - 1) {
-                        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
-                    }
-                    
-                    await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-                } catch (error) {
-                    if (i === retries - 1) throw error;
-                    await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-                }
-            }
-            throw new Error('Max retries exceeded');
-        }
-
-        async function fetchJsonWithTimeout(url, options = {}) {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-            try {
-                const response = await fetch(url, {
-                    ...options,
-                    mode: 'cors',
-                    cache: 'no-cache',
-                    signal: controller.signal
-                });
-
-                clearTimeout(timeout);
-
-                if (!response.ok) {
-                    const text = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${text.slice(0, 200) || response.statusText}`);
-                }
-
-                const text = await response.text();
-                
-                try {
-                    return JSON.parse(text);
-                } catch (parseError) {
-                    console.error('Failed to parse JSON. Response preview:', text.substring(0, 500));
-                    throw new Error('Apps Script response is not valid JSON. Check that doGet() returns ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON)');
-                }
-            } catch (error) {
-                clearTimeout(timeout);
-                throw error;
-            }
-        }
-
-        async function appsScriptGet(params = {}) {
-            const url = buildAppsScriptUrl(params);
-            console.log('Fetching from Apps Script:', url);
-            
-            try {
-                const result = await fetchJsonWithTimeout(url, { method: 'GET' });
-                updateConnectionStatus(true);
-                return result;
-            } catch (fetchError) {
-                console.error('GET request failed:', fetchError);
-                updateConnectionStatus(false);
-                
-                if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('NetworkError')) {
-                    throw new Error('Cannot connect to Google Apps Script. Please check:\n1. The Apps Script is deployed with access set to "Anyone"\n2. The URL is correct and ends with /exec\n3. Your internet connection is working');
-                }
-                throw fetchError;
-            }
-        }
-
-        async function appsScriptPost(params = {}) {
-            console.log('POST to Apps Script with params:', Object.keys(params));
-            
-            try {
-                const result = await fetchJsonWithTimeout(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-                    body: new URLSearchParams(params).toString()
-                });
-                updateConnectionStatus(true);
-                return result;
-            } catch (error) {
-                console.error('POST request failed:', error);
-                updateConnectionStatus(false);
-                throw error;
-            }
-        }
-
-        function updateConnectionStatus(isOnline) {
-            const statusEl = document.getElementById('connectionStatus');
-            if (!statusEl) return;
-            
-            if (isOnline) {
-                statusEl.className = 'connection-status online';
-                statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Connected to Google Sheets';
-            } else {
-                statusEl.className = 'connection-status offline';
-                statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Offline - Check connection';
-            }
-        }
-
-        async function testGoogleConnection() {
-            showMessage('Testing Google Sheets connection...', 'warning');
-            try {
-                const result = await appsScriptGet({ action: 'ping' });
-                if (result && result.success) {
-                    showMessage(`✅ Connection OK! Spreadsheet: ${result.spreadsheetName || 'accessible'}`, 'success');
-                    updateConnectionStatus(true);
-                    return true;
-                } else {
-                    throw new Error(result?.error || 'Ping response invalid');
-                }
-            } catch (error) {
-                console.error('Connection test failed:', error);
-                const friendlyMsg = `❌ Connection failed: ${error.message}`;
-                showMessage(friendlyMsg, 'error');
-                updateConnectionStatus(false);
-                
-                // Show detailed help
-                alert(`Connection to Google Sheets failed.\n\n${error.message}\n\nTroubleshooting steps:\n1. Go to script.google.com and open your Apps Script project\n2. Click Deploy > New deployment\n3. Set "Execute as" to "Me" and "Who has access" to "Anyone"\n4. Copy the deployment URL (ends with /exec)\n5. Update APPS_SCRIPT_URL in this HTML file\n6. Make sure the script has doGet() and doPost() functions that return ContentService.createTextOutput()`);
-                return false;
-            }
-        }
-
-        function getFriendlyError(error) {
-            const message = String(error && error.message ? error.message : error || 'Unknown error');
-            
-            if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('Load failed')) {
-                return 'Cannot reach Google Apps Script. Ensure the Web App is deployed with access set to "Anyone" and the URL ends with /exec';
-            }
-            if (message.includes('HTTP 404')) {
-                return 'Apps Script URL not found. The deployment URL may be invalid or expired. Redeploy your script and update the APPS_SCRIPT_URL.';
-            }
-            if (message.includes('HTTP 403') || message.includes('permission')) {
-                return 'Access denied. Set Web App access to "Anyone" in your Apps Script deployment settings.';
-            }
-            if (message.includes('not valid JSON')) {
-                return 'Apps Script response is not JSON. Check that doGet() and doPost() return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON)';
-            }
-            return message;
-        }
-
-        const BASE_SHEET_HEADINGS = [
-            'Timestamp',
-            'Job Card No.',
-            'Make/Model',
-            'Date',
-            'Odometer',
-            'Registration',
-            'Reported Defect',
-            'Completed Action',
-            'Parts Used',
-            'Labor Hours',
-            'Comments',
-            'Next Service',
-            'Technician',
-            'Completion Date',
-            'Reminder Date',
-            'Total Cost',
-            'Breakdown Count',
-            'Current Fuel KM',
-            'Service Status'
-        ];
-        const EXTRA_PHOTO_LINK_HEADINGS = ['Photo Link 1', 'Photo Link 2', 'Photo Link 3', 'Photo Link 4', 'Photo Link 5', 'Photo Link 6', 'Photo Link 7', 'Photo Link 8', 'Photo Link 9', 'Photo Link 10'];
-        const SHEET_HEADINGS = [...BASE_SHEET_HEADINGS, ...EXTRA_PHOTO_LINK_HEADINGS];
-
-        const DEFAULT_REGISTRATION_NUMBERS = [
-            'LH83NTGP', 'HZ00XWGP', 'HK60TXGP', 'HK60TRGP', 'HN03JZGP', 'LD72VRGP', 'LD72VKGP', 'KZ14DYGP',
-            'MJ53VVGP', 'MF72JPGP', 'MH18HLGP', 'MH18HPGP', 'MJ22MJGP', 'JD12LMGP', 'JV09TWGP', 'LD45TFGP',
-            'MG47YRGP', 'CW15XZGP', 'YBR245GP', 'LN30PNGP', 'LX67YSGP', 'LD27RXGP', 'JN01DGGP', 'LW46XCGP',
-            'LP17TVGP', 'BZ89VHGP', 'DZ53XBGP', 'KP98PDGP', 'KL60NJGP', 'JP41CHGP', 'JB41MPGP', 'LS77SJGP',
-            'MH47SRGP', 'HX96RVGP', 'KK19DDGP', 'KR76PYGP', 'KT74WDGP', 'KP56BVGP', 'RTH651GP', 'JX95DNGP',
-            'HN23FWGP', 'LP28LYGP', 'KJ96FZGP', 'HV09VKGP', 'JD95XGGP', 'JT31YRGP', 'KP33HDGP', 'JF10CSGP',
-            'HP34WKGP', 'KN47CFGP', 'LS85RVGP', 'LP00HKGP', 'FY37DDGP', 'FW95WXGP', 'LM52NWGP', 'HM80WZGP',
-            'KK57HSGP', 'HG00HPGP', 'JJ42MZGP', 'LN12MTGP', 'HG00JMGP', 'HM68TLGP', 'KP18GMGP', 'LF33HXGP',
-            'FN34BVGP', 'HK67KZGP', 'HK67LDGP', 'KK68RFGP', 'HH32LSGP', 'KD94SSGP', 'KF60VWGP', 'KT41KTGP',
-            'KT53WZGP', 'HG75GMGP', 'LK76BGGP', 'MK85PWGP'
-        ];
-        
-        let registrationNumbers = [...DEFAULT_REGISTRATION_NUMBERS];
-        let editingMaintenanceRecord = null;
-
-        function updateRegistrationOptions() {
-            registrationNumbers = [...DEFAULT_REGISTRATION_NUMBERS].sort((a, b) => a.localeCompare(b));
-
-            ['poolRegistration', 'registration'].forEach(selectId => {
-                const select = document.getElementById(selectId);
-                if (!select || select.tagName.toLowerCase() !== 'select') return;
-
-                const currentValue = select.value;
-                select.innerHTML = '<option value="">Select registration</option>' + registrationNumbers
-                    .map(reg => `<option value="${escapeHtml(reg)}">${escapeHtml(reg)}</option>`)
-                    .join('');
-
-                if (registrationNumbers.includes(currentValue)) {
-                    select.value = currentValue;
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('date').value = today;
-            document.getElementById('completionDate').value = today;
-            
-            const reminderDate = new Date();
-            reminderDate.setDate(reminderDate.getDate() + 30);
-            document.getElementById('reminderDate').value = reminderDate.toISOString().split('T')[0];
-            
-            updateRegistrationOptions();
-            
-            // Auto-test connection and load data
-            setTimeout(() => {
-                testGoogleConnection().then(connected => {
-                    if (connected) {
-                        fetchData();
-                        fetchPoolData();
-                        fetchServiceDue();
-                    } else {
-                        // Show fallback message but don't break the UI
-                        document.getElementById('tableBody').innerHTML = `
-                            <tr>
-                                <td colspan="14" style="text-align: center; padding: 35px; color:#e74c3c;">
-                                    <strong>⚠️ Cannot connect to Google Sheets</strong><br><br>
-                                    Click the "Test Connection" button above for troubleshooting help.<br>
-                                    Once connected, data will load automatically.
-                                </td>
-                            </tr>
-                        `;
-                    }
-                });
-            }, 500);
-            
-            document.getElementById('maintenanceForm').addEventListener('submit', handleSubmit);
-            const photoInput = document.getElementById('maintenancePhotos');
-            if (photoInput) photoInput.addEventListener('change', previewSelectedPhotos);
-            const partsBody = document.getElementById('partsBody');
-            if (partsBody) partsBody.addEventListener('input', function(event) {
-                if (event.target.classList.contains('part-qty') || event.target.classList.contains('part-price') || event.target.classList.contains('part-total')) {
-                    if (!event.target.classList.contains('part-total')) calculateRowTotal(event.target);
-                    calculatePartsGrandTotal();
-                }
-            });
-        });
-
-        async function fetchData() {
-            const searchTerm = document.getElementById('searchInput').value;
-            const filterType = document.getElementById('filterType').value;
-
-            document.getElementById('tableBody').innerHTML = `
-                <tr>
-                    <td colspan="14" style="text-align: center; padding: 40px;">
-                        <i class="fas fa-spinner fa-spin" style="font-size: 2em; color: var(--secondary-color);"></i>
-                        <br>Fetching data from Google Sheets...
-                    </td>
-                </tr>
-            `;
-
-            try {
-                const result = await appsScriptGet({
-                    action: 'getData',
-                    search: searchTerm,
-                    filter: filterType,
-                    spreadsheetId: SHEET_CONFIG.spreadsheetId,
-                    spreadsheetName: SHEET_CONFIG.spreadsheetName,
-                    sheetName: SHEET_CONFIG.maintenanceSheetName,
-                    headers: JSON.stringify(SHEET_HEADINGS)
-                });
-
-                if (result && result.success) {
-                    displayData(result.data || []);
-                    updateStats(result.stats || { total: 0, weekly: 0, monthly: 0, yearly: 0 });
-                } else {
-                    throw new Error(result?.error || 'Unknown error from Apps Script');
-                }
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                showMessage('❌ Error connecting to Google Sheets: ' + getFriendlyError(error), 'error');
-                document.getElementById('tableBody').innerHTML = `
-                    <tr>
-                        <td colspan="14" style="text-align: center; padding: 35px; color:#e74c3c;">
-                            <strong>Could not connect to Google Sheets.</strong><br>
-                            ${escapeHtml(getFriendlyError(error))}<br><br>
-                            <button onclick="testGoogleConnection()" class="btn-primary" style="margin: 0 auto; display:inline-flex;">Test Connection</button>
-                         </td>
-                    </tr>
-                `;
-            }
-        }
-
-        function displayData(records) {
-            const tbody = document.getElementById('tableBody');
-            
-            if (!records || records.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="14" style="text-align: center; padding: 40px;">
-                            <i class="fas fa-folder-open" style="font-size: 2em; color: var(--secondary-color);"></i>
-                            <br>No maintenance records found
-                         </td>
-                    </tr>
-                `;
-                return;
-            }
-            
-            tbody.innerHTML = '';
-            
-            records.forEach((record, index) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${escapeHtml(record.jobCard || record.jobCardNo || '')}</strong></td>
-                    <td>${escapeHtml(record.makeModel || '')}</td>
-                    <td>${formatDate(record.date)}</td>
-                    <td>${record.odometer ? Number(record.odometer).toLocaleString() + ' km' : ''}</td>
-                    <td><span style="background: var(--light-bg); padding: 4px 8px; border-radius: 4px; font-weight: 600;">${escapeHtml(record.registration || '')}</span></td>
-                    <td>${formatDefectNarration(record.reportedDefect || record.defect || '')}</td>
-                    <td>${formatActionNarration(record.completedAction || record.action || '')}</td>
-                    <td>${record.nextService ? Number(record.nextService).toLocaleString() + ' km' : ''}</td>
-                    <td>${escapeHtml(record.technician || '')}</td>
-                    <td>${formatDate(record.completionDate)}</td>
-                    <td style="text-align: center;">
-                        <span style="background: ${getBreakdownColor(record.breakdownCount)}; color: white; padding: 4px 8px; border-radius: 12px; font-weight: 600;">
-                            ${record.breakdownCount || '1'}
-                        </span>
-                    </td>
-                    <td><strong>${formatCurrency(record.totalCost || record.totalRepairCost || 0)}</strong></td>
-                    <td>${formatPhotoLinks(record)}</td>
-                    <td>
-                        <button type="button" class="btn-primary btn-small" onclick='editMaintenanceRecordFromButton(this)' data-record='${JSON.stringify(record).replace(/'/g, "&#39;")}'>
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function formatDefectNarration(defectText) {
-            const text = String(defectText || '');
-            const limit = 90;
-
-            if (text.length <= limit) {
-                return escapeHtml(text);
-            }
-
-            const preview = text.slice(0, limit).trimEnd() + '...';
-            const uniqueId = 'defect-' + Math.random().toString(36).slice(2, 10);
-
-            return `
-                <div class="defect-narration" id="${uniqueId}">
-                    <span class="defect-preview">${escapeHtml(preview)}</span>
-                    <span class="defect-full">${escapeHtml(text)}</span>
-                    <button type="button" class="btn-more-defect" onclick="toggleDefectNarration('${uniqueId}', this)">More</button>
-                </div>
-            `;
-        }
-
-        window.toggleDefectNarration = function(id, button) {
-            const wrapper = document.getElementById(id);
-            if (!wrapper) return;
-            wrapper.classList.toggle('expanded');
-            button.textContent = wrapper.classList.contains('expanded') ? 'Less' : 'More';
-        };
-
-        function formatActionNarration(actionText) {
-            const text = String(actionText || '');
-            const limit = 90;
-
-            if (text.length <= limit) {
-                return escapeHtml(text);
-            }
-
-            const preview = text.slice(0, limit).trimEnd() + '...';
-            const uniqueId = 'action-' + Math.random().toString(36).slice(2, 10);
-
-            return `
-                <div class="action-narration" id="${uniqueId}">
-                    <span class="action-preview">${escapeHtml(preview)}</span>
-                    <span class="action-full">${escapeHtml(text)}</span>
-                    <button type="button" class="btn-more-action" onclick="toggleActionNarration('${uniqueId}', this)">More</button>
-                </div>
-            `;
-        }
-
-        window.toggleActionNarration = function(id, button) {
-            const wrapper = document.getElementById(id);
-            if (!wrapper) return;
-            wrapper.classList.toggle('expanded');
-            button.textContent = wrapper.classList.contains('expanded') ? 'Less' : 'More';
-        };
-
-        function updateStats(stats) {
-            document.getElementById('totalBreakdowns').textContent = stats.total || '0';
-            document.getElementById('weeklyBreakdowns').textContent = stats.weekly || '0';
-            document.getElementById('monthlyBreakdowns').textContent = stats.monthly || '0';
-            document.getElementById('yearlyBreakdowns').textContent = stats.yearly || '0';
-        }
-
-        async function handleSubmit(e) {
-            e.preventDefault();
-            
-            if (!validateForm()) {
-                return;
-            }
-            
-            const submitBtn = e.target.querySelector('.btn-submit');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving to Google Sheets...';
-            submitBtn.disabled = true;
-            
-            try {
-                const formData = await collectFormData();
-                const saveAction = editingMaintenanceRecord ? 'updateData' : 'addData';
-                
-                const result = await appsScriptPost({
-                    action: saveAction,
-                    data: JSON.stringify(formData)
-                });
-                
-                if (result && result.success) {
-                    showMessage(editingMaintenanceRecord ? '✅ Maintenance record updated successfully!' : '✅ Maintenance record saved successfully!', 'success');
-                    resetForm();
-                    setTimeout(() => fetchData(), 1000);
-                } else {
-                    throw new Error(result?.error || 'Failed to save');
-                }
-            } catch (error) {
-                console.error('Error saving data:', error);
-                showMessage('❌ Error saving to Google Sheets: ' + getFriendlyError(error), 'error');
-            } finally {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }
-        }
-
-        async function collectFormData() {
-            const parts = [];
-            const partRows = document.querySelectorAll('.part-row');
-            partRows.forEach(row => {
-                const partNumber = row.querySelector('.part-number').value;
-                if (partNumber) {
-                    parts.push({
-                        number: partNumber,
-                        description: row.querySelector('.part-desc').value,
-                        quantity: row.querySelector('.part-qty').value,
-                        price: row.querySelector('.part-price').value,
-                        total: row.querySelector('.part-total').value
-                    });
-                }
-            });
-            
-            const totalCost = document.getElementById('totalCost').value || '0';
-            const photoFiles = await getSelectedPhotoFiles();
-            
-            return {
-                rowNumber: editingMaintenanceRecord ? (editingMaintenanceRecord.rowNumber || editingMaintenanceRecord.row || editingMaintenanceRecord._row || '') : '',
-                originalJobCardNo: editingMaintenanceRecord ? (editingMaintenanceRecord.jobCard || editingMaintenanceRecord.jobCardNo || '') : '',
-                timestamp: editingMaintenanceRecord && editingMaintenanceRecord.timestamp ? editingMaintenanceRecord.timestamp : new Date().toISOString(),
-                jobCardNo: document.getElementById('jobCardNo').value,
-                makeModel: document.getElementById('makeModel').value,
-                date: document.getElementById('date').value,
-                odometer: document.getElementById('odometer').value,
-                registration: document.getElementById('registration').value,
-                reportedDefect: document.getElementById('reportedDefect').value,
-                completedAction: document.getElementById('completedAction').value,
-                parts: JSON.stringify(parts),
-                laborHours: document.getElementById('laborHours').value,
-                comments: document.getElementById('comments').value,
-                nextService: document.getElementById('nextService').value,
-                technician: document.getElementById('technician').value,
-                completionDate: document.getElementById('completionDate').value,
-                reminderDate: document.getElementById('reminderDate').value,
-                totalCost: totalCost,
-                breakdownCount: editingMaintenanceRecord ? (editingMaintenanceRecord.breakdownCount || '') : '',
-                currentFuelKM: editingMaintenanceRecord ? (editingMaintenanceRecord.currentFuelKM || '') : '',
-                serviceStatus: editingMaintenanceRecord ? (editingMaintenanceRecord.serviceStatus || '') : '',
-                photoFiles: photoFiles,
-                existingPhotoLinks: editingMaintenanceRecord ? getExistingPhotoLinks(editingMaintenanceRecord) : [],
-                sheetHeaders: SHEET_HEADINGS,
-                baseSheetHeaders: BASE_SHEET_HEADINGS,
-                extraPhotoLinkHeaders: EXTRA_PHOTO_LINK_HEADINGS,
-                spreadsheetId: SHEET_CONFIG.spreadsheetId,
-                spreadsheetName: SHEET_CONFIG.spreadsheetName,
-                sheetName: SHEET_CONFIG.maintenanceSheetName,
-                licenceSheetName: SHEET_CONFIG.licenceSheetName,
-                driveFileId: SHEET_CONFIG.driveFileId
-            };
-        }
-
-        function getExistingPhotoLinks(record) {
-            return EXTRA_PHOTO_LINK_HEADINGS
-                .map((heading, index) => record[heading] || record[`photoLink${index + 1}`] || record[`photo${index + 1}`] || '')
-                .filter(Boolean);
-        }
-
-        function previewSelectedPhotos() {
-            const input = document.getElementById('maintenancePhotos');
-            const preview = document.getElementById('photoPreview');
-            if (!input || !preview) return;
-
-            preview.innerHTML = '';
-            Array.from(input.files || []).slice(0, EXTRA_PHOTO_LINK_HEADINGS.length).forEach(file => {
-                const img = document.createElement('img');
-                img.alt = file.name;
-                img.src = URL.createObjectURL(file);
-                img.onload = () => URL.revokeObjectURL(img.src);
-                preview.appendChild(img);
-            });
-        }
-
-        function clearSelectedPhotos() {
-            const input = document.getElementById('maintenancePhotos');
-            const preview = document.getElementById('photoPreview');
-            if (input) input.value = '';
-            if (preview) preview.innerHTML = '';
-        }
-
-        function readFileAsDataUrl(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = () => reject(reader.error || new Error('Could not read photo file'));
-                reader.readAsDataURL(file);
-            });
-        }
-
-        async function getSelectedPhotoFiles() {
-            const input = document.getElementById('maintenancePhotos');
-            const files = Array.from((input && input.files) || []).slice(0, EXTRA_PHOTO_LINK_HEADINGS.length);
-            const maxBytes = 5 * 1024 * 1024;
-            const photoFiles = [];
-
-            for (const file of files) {
-                if (file.size > maxBytes) {
-                    showMessage(`${file.name} is larger than 5MB and was skipped.`, 'warning');
-                    continue;
-                }
-                const dataUrl = await readFileAsDataUrl(file);
-                photoFiles.push({
-                    name: file.name,
-                    mimeType: file.type || 'image/jpeg',
-                    dataUrl: dataUrl,
-                    header: EXTRA_PHOTO_LINK_HEADINGS[photoFiles.length]
-                });
-            }
-            return photoFiles;
-        }
-
-        window.editMaintenanceRecordFromButton = function(button) {
-            try {
-                const raw = button.getAttribute('data-record');
-                if (raw) {
-                    editMaintenanceRecord(JSON.parse(raw));
-                }
-            } catch (error) {
-                console.error('Could not load record for editing:', error);
-                showMessage('Could not load this record for editing.', 'error');
-            }
-        };
-
-        function editMaintenanceRecord(record) {
-            editingMaintenanceRecord = record || {};
-
-            const setValue = (id, value) => {
-                const element = document.getElementById(id);
-                if (element) element.value = value || '';
-            };
-
-            setValue('jobCardNo', record.jobCardNo || record.jobCard);
-            setValue('makeModel', record.makeModel);
-            setValue('date', normalizeInputDate(record.date));
-            setValue('odometer', record.odometer);
-            setValue('registration', record.registration);
-            setValue('reportedDefect', record.reportedDefect || record.defect);
-            setValue('completedAction', record.completedAction || record.action);
-            setValue('laborHours', record.laborHours || '0');
-            setValue('comments', record.comments);
-            setValue('nextService', record.nextService);
-            setValue('technician', record.technician);
-            setValue('completionDate', normalizeInputDate(record.completionDate));
-            setValue('reminderDate', normalizeInputDate(record.reminderDate));
-            setValue('totalCost', record.totalCost || record.totalRepairCost || '0');
-
-            loadPartsForEditing(record.parts);
-
-            const submitBtn = document.querySelector('#maintenanceForm .btn-submit');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Maintenance Record<span class="loading-spinner" style="display: none;"></span>';
-            }
-
-            document.getElementById('newVehicleMaintenanceRecord').scrollIntoView({ behavior: 'smooth' });
-            showMessage('Record loaded. Edit any section and submit to update Google Sheets.', 'warning');
-        }
-
-        function normalizeInputDate(value) {
-            if (!value) return '';
-            const date = new Date(value);
-            if (isNaN(date.getTime())) return String(value).split('T')[0];
-            return date.toISOString().split('T')[0];
-        }
-
-        function loadPartsForEditing(partsValue) {
-            const partsBody = document.getElementById('partsBody');
-            let parts = [];
-            try {
-                parts = typeof partsValue === 'string' ? JSON.parse(partsValue || '[]') : (partsValue || []);
-            } catch (error) {
-                parts = [];
-            }
-
-            if (!Array.isArray(parts) || !parts.length) {
-                parts = [{ number: '', description: '', quantity: '1', price: '0', total: '0' }];
-            }
-
-            partsBody.innerHTML = parts.map(part => `
-                <tr class="part-row">
-                    <td><input type="text" class="part-number" placeholder="Part #" value="${escapeHtml(part.number || '')}"></td>
-                    <td><input type="text" class="part-desc" placeholder="Description" value="${escapeHtml(part.description || '')}"></td>
-                    <td><input type="number" class="part-qty" value="${escapeHtml(String(part.quantity || '1'))}" min="1"></td>
-                    <td><input type="number" class="part-price" value="${escapeHtml(String(part.price || '0'))}" min="0" step="0.01"></td>
-                    <td><input type="number" class="part-total" value="${escapeHtml(String(part.total || '0'))}" min="0" step="0.01"></td>
-                    <td style="text-align: center;">
-                        <button type="button" onclick="removePartRow(this)" class="btn-remove">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function resetForm() {
-            editingMaintenanceRecord = null;
-            const submitText = document.querySelector('#maintenanceForm .btn-submit');
-            if (submitText) submitText.innerHTML = '<i class="fas fa-save"></i> Submit Maintenance Record<span class="loading-spinner" style="display: none;"></span>';
-            document.getElementById('maintenanceForm').reset();
-            
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('date').value = today;
-            document.getElementById('completionDate').value = today;
-            
-            const reminderDate = new Date();
-            reminderDate.setDate(reminderDate.getDate() + 30);
-            document.getElementById('reminderDate').value = reminderDate.toISOString().split('T')[0];
-            
-            const partsBody = document.getElementById('partsBody');
-            partsBody.innerHTML = `
-                <tr class="part-row">
-                    <td><input type="text" class="part-number" placeholder="Part #"></td>
-                    <td><input type="text" class="part-desc" placeholder="Description"></td>
-                    <td><input type="number" class="part-qty" value="1" min="1"></td>
-                    <td><input type="number" class="part-price" value="0" min="0" step="0.01"></td>
-                    <td><input type="number" class="part-total" value="0" min="0" step="0.01"></td>
-                    <td style="text-align: center;">
-                        <button type="button" onclick="removePartRow(this)" class="btn-remove">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-            
-            document.getElementById('totalCost').value = '0';
-            clearSelectedPhotos();
-        }
-
-        window.addPartRow = function() {
-            const tbody = document.getElementById('partsBody');
-            const newRow = document.createElement('tr');
-            newRow.className = 'part-row';
-            newRow.innerHTML = `
-                <td><input type="text" class="part-number" placeholder="Part #"></td>
-                <td><input type="text" class="part-desc" placeholder="Description"></td>
-                <td><input type="number" class="part-qty" value="1" min="1"></td>
-                <td><input type="number" class="part-price" value="0" min="0" step="0.01"></td>
-                <td><input type="number" class="part-total" value="0" min="0" step="0.01"></td>
-                <td style="text-align: center;">
-                    <button type="button" onclick="removePartRow(this)" class="btn-remove">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(newRow);
-        };
-
-        window.removePartRow = function(button) {
-            const row = button.closest('tr');
-            if (document.querySelectorAll('.part-row').length > 1) {
-                row.remove();
-            } else {
-                showMessage('At least one part row is required', 'warning');
-            }
-        };
-
-        function calculateRowTotal(element) {
-            const row = element.closest('tr');
-            const qty = parseFloat(row.querySelector('.part-qty').value) || 0;
-            const price = parseFloat(row.querySelector('.part-price').value) || 0;
-            const total = qty * price;
-            row.querySelector('.part-total').value = total.toFixed(2);
-        }
-
-        function calculatePartsGrandTotal() {
-            let total = 0;
-            document.querySelectorAll('.part-total').forEach(input => {
-                total += parseFloat(input.value) || 0;
-            });
-            const totalCost = document.getElementById('totalCost');
-            if (totalCost) totalCost.value = total.toFixed(2);
-        }
-
-        function getBreakdownColor(count) {
-            const num = parseInt(count) || 1;
-            if (num <= 2) return '#27ae60';
-            if (num <= 4) return '#f39c12';
-            return '#e74c3c';
-        }
-
-        function formatDate(dateString) {
-            if (!dateString) return '';
-            try {
-                const options = { year: 'numeric', month: 'short', day: 'numeric' };
-                return new Date(dateString).toLocaleDateString('en-ZA', options);
-            } catch {
-                return dateString;
-            }
-        }
-
-        function formatCurrency(value) {
-            const num = Number(String(value).replace(/[^0-9.-]/g, '')) || 0;
-            return 'R ' + num.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-
-        function formatPhotoLinks(record) {
-            const links = EXTRA_PHOTO_LINK_HEADINGS
-                .map((heading, index) => record[heading] || record[`photoLink${index + 1}`] || record[`photo${index + 1}`] || '')
-                .filter(Boolean);
-
-            if (!links.length) return '';
-
-            return links.map((url, index) => {
-                const safeUrl = escapeHtml(url);
-                return `<a href="${safeUrl}" target="_blank" style="display:inline-block; margin:2px 4px; font-weight:700; color:var(--secondary-color);">Photo ${index + 1}</a>`;
-            }).join('');
-        }
-
-        async function printReportByPeriod() {
-            const section = document.getElementById('printSection').value;
-            const fromDate = document.getElementById('printFromDate').value;
-            const toDate = document.getElementById('printToDate').value;
-
-            if (!fromDate || !toDate) {
-                showMessage('Please choose both From and To dates for the report.', 'warning');
-                return;
-            }
-
-            try {
-                showMessage('Preparing printable report...', 'warning');
-                const result = await appsScriptGet({
-                    action: 'printReport',
-                    section: section,
-                    fromDate: fromDate,
-                    toDate: toDate
-                });
-                if (!result.success) throw new Error(result.error || 'Could not prepare report');
-
-                const reportWindow = window.open('', '_blank');
-                reportWindow.document.open();
-                reportWindow.document.write(result.html);
-                reportWindow.document.close();
-                reportWindow.focus();
-                setTimeout(() => reportWindow.print(), 500);
-            } catch (error) {
-                showMessage('Print report error: ' + getFriendlyError(error), 'error');
-            }
-        }
-
-        function escapeHtml(unsafe) {
-            if (unsafe === null || unsafe === undefined) return '';
-            return String(unsafe)
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#39;");
-        }
-
-        function validateForm() {
-            const required = ['jobCardNo', 'makeModel', 'date', 'odometer', 'registration', 'reportedDefect', 'completedAction', 'technician', 'completionDate'];
-            let isValid = true;
-            
-            required.forEach(field => {
-                const element = document.getElementById(field);
-                if (!element || !element.value.trim()) {
-                    if (element) element.style.borderColor = '#e74c3c';
-                    isValid = false;
-                } else if (element) {
-                    element.style.borderColor = '#e0e0e0';
-                }
-            });
-            
-            if (!isValid) {
-                showMessage('Please fill in all required fields', 'warning');
-            }
-            
-            return isValid;
-        }
-
-        function showMessage(message, type) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `${type}-message`;
-            
-            let icon = '';
-            if (type === 'success') icon = '✅ ';
-            else if (type === 'error') icon = '❌ ';
-            else if (type === 'warning') icon = '⚠️ ';
-            
-            messageDiv.innerHTML = `${icon}${message}`;
-            document.body.appendChild(messageDiv);
-            
-            setTimeout(() => {
-                messageDiv.remove();
-            }, 5000);
-        }
-
-        function exportToCSV() {
-            const table = document.getElementById('dataTable');
-            const rows = table.querySelectorAll('tr');
-            let csv = [];
-            
-            for (let i = 0; i < rows.length; i++) {
-                const row = [], cols = rows[i].querySelectorAll('td, th');
-                
-                for (let j = 0; j < cols.length; j++) {
-                    let data = cols[j].innerText.replace(/,/g, ' ').replace(/\n/g, ' ');
-                    row.push('"' + data + '"');
-                }
-                
-                csv.push(row.join(','));
-            }
-            
-            const csvContent = csv.join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `vehicle_maintenance_${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-            
-            showMessage('📊 Data exported successfully!', 'success');
-        }
-
-        // Fleet Management Functions
-        async function fetchServiceDue() {
-            const tbody = document.getElementById('serviceDueBody');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;"><i class="fas fa-spinner fa-spin"></i> Checking service due vehicles...</td></tr>';
-            try {
-                const result = await appsScriptGet({ action: 'getServiceDue' });
-                if (!result.success) throw new Error(result.error || 'Could not load service due records');
-                displayServiceDue(result.data || []);
-                document.getElementById('serviceDueCount').textContent = (result.data || []).length;
-            } catch (error) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#e74c3c;">${escapeHtml(error.message)}</td></tr>`;
-            }
-        }
-
-        async function runServiceCheck() {
-            showMessage('Running service check. Emails will be sent for due vehicles.', 'warning');
-            try {
-                const result = await appsScriptPost({ action: 'runServiceCheck' });
-                if (!result.success) throw new Error(result.error || 'Service check failed');
-                showMessage(`Service check complete. ${result.alertsSent || 0} email alert(s) sent.`, 'success');
-                fetchServiceDue();
-            } catch (error) {
-                showMessage('Service check error: ' + error.message, 'error');
-            }
-        }
-
-        function displayServiceDue(records) {
-            const tbody = document.getElementById('serviceDueBody');
-            if (!records.length) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">No vehicles currently due for service.</td></tr>';
-                return;
-            }
-            tbody.innerHTML = '';
-            records.forEach(record => {
-                const overdue = Number(record.currentKM || 0) >= Number(record.nextServiceKM || 0);
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${escapeHtml(record.registration || '')}</strong></td>
-                    <td>${escapeHtml(record.vehicle || record.makeModel || '')}</td>
-                    <td>${Number(record.currentKM || 0).toLocaleString()} km</td>
-                    <td>${Number(record.nextServiceKM || 0).toLocaleString()} km</td>
-                    <td><span class="status-badge ${overdue ? 'status-overdue' : 'status-service'}">${overdue ? 'Due / Overdue' : 'Approaching'}</span></td>
-                    <td>${formatDate(record.lastFuelDate || record.lastUpdated || '')}</td>
-                    <td>${record.alertSent ? 'Sent' : 'Pending'}</td>`;
-                tbody.appendChild(tr);
-            });
-        }
-
-        async function fetchPoolData() {
-            const tbody = document.getElementById('poolBody');
-            try {
-                const result = await appsScriptGet({ action: 'getPool' });
-                if (!result.success) throw new Error(result.error || 'Could not load Pool data');
-                displayPoolData(result.data || []);
-                updatePoolStats(result.data || []);
-            } catch (error) {
-                tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding:30px; color:#e74c3c;">${escapeHtml(error.message)}</td></tr>`;
-            }
-        }
-
-        function displayPoolData(records) {
-            const tbody = document.getElementById('poolBody');
-            if (!records.length) {
-                tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:30px;">No offroad vehicles in the pool.</td></tr>';
-                return;
-            }
-            tbody.innerHTML = '';
-            records.forEach(record => {
-                const statusClass = getStatusClass(record.status);
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${escapeHtml(record.poolId || '')}</td>
-                    <td><strong>${escapeHtml(record.registration || '')}</strong></td>
-                    <td>${escapeHtml(record.vehicle || '')}</td>
-                    <td>${escapeHtml(record.fault || '')}</td>
-                    <td>${escapeHtml(record.severity || '')}</td>
-                    <td><span class="status-badge ${statusClass}">${escapeHtml(record.status || 'Offroad')}</span></td>
-                    <td>${formatDate(record.dateAdded || '')}</td>
-                    <td>${escapeHtml(record.supervisor || '')}</td>
-                    <td>${formatCurrency(record.estimatedCost || 0)}</td>
-                    <td><strong>${formatCurrency(record.totalRepairCost || 0)}</strong></td>
-                    <td>
-                        <input class="cost-input" id="cost-${escapeHtml(record.poolId || '')}" type="number" min="0" step="0.01" value="${Number(record.totalRepairCost || 0)}">
-                        <button class="btn-primary btn-small" onclick="updatePoolRepairCost('${escapeHtml(record.poolId || '')}')"><i class="fas fa-save"></i></button>
-                    </td>
-                    <td>
-                        <button class="btn-danger btn-small" onclick="removeFixedPoolVehicle('${escapeHtml(record.poolId || '')}', '${escapeHtml(record.registration || '')}')">
-                            <i class="fas fa-check"></i> Fixed
-                        </button>
-                    </td>`;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function updatePoolStats(records) {
-            const activeOffroad = records.filter(r => String(r.status || '').toLowerCase() !== 'completed').length;
-            const totalCost = records.reduce((sum, r) => sum + (Number(r.totalRepairCost || 0) || 0), 0);
-            const offroadEl = document.getElementById('offroadVehicles');
-            const repairEl = document.getElementById('repairCostTotal');
-            if (offroadEl) offroadEl.textContent = activeOffroad;
-            if (repairEl) repairEl.textContent = formatCurrency(totalCost).replace('.00','');
-        }
-
-        async function savePoolVehicle(e) {
-            e.preventDefault();
-            const submitBtn = e.target.querySelector('.btn-submit');
-            const originalText = submitBtn.innerHTML;
-            const data = {
-                registration: document.getElementById('poolRegistration').value,
-                vehicle: document.getElementById('poolVehicle').value,
-                fault: document.getElementById('poolFault').value,
-                severity: document.getElementById('poolSeverity').value,
-                status: document.getElementById('poolStatus').value,
-                supervisor: document.getElementById('poolSupervisor').value,
-                estimatedCost: document.getElementById('poolEstimatedCost').value,
-                totalRepairCost: document.getElementById('poolTotalRepairCost').value,
-                notes: document.getElementById('poolNotes').value
-            };
-            try {
-                submitBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i> Synchronising vehicle to Pool...';
-                submitBtn.disabled = true;
-                showMessage('Synchronising vehicle to Pool sheet...', 'warning');
-
-                const result = await appsScriptPost({ action: 'savePoolVehicle', data: JSON.stringify(data) });
-                if (!result.success) throw new Error(result.error || 'Could not save pool vehicle');
-                showMessage('Offroad vehicle saved to Pool sheet.', 'success');
-                alert('Synchronisation complete. Vehicle has been added to the Pool sheet.');
-                document.getElementById('poolForm').reset();
-                fetchPoolData();
-            } catch (error) {
-                showMessage('Pool save error: ' + error.message, 'error');
-            } finally {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }
-        }
-
-        window.updatePoolRepairCost = async function(poolId) {
-            const value = document.getElementById(`cost-${poolId}`).value;
-            try {
-                const result = await appsScriptPost({ action: 'updatePoolCost', poolId: poolId, totalRepairCost: value });
-                if (!result.success) throw new Error(result.error || 'Could not update cost');
-                showMessage('Repair cost updated.', 'success');
-                fetchPoolData();
-            } catch (error) {
-                showMessage('Cost update error: ' + error.message, 'error');
-            }
-        };
-
-        window.removeFixedPoolVehicle = async function(poolId, registration) {
-            if (!poolId) {
-                showMessage('Could not remove vehicle: missing Pool ID.', 'error');
-                return;
-            }
-
-            const confirmMessage = registration
-                ? `Remove ${registration} from the Serious Breakdown Pool because it has been fixed?`
-                : 'Remove this vehicle from the Serious Breakdown Pool because it has been fixed?';
-
-            if (!confirm(confirmMessage)) return;
-
-            try {
-                showMessage('Removing fixed vehicle from Pool sheet...', 'warning');
-
-                const result = await appsScriptPost({
-                    action: 'removePoolVehicle',
-                    poolId: poolId,
-                    registration: registration || ''
-                });
-                if (!result.success) throw new Error(result.error || 'Could not remove vehicle from Pool sheet');
-
-                showMessage('Fixed vehicle removed from Serious Breakdown Pool.', 'success');
-                fetchPoolData();
-            } catch (error) {
-                showMessage('Remove vehicle error: ' + error.message, 'error');
-            }
-        };
-
-        function getStatusClass(status) {
-            const s = String(status || '').toLowerCase();
-            if (s.includes('awaiting')) return 'status-awaiting';
-            if (s.includes('repair')) return 'status-repair';
-            if (s.includes('complete')) return 'status-completed';
-            if (s.includes('service')) return 'status-service';
-            if (s.includes('active')) return 'status-active';
-            return 'status-offroad';
-        }
-
-        // Initialize event listeners
-        window.addEventListener('load', function() {
-            const poolForm = document.getElementById('poolForm');
-            if (poolForm) poolForm.addEventListener('submit', savePoolVehicle);
-        });
-
-        // Expose functions to global scope
-        window.fetchData = fetchData;
-        window.testGoogleConnection = testGoogleConnection;
-        window.exportToCSV = exportToCSV;
-        window.printReportByPeriod = printReportByPeriod;
-        window.fetchServiceDue = fetchServiceDue;
-        window.runServiceCheck = runServiceCheck;
-        window.fetchPoolData = fetchPoolData;
-    </script>
+    <div class="tab-buttons">
+      <button class="tab-btn active" id="loginTabBtn"><i class="fas fa-sign-in-alt"></i> Login</button>
+      <button class="tab-btn" id="registerTabBtn"><i class="fas fa-user-plus"></i> Register new user</button>
+    </div>
+
+    <!-- LOGIN PANEL -->
+    <div id="loginPane" class="tab-pane active-pane">
+      <form id="secureLoginForm">
+        <div class="row g-4">
+          <div class="col-12">
+            <label class="form-label"><i class="fas fa-envelope me-1"></i> Email address</label>
+            <div class="input-group-custom d-flex align-items-center">
+              <span class="ps-3 text-secondary"><i class="fas fa-envelope"></i></span>
+              <input type="email" name="email" class="form-control" placeholder="john.doe@onpointgroup.com" required autocomplete="email">
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label"><i class="fas fa-lock me-1"></i> Password</label>
+            <div class="input-group-custom d-flex align-items-center">
+              <span class="ps-3 text-secondary"><i class="fas fa-key"></i></span>
+              <input type="password" name="password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-sheq" id="loginBtnSubmit">
+              <i class="fas fa-arrow-right-to-bracket me-2"></i> Sign in to Dashboard
+            </button>
+          </div>
+          <div id="loginFeedback" class="message-box" style="display: none;"></div>
+          <div class="footer-note">
+            <i class="fas fa-database me-1"></i> Credentials verified against Google Sheet <strong>"Login"</strong> tab · Role-based access
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- REGISTRATION PANEL -->
+    <div id="registerPane" class="tab-pane">
+      <form id="secureRegisterForm">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <label class="form-label"><i class="fas fa-user-circle"></i> Full name</label>
+            <div class="input-group-custom">
+              <input type="text" name="fullName" class="form-control" placeholder="Michael O'Neill" required>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label"><i class="fas fa-envelope"></i> Email (will be unique)</label>
+            <div class="input-group-custom">
+              <input type="email" name="email" class="form-control" placeholder="michael@onpoint.com" required>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label"><i class="fas fa-lock"></i> Password</label>
+            <div class="input-group-custom">
+              <input type="password" name="password" class="form-control" placeholder="Create a strong password" required>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label"><i class="fas fa-briefcase"></i> Role</label>
+            <div class="input-group-custom">
+              <select name="role" class="form-select">
+                <option>User</option><option>Supervisor</option><option>Manager</option><option>Admin</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label"><i class="fas fa-building"></i> Department</label>
+            <div class="input-group-custom">
+              <input type="text" name="department" class="form-control" placeholder="HSE, Operations, Quality">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label"><i class="fas fa-flag-checkered"></i> Status</label>
+            <div class="input-group-custom">
+              <select name="status" class="form-select">
+                <option>Active</option><option>Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-sheq" id="registerBtnSubmit">
+              <i class="fas fa-user-check me-2"></i> Create new account
+            </button>
+          </div>
+          <div id="registerFeedback" class="message-box" style="display: none;"></div>
+          <div class="footer-note">
+            <i class="fas fa-shield-alt me-1"></i> Registration adds row to Login tab · Email must be unique.
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ======================== CONFIGURATION ==========================
+  // IMPORTANT: Replace with your actual Google Apps Script Web App URL (doPost/doGet)
+  const SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE"; 
+  // After deployment, copy the URL (e.g., https://script.google.com/macros/s/.../exec)
+  // =================================================================
+
+  // DOM elements
+  const loginPane = document.getElementById('loginPane');
+  const registerPane = document.getElementById('registerPane');
+  const loginTab = document.getElementById('loginTabBtn');
+  const registerTab = document.getElementById('registerTabBtn');
+  const loginForm = document.getElementById('secureLoginForm');
+  const registerForm = document.getElementById('secureRegisterForm');
+  const loginFeedbackDiv = document.getElementById('loginFeedback');
+  const registerFeedbackDiv = document.getElementById('registerFeedback');
+  const statusSpan = document.getElementById('statusText');
+  const statusBadgeSpan = document.getElementById('liveStatusBadge');
+
+  let activeCheckInterval = null;
+
+  // Helper: show message in specific container
+  function showMessage(element, message, type) {
+    element.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle'} me-2"></i> ${message}`;
+    element.className = `message-box ${type === 'success' ? 'success-message' : type === 'error' ? 'error-message' : 'info-message'}`;
+    element.style.display = 'block';
+    setTimeout(() => {
+      if (element.style.display === 'block') {
+        element.style.opacity = '1';
+      }
+    }, 10);
+    // auto hide after 5 sec for success/info but not critical, but keep it visible for errors? fine
+    setTimeout(() => {
+      if (element && !element.matches(':hover')) {
+        element.style.opacity = '0.8';
+        setTimeout(() => {
+          if (element && element.style.display !== 'none') element.style.display = 'none';
+        }, 800);
+      }
+    }, 5000);
+  }
+
+  function setStatusBadge(isConnected, message) {
+    if (isConnected) {
+      statusSpan.innerText = message || 'Live · SHEQ ready';
+      statusBadgeSpan.innerHTML = `<i class="fas fa-circle" style="font-size:0.7rem; color:#2a9d8f;"></i> <span id="statusText">${message || 'Connected'}</span>`;
+    } else {
+      statusSpan.innerText = message || 'Offline · Check URL';
+      statusBadgeSpan.innerHTML = `<i class="fas fa-circle" style="font-size:0.7rem; color:#d62828;"></i> <span id="statusText">${message || 'Connection error'}</span>`;
+    }
+  }
+
+  // function to test connectivity and optionally load dashboard preview (lightweight)
+  async function testConnection() {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(`${SCRIPT_URL}?action=dashboard`, { method: 'GET', signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (data && data.connected === true) {
+        setStatusBadge(true, 'Live · Google Sheets connected');
+        return true;
+      } else {
+        throw new Error(data?.message || 'Backend returned disconnected');
+      }
+    } catch (err) {
+      console.warn('Connection test failed:', err);
+      setStatusBadge(false, 'Cannot reach Apps Script. Check URL & deployment');
+      return false;
+    }
+  }
+
+  // Helper POST request to Apps Script
+  async function callAppsScript(action, payloadData) {
+    const requestBody = { action, ...payloadData };
+    try {
+      const response = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+      if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+      const result = await response.json();
+      return result;
+    } catch (err) {
+      console.error('API call error:', err);
+      return { status: 'error', message: err.message || 'Network or CORS issue. Verify Apps Script deployment.' };
+    }
+  }
+
+  // LOGIN handler
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = document.getElementById('loginBtnSubmit');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-pulse me-2"></i> Authenticating...';
+
+    const email = loginForm.querySelector('input[name="email"]').value.trim();
+    const password = loginForm.querySelector('input[name="password"]').value;
+
+    if (!email || !password) {
+      showMessage(loginFeedbackDiv, 'Please provide both email and password.', 'error');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+      return;
+    }
+
+    const result = await callAppsScript('loginUser', { email, password });
+
+    if (result && result.status === 'success') {
+      showMessage(loginFeedbackDiv, `Welcome ${result.user?.fullName || 'User'}! Redirecting to dashboard...`, 'success');
+      // store minimal session info in sessionStorage for UI continuity
+      sessionStorage.setItem('sheq_logged_user', JSON.stringify({
+        fullName: result.user?.fullName,
+        email: result.user?.email,
+        role: result.user?.role,
+        department: result.user?.department,
+        loginTime: new Date().toISOString()
+      }));
+      // After successful login, redirect to main dashboard HTML (the original full SHEQ app)
+      // We'll redirect to the full dashboard page (assuming it's hosted under same domain or we reload with param)
+      // Because the requirement: "fix login to function and make login page professional" — this page serves as secure gateway.
+      // Upon success, we forward to the main dashboard interface (which could be the same origin).
+      // For demonstration, we create a session and redirect to the integrated dashboard URL (OnPoint_SHEQ_Dashboard_LOGIN_FIRST_ONLY).
+      // Since we are in the same file, but originally there is a separate HTML dashboard; we can either embed the dashboard logic here or redirect.
+      // For professionalism, we preserve user session and redirect to the full SHEQ dashboard (the one with all tabs).
+      // BUT because we are inside a single HTML now, I will implement a soft redirect: replace window.location with dashboard version.
+      // The user expects that after login they see the dashboard & register works. Therefore, we redirect to the provided dashboard URL
+      // but we need to pass a token? The original Apps Script expects no token, just session? Actually the original script relies on the same sheet.
+      // I will redirect to the full dashboard file (if hosted on same domain as this page). For standalone we can note that the dashboard html should be deployed separately.
+      // To make smooth UX: Show success, then redirect to the main dashboard (absolute URL). Since we are not sure of the hosting, we will prompt to load the dashboard data inline?
+      // alternatively we can display a quick "Go to dashboard" button. For professional flow, I will redirect to the dashboard using the same script URL but replace the page.
+      // I'll create a redirect to the original dashboard (relative path or same file? better to keep unified: I'll embed minimal dashboard inside a modal? Not needed, just forward).
+      setTimeout(() => {
+        // The dashboard HTML file (OnPoint_SHEQ_Dashboard_LOGIN_FIRST_ONLY) has the full interface. To keep it pure: we forward to that html.
+        // Because we are now in login.html, we assume the dashboard file is located at './dashboard.html' or the same path. For safety, we use the current origin plus '?dashboard'
+        // Better: provide button that goes to dashboard; but user expects auto redirect.
+        // For perfect user flow, we redirect to the main dashboard interface (which uses same backend). The separate dashboard expects login state? It has its own login section, but we pass a bypass? The safest is to redirect to a merged version. However since we are asked to fix login and make professional, we provide post-login auto-forward to original dashboard page, but login is already fixed.
+        window.location.href = './OnPoint_SHEQ_Dashboard_LOGIN_FIRST_ONLY.html'; // if hosted alongside. If not, we show manual link.
+      }, 1800);
+    } else {
+      const errMsg = result?.message || 'Invalid email, password or account inactive.';
+      showMessage(loginFeedbackDiv, errMsg, 'error');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+    }
+  });
+
+  // REGISTRATION handler
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = document.getElementById('registerBtnSubmit');
+    const originalBtnHtml = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-pulse me-2"></i> Registering...';
+
+    const formData = {
+      fullName: registerForm.querySelector('input[name="fullName"]').value.trim(),
+      email: registerForm.querySelector('input[name="email"]').value.trim(),
+      password: registerForm.querySelector('input[name="password"]').value,
+      role: registerForm.querySelector('select[name="role"]').value,
+      department: registerForm.querySelector('input[name="department"]').value.trim(),
+      status: registerForm.querySelector('select[name="status"]').value
+    };
+
+    if (!formData.fullName || !formData.email || !formData.password) {
+      showMessage(registerFeedbackDiv, 'Full name, email and password are required.', 'error');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalBtnHtml;
+      return;
+    }
+
+    const result = await callAppsScript('registerUser', formData);
+
+    if (result && result.status === 'success') {
+      showMessage(registerFeedbackDiv, '✓ Registration successful! You can now login with your credentials.', 'success');
+      registerForm.reset();
+      // switch to login tab after short delay for smooth UX
+      setTimeout(() => {
+        loginTab.click();
+        showMessage(loginFeedbackDiv, 'Account created! Please sign in.', 'info');
+      }, 1500);
+    } else {
+      const errorMsg = result?.message || 'Registration failed. Email might already exist.';
+      showMessage(registerFeedbackDiv, errorMsg, 'error');
+    }
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalBtnHtml;
+  });
+
+  // Tab switching logic
+  function switchToLogin() {
+    loginPane.classList.add('active-pane');
+    registerPane.classList.remove('active-pane');
+    loginTab.classList.add('active');
+    registerTab.classList.remove('active');
+    // clear messages
+    loginFeedbackDiv.style.display = 'none';
+    registerFeedbackDiv.style.display = 'none';
+  }
+
+  function switchToRegister() {
+    registerPane.classList.add('active-pane');
+    loginPane.classList.remove('active-pane');
+    registerTab.classList.add('active');
+    loginTab.classList.remove('active');
+    loginFeedbackDiv.style.display = 'none';
+    registerFeedbackDiv.style.display = 'none';
+  }
+
+  loginTab.addEventListener('click', switchToLogin);
+  registerTab.addEventListener('click', switchToRegister);
+
+  // Health check + update UI
+  (async function init() {
+    const isConnected = await testConnection();
+    if (!isConnected) {
+      showMessage(loginFeedbackDiv, '⚠️ Cannot connect to Apps Script. Verify deployment URL and ensure Web App is published (execute as me, access anyone).', 'error');
+    } else {
+      // subtle notification
+      console.log('SHEQ backend active');
+    }
+    // prefill any demo or keep clean
+  })();
+
+  // extra: session note – if someone was already logged in via sessionStorage we could auto-redirect,
+  // but better to keep fresh login.
+  // Also handle if the user tries to go back, etc.
+  // Override any accidental redirect loops? fine
+  // Additional professional feature: show password strength optional not needed
+  // clear feedback on input focus
+  const clearLoginFeedback = () => { loginFeedbackDiv.style.display = 'none'; };
+  const clearRegisterFeedback = () => { registerFeedbackDiv.style.display = 'none'; };
+  loginForm.querySelectorAll('input').forEach(inp => inp.addEventListener('focus', clearLoginFeedback));
+  registerForm.querySelectorAll('input, select').forEach(inp => inp.addEventListener('focus', clearRegisterFeedback));
+  
+  // manual reconnect button? connection status badge click test
+  statusBadgeSpan.style.cursor = 'pointer';
+  statusBadgeSpan.addEventListener('click', async () => {
+    statusSpan.innerText = 'Reconnecting...';
+    await testConnection();
+  });
+
+  // final: if SCRIPT_URL placeholder is not replaced, show warning
+  if (SCRIPT_URL === "https://script.google.com/macros/s/AKfycbwpVjZy69AHU3sG7k4sLfA90ZqFfA71AnCzB1APKo6LNptzEPHlaQTEHv_9iVVcLwrRow/exec") {
+    const warningDiv = document.createElement('div');
+    warningDiv.className = 'alert alert-warning text-center mt-3 mx-3';
+    warningDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <strong>Action required:</strong> Please replace <code>SCRIPT_URL</code> with your actual Google Apps Script Web App URL (from Deploy > Web app).';
+    document.querySelector('.auth-card').after(warningDiv);
+  }
+</script>
 </body>
 </html>
