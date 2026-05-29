@@ -975,7 +975,7 @@
     }
   }
 
-  const FALLBACK_USERS = [...new Set([...Object.keys(SYSTEM_USER_EMAILS), 'Bonkeka'])];
+  const FALLBACK_USERS = [...new Set([...Object.keys(SYSTEM_USER_EMAILS), 'Bongeka'])];
   let SYSTEM_USERS = [...FALLBACK_USERS];
   const DEPARTMENT_OPTIONS = ['Admin', 'Business Development', 'Finance & IT', 'Fleet', 'HR', 'Operations', 'Procurements', 'Sales', 'SHEQ', 'Tendering', 'Warehouse'];
 
@@ -988,8 +988,15 @@
     return String(str).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
   }
 
+  function canonicalPersonName(str) {
+    const clean = String(str || '').trim().replace(/\s+/g, ' ');
+    const key = clean.toLowerCase();
+    if (key === 'bonkeka' || key === 'bongeka') return 'Bongeka';
+    return clean;
+  }
+
   function normalizeName(str) {
-    return String(str || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    return canonicalPersonName(str).toLowerCase();
   }
 
   function nameMatches(a, b) {
@@ -1345,8 +1352,9 @@ Please action this hiring request in QuickBase.`;
   }
 
   function userOptionsHtml(selected = '') {
-    const names = [...new Set([...SYSTEM_USERS, ...FALLBACK_USERS])].filter(Boolean);
-    return `<option value="">Select assignee</option>` + names.map(name => `<option value="${escapeHtml(name)}" ${name === selected ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
+    const names = [...new Set([...SYSTEM_USERS, ...FALLBACK_USERS].map(canonicalPersonName))].filter(Boolean);
+    const selectedKey = normalizeName(selected);
+    return `<option value="">Select assignee</option>` + names.map(name => `<option value="${escapeHtml(name)}" ${normalizeName(name) === selectedKey ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
   }
 
   function findEmailForUser(name) {
@@ -1373,8 +1381,8 @@ Please action this hiring request in QuickBase.`;
       const employees = employeesResult.status === 'fulfilled' && Array.isArray(employeesResult.value) ? employeesResult.value : [];
       const users = usersResult.status === 'fulfilled' && Array.isArray(usersResult.value) ? usersResult.value : [];
       cachedPeopleRows = [...employees, ...users];
-      const sheetNames = cachedPeopleRows.map(row => row['Full Name'] || row['Employee Name'] || row.Name || row.User || '').filter(Boolean);
-      SYSTEM_USERS = [...new Set([...sheetNames, ...FALLBACK_USERS])];
+      const sheetNames = cachedPeopleRows.map(row => canonicalPersonName(row['Full Name'] || row['Employee Name'] || row.Name || row.User || '')).filter(Boolean);
+      SYSTEM_USERS = [...new Set([...sheetNames, ...FALLBACK_USERS.map(canonicalPersonName)])];
     } catch(e) {
       cachedPeopleRows = [];
       SYSTEM_USERS = [...FALLBACK_USERS];
@@ -2106,7 +2114,7 @@ Please log in to QuickBase to review and update this item.`
   }
 
   function getPerformanceAssigneeName(item) {
-    return getAssigneeName(item) || item['Assigned To'] || item.assignedTo || '';
+    return canonicalPersonName(getAssigneeName(item) || item['Assigned To'] || item.assignedTo || '');
   }
 
   function scorePerformanceItem(item, type) {
