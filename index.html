@@ -844,6 +844,16 @@
     return String(user?.Email || user?.email || user?.['Full Name'] || user?.Name || '').trim().toLowerCase();
   }
 
+  function normalizeAutomatedTaskReviewValue(value) {
+    const text = String(value || '').trim();
+    const key = text.toLowerCase();
+    if (!key) return '';
+    if (key.includes('not') || key.includes('no') || key.includes('0%') || key === '0') return 'Not Done';
+    if (key.includes('late') || key.includes('50%') || key === '50') return 'Late Done';
+    if (key.includes('task done') || key.includes('done') || key.includes('complete') || key.includes('yes') || key.includes('on time') || key.includes('early') || key.includes('100%') || key === '100') return 'On Time';
+    return text;
+  }
+
   function getAutomatedTaskExecutiveReview(task, monthOverride = '', executiveKey = '') {
     const month = monthOverride || task.__autoOccurrenceMonth || '';
     const reviews = getStoredAutomatedTaskReviews();
@@ -851,15 +861,15 @@
     const byExecutive = reviewRow.byExecutive || {};
     const requestedExecutiveKey = String(executiveKey || '').trim().toLowerCase();
 
-    if (requestedExecutiveKey) return byExecutive[requestedExecutiveKey]?.decision || '';
+    if (requestedExecutiveKey) return normalizeAutomatedTaskReviewValue(byExecutive[requestedExecutiveKey]?.decision || '');
 
-    if (reviewRow.decision) return reviewRow.decision;
+    if (reviewRow.decision) return normalizeAutomatedTaskReviewValue(reviewRow.decision);
 
-    const sheetValue = task['Executive On Time Review'] || task.executiveOnTimeReview || task['Was Actioned On Time'] || task.wasActionedOnTime || '';
-    if (String(sheetValue).trim() && (!month || month === getMonthKey(getTaskDueDate(task)))) return String(sheetValue).trim();
+    const sheetValue = task['Executive On Time Review'] || task.executiveOnTimeReview || task['Task Done'] || task['Task done'] || task.taskDone || task['Task Done Record'] || task.taskDoneRecord || task['Was Actioned On Time'] || task.wasActionedOnTime || '';
+    if (String(sheetValue).trim() && (!month || month === getMonthKey(getTaskDueDate(task)))) return normalizeAutomatedTaskReviewValue(sheetValue);
 
     const executiveKeys = EXECUTIVE_MANAGERS.map(m => String(m.email || m.name || '').trim().toLowerCase()).filter(Boolean);
-    const decisions = executiveKeys.map(key => byExecutive[key]?.decision || '').filter(Boolean);
+    const decisions = executiveKeys.map(key => normalizeAutomatedTaskReviewValue(byExecutive[key]?.decision || '')).filter(Boolean);
     if (executiveKeys.length && decisions.length < executiveKeys.length) return '';
     if (!decisions.length) return '';
     const normalized = decisions.map(d => String(d).toLowerCase());
@@ -1300,11 +1310,18 @@ Please action this hiring request in QuickBase.`;
     setButtonLoading(buttonId, true);
     showMessage('Synchronising with Google Sheets...', 'info', messageId);
     try {
-      const res = await apiPost(action, payload);
+      const suppressAssigneeEmail = options.suppressAssigneeEmail !== false;
+      const syncPayload = suppressAssigneeEmail ? Object.assign({}, payload, {
+        notifyAssignee: false,
+        emailTo: '',
+        emailSubject: '',
+        emailBody: ''
+      }) : payload;
+      const res = await apiPost(action, syncPayload);
       showMessage(successMessage, 'success', messageId);
       
       let emailSent = false;
-      if (SEND_EMAIL_NOTIFICATIONS && payload.assignedEmail && payload.assignedEmail.trim() !== '') {
+      if (!suppressAssigneeEmail && SEND_EMAIL_NOTIFICATIONS && payload.assignedEmail && payload.assignedEmail.trim() !== '') {
         showMessage('Sending email notification to assignee via Gmail...', 'info', messageId);
         const emailResult = await sendEmailViaBackend(
           payload.assignedEmail,
@@ -1320,8 +1337,6 @@ Please action this hiring request in QuickBase.`;
         } else {
           showMessage(`Email failed: ${emailResult.error}`, 'error', messageId);
         }
-      } else if (SEND_EMAIL_NOTIFICATIONS && (!payload.assignedEmail || payload.assignedEmail.trim() === '')) {
-        showMessage('No assignee email provided. Email not sent.', 'info', messageId);
       }
       
       const assigneePhone = null;
@@ -1837,7 +1852,7 @@ Please log in to QuickBase to review and update this item.`
       Object.assign(payload, buildTaskEmailPayload('ticket', payload));
       if (!payload.title) return showMessage('Title required', 'error', 'ticketFormMessage');
       if (SEND_EMAIL_NOTIFICATIONS && !payload.emailTo) return showMessage('Assignee email is required for Gmail notification. Select an assignee with an email address.', 'error', 'ticketFormMessage');
-      await saveWithSyncAndNotify('createTicketBtn', 'ticketFormMessage', 'addTicket', payload, 'Ticket saved, synchronised and assignee notified.', { afterSuccess: () => setTimeout(() => renderDashboard(), 1000) });
+      await saveWithSyncAndNotify('createTicketBtn', 'ticketFormMessage', 'addTicket', payload, 'Ticket saved and synchronised.', { afterSuccess: () => setTimeout(() => renderDashboard(), 1000) });
     });
 
     document.getElementById('createAutoTaskBtn')?.addEventListener('click', async () => {
@@ -1862,7 +1877,7 @@ Please log in to QuickBase to review and update this item.`
       Object.assign(payload, buildTaskEmailPayload('automated', payload));
       if (!payload.taskName) return showMessage('Task name required', 'error', 'autoTaskMessage');
       if (SEND_EMAIL_NOTIFICATIONS && !payload.emailTo) return showMessage('Assignee email is required for Gmail notification. Select an assignee with an email address.', 'error', 'autoTaskMessage');
-      await saveWithSyncAndNotify('createAutoTaskBtn', 'autoTaskMessage', 'addAutomatedTask', payload, 'Automated task saved, synchronised and assignee notified.', { afterSuccess: () => setTimeout(() => renderDashboard(), 1000) });
+      await saveWithSyncAndNotify('createAutoTaskBtn', 'autoTaskMessage', 'addAutomatedTask', payload, 'Automated task saved and synchronised.', { afterSuccess: () => setTimeout(() => renderDashboard(), 1000) });
     });
   }
 
@@ -2108,9 +2123,9 @@ Please log in to QuickBase to review and update this item.`
   }
 
   function getPerformanceAssigneeKey(item) {
-    const name = getAssigneeName(item) || item['Assigned To'] || item.assignedTo || '';
+    const name = canonicalPersonName(getAssigneeName(item) || item['Assigned To'] || item.assignedTo || '');
     const email = getAssigneeEmail(item);
-    return email || normalizeName(name);
+    return normalizeName(name) || email;
   }
 
   function getPerformanceAssigneeName(item) {
