@@ -813,6 +813,7 @@
   const HR_MANAGER = { name: 'HR Manager', email: SYSTEM_USER_EMAILS['HR Manager'] };
 
   const AUTO_TASK_EXECUTIVE_REVIEW_KEY = 'quickbase_auto_task_executive_reviews';
+  const AUTO_TASK_EXECUTIVE_ALERT_SUPPRESS_KEY = 'quickbase_auto_task_executive_alert_suppressions';
 
   function getMonthKey(value) {
     const date = dateOnly(value);
@@ -867,10 +868,40 @@
     return 'On Time';
   }
 
+  function getStoredAutomatedTaskAlertSuppressions() {
+    try { return JSON.parse(localStorage.getItem(AUTO_TASK_EXECUTIVE_ALERT_SUPPRESS_KEY) || '{}'); }
+    catch(e) { return {}; }
+  }
+
+  function saveStoredAutomatedTaskAlertSuppressions(items) {
+    localStorage.setItem(AUTO_TASK_EXECUTIVE_ALERT_SUPPRESS_KEY, JSON.stringify(items || {}));
+  }
+
+  function suppressAutomatedTaskExecutiveAlert(task, monthOverride = '') {
+    const executiveKey = getExecutiveReviewUserKey();
+    if (!executiveKey) return;
+    const suppressions = getStoredAutomatedTaskAlertSuppressions();
+    const key = getAutomatedTaskReviewKey(task, monthOverride);
+    suppressions[key] = suppressions[key] || {};
+    suppressions[key][executiveKey] = true;
+    saveStoredAutomatedTaskAlertSuppressions(suppressions);
+  }
+
+  function isAutomatedTaskExecutiveAlertSuppressed(task, monthOverride = '') {
+    const executiveKey = getExecutiveReviewUserKey();
+    if (!executiveKey) return false;
+    const suppressions = getStoredAutomatedTaskAlertSuppressions();
+    const key = getAutomatedTaskReviewKey(task, monthOverride);
+    return !!(suppressions[key] && suppressions[key][executiveKey]);
+  }
+
   function hasCurrentExecutiveReviewedAutomatedTask(task, monthOverride = '') {
     const currentKey = getExecutiveReviewUserKey();
     if (!currentKey) return false;
-    return !!getAutomatedTaskExecutiveReview(task, monthOverride, currentKey);
+    if (isAutomatedTaskExecutiveAlertSuppressed(task, monthOverride)) return true;
+    if (getAutomatedTaskExecutiveReview(task, monthOverride, currentKey)) return true;
+    // If the score/review was already updated in the sheet, do not keep alerting this executive for the same month.
+    return !!getAutomatedTaskExecutiveReview(task, monthOverride);
   }
 
   async function saveAutomatedTaskExecutiveReview(task, decision, monthOverride = '') {
@@ -917,11 +948,14 @@
         return !hasCurrentExecutiveReviewedAutomatedTask(task, task.__autoOccurrenceMonth);
       });
 
+      dueTasks.sort((a, b) => String(getTaskDueDate(a)).localeCompare(String(getTaskDueDate(b))) || String(getAssigneeName(a)).localeCompare(String(getAssigneeName(b))));
+
       for (const task of dueTasks) {
         const name = task['Task Name'] || task.taskName || task.Title || 'Automated task';
         const assignee = getAssigneeName(task) || 'Assignee';
         const dueText = getTaskDueDate(task) || 'this month';
-        const answer = prompt(`Automated task due alert for executives:\n\n${name}\nAssigned to: ${assignee}\nDue date: ${dueText}\nMonth: ${monthLabelFromKey(task.__autoOccurrenceMonth)}\n\nSelect result for this month:\n1 = Done early / on time (100%)\n2 = Done late (50%)\n3 = Not done (0%)`, '1');
+        const monthText = monthLabelFromKey(task.__autoOccurrenceMonth);
+        const answer = prompt(`Automated task due alert for executives:\n\n${name}\nAssigned to: ${assignee}\nDue date: ${dueText}\nMonth: ${monthText}\n\nSelect result for this month:\n1 = Done early / on time (100%)\n2 = Done late (50%)\n3 = Not done (0%)`, '1');
         if (answer === null) continue;
         const cleanAnswer = String(answer).trim().toLowerCase();
         let decision = '';
@@ -933,13 +967,15 @@
           continue;
         }
         await saveAutomatedTaskExecutiveReview(task, decision, task.__autoOccurrenceMonth);
+        const hideAgain = confirm(`Score saved for ${name} (${monthText}).\n\nDo not show this same ticket alert again for this month?\n\nClick OK / Yes to stop this alert from repeating.`);
+        if (hideAgain) suppressAutomatedTaskExecutiveAlert(task, task.__autoOccurrenceMonth);
       }
     } catch(e) {
       console.warn('Executive automated task due alert failed:', e);
     }
   }
 
-  const FALLBACK_USERS = Object.keys(SYSTEM_USER_EMAILS);
+  const FALLBACK_USERS = [...new Set([...Object.keys(SYSTEM_USER_EMAILS), 'Bonkeka'])];
   let SYSTEM_USERS = [...FALLBACK_USERS];
   const DEPARTMENT_OPTIONS = ['Admin', 'Business Development', 'Finance & IT', 'Fleet', 'HR', 'Operations', 'Procurements', 'Sales', 'SHEQ', 'Tendering', 'Warehouse'];
 
@@ -1456,9 +1492,10 @@ Please action this hiring request in QuickBase.`;
     const [ticketsRaw, autoTasksRaw] = await Promise.all([safeGet('tickets'), safeGet('automatedTasks')]);
     const tickets = Array.isArray(ticketsRaw) ? ticketsRaw : [];
     const automatedTasks = Array.isArray(autoTasksRaw) ? autoTasksRaw : [];
+    const expandedAutomatedTasks = expandAutomatedTaskMonthlyOccurrences(automatedTasks, true);
     return {
-      tickets: tickets.filter(isTaskAssignedToCurrentUser),
-      automatedTasks: automatedTasks.filter(isTaskAssignedToCurrentUser)
+      tickets: tickets.filter(t => hasPerformanceAssignee(t) && isTaskAssignedToCurrentUser(t)),
+      automatedTasks: expandedAutomatedTasks.filter(t => hasPerformanceAssignee(t) && isTaskAssignedToCurrentUser(t))
     };
   }
 
@@ -1848,7 +1885,8 @@ Please log in to QuickBase to review and update this item.`
   function groupCount(rows, getter) {
     const result = {};
     rows.forEach(row => {
-      const key = String(getter(row) || 'Unassigned');
+      const key = String(getter(row) || '').trim();
+      if (!key || key.toLowerCase() === 'unassigned') return;
       result[key] = (result[key] || 0) + 1;
     });
     return result;
@@ -1856,7 +1894,7 @@ Please log in to QuickBase to review and update this item.`
 
   function getStatus(t) { return String(t.Status || t.status || '').trim().toLowerCase(); }
   function getPriority(t) { return String(t.Priority || t.priority || 'Medium').trim() || 'Medium'; }
-  function getDepartment(t) { return String(t.Department || t['Assigned Department'] || t.department || 'Unassigned').trim() || 'Unassigned'; }
+  function getDepartment(t) { return String(t.Department || t['Assigned Department'] || t.department || '').trim(); }
   function getDueDate(t) { return t['Due Date'] || t.DueDate || t.dueDate || ''; }
   function getCompletionDate(t) { return t['Completion Date'] || t.CompletionDate || t['Closed Date'] || t.closedDate || ''; }
 
@@ -2012,7 +2050,7 @@ Please log in to QuickBase to review and update this item.`
 
 
   function getCreatedDate(t) {
-    return t['Created Date'] || t['Created Date/Time'] || t['Date Created'] || t.CreatedDate || t.createdDate || t.CreatedAt || t.createdAt || t['Request Date'] || '';
+    return t['Created Date'] || t['Created Date/Time'] || t['Date Created'] || t.CreatedDate || t.createdDate || t.CreatedAt || t.createdAt || t['Request Date'] || t['Start Date'] || t.startDate || t['Back Posted Date'] || t.backPostedDate || '';
   }
 
   function getFirstResponseDate(t) {
@@ -2020,7 +2058,7 @@ Please log in to QuickBase to review and update this item.`
   }
 
   function getTaskDueDate(t) {
-    return t['Due Date'] || t.DueDate || t.dueDate || t['Next Run'] || t.nextRun || t.NextRun || '';
+    return t['Due Date'] || t.DueDate || t.dueDate || t['Next Run'] || t.nextRun || t.NextRun || t['Next Run Date'] || t.nextRunDate || t['Back Posted Date'] || t.backPostedDate || t['Start Date'] || t.startDate || '';
   }
 
   function getPerformancePriority(t) {
