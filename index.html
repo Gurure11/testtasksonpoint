@@ -782,7 +782,6 @@
     'Lameck Chindove': 'lameck.chindove@onpointontime.co.za',
     'Tafadzwa Magejo': 'tafadzwa.magejo@onpointontime.co.za',
     'Bothwell Gurure': 'bothwell.gurure@onpointontime.co.za',
-    'Bongeka Solani': 'bongeka.solani@onpointontime.co.za",
     'System Admin': 'admin@onpointgroup.co.za',
     'Stanley Vangiwa': 'stanley.vangiwa@onpointontime.co.za',
     'Timothy Wamedza': 'timothy.wamedza@onpointontime.co.za',
@@ -840,21 +839,51 @@
     return `${id}__${month}`;
   }
 
-  function getAutomatedTaskExecutiveReview(task, monthOverride = '') {
+  function getExecutiveReviewUserKey(user = currentUser) {
+    return String(user?.Email || user?.email || user?.['Full Name'] || user?.Name || '').trim().toLowerCase();
+  }
+
+  function getAutomatedTaskExecutiveReview(task, monthOverride = '', executiveKey = '') {
     const month = monthOverride || task.__autoOccurrenceMonth || '';
+    const reviews = getStoredAutomatedTaskReviews();
+    const reviewRow = reviews[getAutomatedTaskReviewKey(task, month)] || {};
+    const byExecutive = reviewRow.byExecutive || {};
+    const requestedExecutiveKey = String(executiveKey || '').trim().toLowerCase();
+
+    if (requestedExecutiveKey) return byExecutive[requestedExecutiveKey]?.decision || '';
+
+    if (reviewRow.decision) return reviewRow.decision;
+
     const sheetValue = task['Executive On Time Review'] || task.executiveOnTimeReview || task['Was Actioned On Time'] || task.wasActionedOnTime || '';
     if (String(sheetValue).trim() && (!month || month === getMonthKey(getTaskDueDate(task)))) return String(sheetValue).trim();
-    const reviews = getStoredAutomatedTaskReviews();
-    return reviews[getAutomatedTaskReviewKey(task, month)]?.decision || '';
+
+    const executiveKeys = EXECUTIVE_MANAGERS.map(m => String(m.email || m.name || '').trim().toLowerCase()).filter(Boolean);
+    const decisions = executiveKeys.map(key => byExecutive[key]?.decision || '').filter(Boolean);
+    if (executiveKeys.length && decisions.length < executiveKeys.length) return '';
+    if (!decisions.length) return '';
+    const normalized = decisions.map(d => String(d).toLowerCase());
+    if (normalized.some(d => d.includes('not'))) return 'Not Done';
+    if (normalized.some(d => d.includes('late'))) return 'Late Done';
+    return 'On Time';
+  }
+
+  function hasCurrentExecutiveReviewedAutomatedTask(task, monthOverride = '') {
+    const currentKey = getExecutiveReviewUserKey();
+    if (!currentKey) return false;
+    return !!getAutomatedTaskExecutiveReview(task, monthOverride, currentKey);
   }
 
   async function saveAutomatedTaskExecutiveReview(task, decision, monthOverride = '') {
     const reviews = getStoredAutomatedTaskReviews();
     const key = getAutomatedTaskReviewKey(task, monthOverride);
     const reviewedBy = currentUser?.['Full Name'] || currentUser?.Email || 'Executive Manager';
+    const reviewedByEmail = String(currentUser?.Email || '').trim().toLowerCase();
+    const executiveKey = getExecutiveReviewUserKey();
     const reviewedDate = new Date().toISOString();
     const month = monthOverride || task.__autoOccurrenceMonth || getMonthKey(getTaskDueDate(task));
-    reviews[key] = { decision, reviewedBy, reviewedDate };
+    reviews[key] = reviews[key] || {};
+    reviews[key].byExecutive = reviews[key].byExecutive || {};
+    reviews[key].byExecutive[executiveKey] = { decision, reviewedBy, reviewedByEmail, reviewedDate };
     saveStoredAutomatedTaskReviews(reviews);
 
     try {
@@ -864,7 +893,10 @@
         month,
         executiveOnTimeReview: decision,
         reviewedBy,
+        reviewedByEmail,
         reviewedDate,
+        executiveReviewBy: reviewedBy,
+        executiveReviewByEmail: reviewedByEmail,
         sheetTab: 'Automated Tasks'
       });
     } catch(e) {
@@ -882,7 +914,7 @@
         const due = dateOnly(getTaskDueDate(task));
         if (!due || due > today) return false;
         if (String(task.Status || task.status || '').toLowerCase().includes('paused')) return false;
-        return !getAutomatedTaskExecutiveReview(task, task.__autoOccurrenceMonth);
+        return !hasCurrentExecutiveReviewedAutomatedTask(task, task.__autoOccurrenceMonth);
       });
 
       for (const task of dueTasks) {
@@ -1301,14 +1333,16 @@ Please action this hiring request in QuickBase.`;
 
   async function refreshPeopleCache() {
     try {
-      const employees = await apiGet('employees');
-      cachedPeopleRows = Array.isArray(employees) ? employees : [];
-      const sheetNames = cachedPeopleRows.map(row => row['Employee Name'] || row['Full Name'] || row.Name || '').filter(Boolean);
+      const [employeesResult, usersResult] = await Promise.allSettled([apiGet('employees'), apiGet('users')]);
+      const employees = employeesResult.status === 'fulfilled' && Array.isArray(employeesResult.value) ? employeesResult.value : [];
+      const users = usersResult.status === 'fulfilled' && Array.isArray(usersResult.value) ? usersResult.value : [];
+      cachedPeopleRows = [...employees, ...users];
+      const sheetNames = cachedPeopleRows.map(row => row['Full Name'] || row['Employee Name'] || row.Name || row.User || '').filter(Boolean);
       SYSTEM_USERS = [...new Set([...sheetNames, ...FALLBACK_USERS])];
     } catch(e) {
       cachedPeopleRows = [];
       SYSTEM_USERS = [...FALLBACK_USERS];
-      console.warn('Employee fetch failed, using built-in assignee list:', e.message);
+      console.warn('People fetch failed, using built-in assignee list:', e.message);
     }
   }
 
@@ -1835,6 +1869,7 @@ Please log in to QuickBase to review and update this item.`
   function isSamePerson(a, b) { return nameMatches(a, b); }
 
   function canCurrentUserCloseTask(task) {
+    if (isExecutive()) return true;
     const currentName = getCurrentUserName();
     const currentEmail = String(currentUser?.Email || '').trim().toLowerCase();
     const assigneeName = getAssigneeName(task);
@@ -1842,6 +1877,29 @@ Please log in to QuickBase to review and update this item.`
     const assigneeEmail = getAssigneeEmail(task);
     const issuerEmail = getTaskIssuerEmail(task);
     return isSamePerson(currentName, assigneeName) || isSamePerson(currentName, issuerName) || (currentEmail && (currentEmail === assigneeEmail || currentEmail === issuerEmail));
+  }
+
+  function promptExecutiveTicketRating(task) {
+    if (!isExecutive()) return {};
+    const assignee = getAssigneeName(task) || 'the assignee';
+    const rating = prompt(`Executive rating required before closing this ticket.\n\nRate ${assignee} from 1 to 5, where 5 is excellent.`, '5');
+    if (rating === null) return null;
+    const score = Number(String(rating).trim());
+    if (!Number.isFinite(score) || score < 1 || score > 5) {
+      alert('Please enter a valid rating from 1 to 5 before closing the ticket.');
+      return null;
+    }
+    const comments = prompt('Optional rating comment for the task assignee:', '') || '';
+    return {
+      executiveAssigneeRating: String(score),
+      'Executive Assignee Rating': String(score),
+      executiveRatingComments: comments,
+      'Executive Rating Comments': comments,
+      executiveRatedBy: currentUser?.['Full Name'] || currentUser?.Email || '',
+      'Executive Rated By': currentUser?.['Full Name'] || currentUser?.Email || '',
+      executiveRatedDate: new Date().toISOString(),
+      'Executive Rated Date': new Date().toISOString()
+    };
   }
 
   function namesListHtml(rows, getter = getAssigneeName) {
@@ -1885,10 +1943,12 @@ Please log in to QuickBase to review and update this item.`
   window.closeTicketFromTable = async function(index) {
     const task = (window.currentTicketRows || [])[index];
     if (!task) return alert('Task not found. Refresh and try again.');
-    if (!canCurrentUserCloseTask(task)) return alert('Only the assignee or the person who issued this task can close it.');
+    if (!canCurrentUserCloseTask(task)) return alert('Only the assignee, the person who issued this task, or an Executive can close it.');
+    const executiveRatingPayload = promptExecutiveTicketRating(task);
+    if (executiveRatingPayload === null) return;
     if (!confirm('Close this task?')) return;
     const id = getTicketIdentity(task);
-    const payload = Object.assign({}, task, {
+    const payload = Object.assign({}, task, executiveRatingPayload, {
       ticketId: id,
       ticketNumber: id,
       status: 'Closed',
@@ -1995,14 +2055,20 @@ Please log in to QuickBase to review and update this item.`
     return ['closed', 'resolved', 'done', 'completed', 'complete'].some(s => status === s || status.includes(s));
   }
 
-  function getPerformanceAssigneeKey(item) {
-    const name = getAssigneeName(item) || item['Assigned To'] || item.assignedTo || 'Unassigned';
+  function hasPerformanceAssignee(item) {
+    const name = getAssigneeName(item) || item['Assigned To'] || item.assignedTo || '';
     const email = getAssigneeEmail(item);
-    return email || normalizeName(name) || 'unassigned';
+    return !!(String(name).trim() || String(email).trim());
+  }
+
+  function getPerformanceAssigneeKey(item) {
+    const name = getAssigneeName(item) || item['Assigned To'] || item.assignedTo || '';
+    const email = getAssigneeEmail(item);
+    return email || normalizeName(name);
   }
 
   function getPerformanceAssigneeName(item) {
-    return getAssigneeName(item) || item['Assigned To'] || item.assignedTo || 'Unassigned';
+    return getAssigneeName(item) || item['Assigned To'] || item.assignedTo || '';
   }
 
   function scorePerformanceItem(item, type) {
@@ -2070,6 +2136,7 @@ Please log in to QuickBase to review and update this item.`
   function calculatePerformanceScores(tickets, automatedTasks) {
     const people = {};
     const addItem = (item, type) => {
+      if (!hasPerformanceAssignee(item)) return;
       const key = getPerformanceAssigneeKey(item);
       const name = getPerformanceAssigneeName(item);
       if (!people[key]) people[key] = { name, tickets: 0, automated: 0, total: 0, open: 0, closed: 0, openLate: 0, closedLate: 0, earned: 0, possible: 0, responseDayTotal: 0, responseDayCount: 0 };
@@ -2183,6 +2250,7 @@ Please log in to QuickBase to review and update this item.`
     const monthKeys = new Set();
     const expandedAutomatedTasks = expandAutomatedTaskMonthlyOccurrences(automatedTasks || [], true);
     const addItem = (item, type) => {
+      if (!hasPerformanceAssignee(item)) return;
       const score = scorePerformanceItem(item, type);
       const monthKey = getPerformanceMonthKey(item);
       if (!monthKey) return;
