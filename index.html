@@ -745,7 +745,7 @@
 
 <script>
   // ==================== CONFIGURATION ====================
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwxl0ELwfoKbmCLUegjY4zzCCIPKDkzdpG-DmJ0Ujf4KGHp2jssb7J4Ltt5J67ZGO9a/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw-dCbiFSCBc_VcFZn9UO6wEsyNmFtJGy2lm8593mtIf1BM-jFvKYhSB0JRwgil52yu/exec';
   const SHEET_ID = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
   const TASK_PROOF_DRIVE_FOLDER_ID = '19GoN9yzz0ODP_F-4ffba_olb3cD0b0f4';
 
@@ -1181,7 +1181,8 @@
 
   async function apiPost(action, payload) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeoutMs = action === 'submitTaskUpdate' ? 90000 : 30000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const route = getRouteByAction(action);
       const routedPayload = route ? Object.assign({}, payload, { sheetTab: route.sheetTab, sheetName: route.sheetTab, tabName: route.sheetTab }) : payload;
@@ -1579,7 +1580,7 @@ Please action this hiring request in QuickBase.`;
       const assignedToSomeoneElse = !(isSamePerson(currentName, assigneeName) || (currentEmail && currentEmail === assigneeEmail));
       return issuedByMe && assignedToSomeoneElse;
     });
-    renderSimpleTable('Tickets Sent Out', mine, ['Ticket ID','Title','Task Description','Priority','Status','Department','Assigned To','Due Date'], 'Tasks');
+    renderSimpleTable('Tickets Sent Out', mine, ['Ticket ID','Title','Task Description','Priority','Status','Department','Assigned To','Due Date','Task Response','Proof Link'], 'Tasks');
   }
 
   async function renderApprovals() {
@@ -2170,25 +2171,9 @@ Please log in to QuickBase to review and update this item.`
         Status: moreTime ? 'More Time Requested' : 'Completed - Awaiting Review',
         sheetTab: 'Tasks'
       });
-      await apiPost('submitTaskUpdate', payload);
-      const issuerEmail = getTaskIssuerEmail(task);
-      const issuerName = getTaskIssuerName(task) || 'Task originator';
-      const recipients = [issuerEmail, ...EXECUTIVE_MANAGERS.map(m => m.email)].filter(Boolean).join(',');
-      const subject = moreTime ? `More time requested: ${id}` : `Task submitted for review: ${id}`;
-      const body = `Hi ${issuerName},
-
-The assignee submitted an update in QuickBase.
-
-Ticket: ${id}
-Title: ${getCellValue(task, 'Title')}
-Assignee: ${getAssigneeName(task) || currentUser?.['Full Name'] || ''}
-Status: ${payload.Status}
-Comment: ${comment || 'No comment provided.'}
-Proof files: ${proofFiles.length ? proofFiles.map(f => f.fileName).join(', ') : 'No file uploaded'}
-
-This ticket can only be closed by the originator or executives after scoring.`;
-      await sendGeneralEmailViaBackend(recipients, subject, body);
-      showMessage('Submitted. Task marked as completed and sent for originator/executive review.', 'success', 'taskAssigneeUpdateMessage');
+      const submitResult = await apiPost('submitTaskUpdate', payload);
+      if (!submitResult || submitResult.success === false) throw new Error((submitResult && submitResult.message) || 'Task update failed.');
+      showMessage('Submitted. Task marked as completed and sent to the task originator.', 'success', 'taskAssigneeUpdateMessage');
       alert('Submitted. Task is now completed and awaiting originator/executive review.');
       await renderMyTickets();
     } catch(e) {
