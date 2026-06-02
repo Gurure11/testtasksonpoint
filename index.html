@@ -745,7 +745,7 @@
 
 <script>
   // ==================== CONFIGURATION ====================
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwmTSi5-n8leHiM8HvLRPWWKAPm_ZFjFRxvn5GmGttL_ydmgNdwEBI8ZJrFGqkPEBU/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzCY1qE06TV7kd45bp36psxlq8Tk2fulQ0WZYB72pEPOcESJMZ6rlZiniqAmJKdlIwU/exec';
   const SHEET_ID = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
   const TASK_PROOF_DRIVE_FOLDER_ID = '19GoN9yzz0ODP_F-4ffba_olb3cD0b0f4';
 
@@ -1412,7 +1412,7 @@ Please action this hiring request in QuickBase.`;
     if (!row) return '-';
     if (column === 'Status' && isAutomatedTaskRow(row)) return getAutomatedTaskDisplayStatus(row);
     const aliases = {
-      'Ticket ID': ['Ticket ID', 'Ticket Number', 'Task ID', 'ID'],
+      'Ticket ID': ['Ticket ID', 'Ticket Number', 'Ticket No', 'Ticket No.', 'TicketNumber', 'TicketID', 'ticketId', 'ticketID', 'ticketNumber', 'Task ID', 'TaskID', 'taskId', 'ID'],
       'Title': ['Title', 'Task Name', 'Name'],
       'Task Description': ['Task Description', 'Description', 'description', 'Task Details', 'Details'],
       'Task Response': ['Task Response', 'Assignee Comment', 'assigneeComment', 'Comments', 'comments', 'Last Response'],
@@ -1520,7 +1520,7 @@ Please action this hiring request in QuickBase.`;
   }
 
   function renderTaskCellHtml(row, column) {
-    const value = getCellValue(row, column);
+    const value = column === 'Ticket ID' ? (getTicketIdentity(row) || getCellValue(row, column)) : getCellValue(row, column);
     if (column === 'Proof Link') {
       const raw = String(value === '-' ? '' : value || '').trim();
       if (!raw) return '-';
@@ -2081,7 +2081,12 @@ Please log in to QuickBase to review and update this item.`
   };
 
   function getTicketIdentity(task) {
-    return task['Ticket ID'] || task['Ticket Number'] || task.ticketId || task.ticketNumber || task.ID || '';
+    if (!task) return '';
+    const possibleKeys = ['Ticket ID', 'Ticket Number', 'Ticket No', 'Ticket No.', 'TicketNumber', 'TicketID', 'ticketId', 'ticketID', 'ticketNumber', 'Task ID', 'TaskID', 'taskId', 'ID'];
+    for (const key of possibleKeys) {
+      if (task[key] !== undefined && task[key] !== null && String(task[key]).trim() !== '') return String(task[key]).trim();
+    }
+    return '';
   }
 
   function ticketActionHtml(task, index) {
@@ -2150,12 +2155,15 @@ Please log in to QuickBase to review and update this item.`
     const comment = document.getElementById('taskAssigneeComment')?.value || '';
     const files = document.getElementById('taskProofFile')?.files || [];
     const id = getTicketIdentity(task);
+    if (!id) return alert('Ticket ID is missing for this task. Please refresh My Tickets or check that the Tasks sheet has the generated Ticket ID/Ticket Number column.');
     setButtonLoading('submitTaskCompletionBtn', true, 'Submitting...');
     showMessage('Submitting task update...', 'info', 'taskAssigneeUpdateMessage');
     try {
       const proofFiles = await readProofFilesForPayload(files);
       const moreTime = isMoreTimeRequest({ comments: comment });
       const payload = Object.assign({}, task, {
+        'Ticket ID': id,
+        'Ticket Number': id,
         ticketId: id,
         ticketNumber: id,
         assigneeComment: comment,
