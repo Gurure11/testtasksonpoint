@@ -681,30 +681,6 @@
       border-left: 4px solid #3b82f6;
     }
 
-
-    .my-task-action-box {
-      min-width: 260px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .my-task-action-box textarea {
-      min-height: 58px;
-      font-size: 12px;
-    }
-
-    .my-task-action-box input[type="file"] {
-      padding: 8px;
-      font-size: 12px;
-    }
-
-    .my-task-action-buttons {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
     @media (max-width: 768px) {
       .sidebar { width: 80px; }
       .nav-link span:not(.emoji) { display: none; }
@@ -769,11 +745,12 @@
 
 <script>
   // ==================== CONFIGURATION ====================
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMCxDmYvOuRlZIxj9NFH4eNnJIjWU7jDPcLN9WNG-NBBqJsMM-S7w8myMMSKAIdZTHUA/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwxl0ELwfoKbmCLUegjY4zzCCIPKDkzdpG-DmJ0Ujf4KGHp2jssb7J4Ltt5J67ZGO9a/exec';
   const SHEET_ID = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
+  const TASK_PROOF_DRIVE_FOLDER_ID = '19GoN9yzz0ODP_F-4ffba_olb3cD0b0f4';
 
   const SHEET_ROUTES = {
-    tickets: { action: 'tickets', saveAction: 'addTicket', sheetTab: 'Tasks', displayTab: 'Tickets', columns: ['Ticket ID', 'Title', 'Priority', 'Status', 'Department', 'Assigned To', 'Due Date'] },
+    tickets: { action: 'tickets', saveAction: 'addTicket', sheetTab: 'Tasks', displayTab: 'Tickets', columns: ['Ticket ID', 'Title', 'Task Description', 'Priority', 'Status', 'Department', 'Assigned To', 'Due Date'] },
     departments: { action: 'departments', saveAction: 'addDepartment', sheetTab: 'Department', displayTab: 'Departments', columns: ['Department ID', 'Department Name', 'Manager', 'Budget', 'Status', 'Created Date'] },
     employees: { action: 'employees', saveAction: 'addEmployee', sheetTab: 'Employees', displayTab: 'Employees', columns: ['Employee ID', 'Employee Name', 'Department', 'Role', 'Status', 'Created Date'] },
     kpis: { action: 'kpis', saveAction: 'addKpi', sheetTab: 'KPIs', displayTab: 'KPIs', columns: ['KPIName', 'Target Value', 'Actual Value', 'Related Department', 'Frequency'] },
@@ -1227,7 +1204,8 @@
       return json;
     } catch(e) {
       clearTimeout(timeout);
-      if (e.name === 'AbortError') throw new Error('Request timed out. Check the Apps Script deployment URL and access permissions.');
+      if (e.name === 'AbortError') throw new Error('Request timed out. Check the Apps Script deployment URL, deployment access, and Drive upload permissions.');
+      if (String(e.message || '').toLowerCase().includes('failed to fetch')) throw new Error('Fetch failed. This usually means the Apps Script web app was not redeployed, CORS/access failed, or the backend does not yet support submitTaskUpdate/Drive uploads. Redeploy the Apps Script as a web app after adding the upgrade code.');
       throw e;
     }
   }
@@ -1435,7 +1413,9 @@ Please action this hiring request in QuickBase.`;
     const aliases = {
       'Ticket ID': ['Ticket ID', 'Ticket Number', 'Task ID', 'ID'],
       'Title': ['Title', 'Task Name', 'Name'],
-      'Description': ['Description', 'Task Description', 'Details', 'Comments', 'description'],
+      'Task Description': ['Task Description', 'Description', 'description', 'Task Details', 'Details'],
+      'Task Response': ['Task Response', 'Assignee Comment', 'assigneeComment', 'Comments', 'comments', 'Last Response'],
+      'Proof Link': ['Proof Link', 'Proof Links', 'proofLink', 'proofLinks', 'Attachment Link', 'attachmentLink'],
       'Task Name': ['Task Name', 'Title', 'Name'],
       'Due Date': ['Due Date', 'DueDate', 'Next Run'],
       'Completion Date': ['Completion Date', 'CompletionDate', 'Closed Date'],
@@ -1535,86 +1515,19 @@ Please action this hiring request in QuickBase.`;
   }
 
   function renderRowsHtml(dataArray, columns) {
-    return dataArray.length ? dataArray.map(row => `<tr>${columns.map(c => `<td>${escapeHtml(getCellValue(row, c))}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}" style="text-align:center">No data found</td></tr>`;
+    return dataArray.length ? dataArray.map(row => `<tr>${columns.map(c => `<td>${renderTaskCellHtml(row, c)}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}" style="text-align:center">No data found</td></tr>`;
   }
 
-
-  function renderMyTaskActionHtml(task, index, type) {
-    const ticketId = escapeHtml(getTicketIdentity(task) || getCellValue(task, 'Ticket ID') || getCellValue(task, 'Task ID'));
-    return `<div class="my-task-action-box">
-      <textarea id="myTaskComment_${type}_${index}" placeholder="Comment or ask for more time"></textarea>
-      <input type="file" id="myTaskFile_${type}_${index}">
-      <div class="my-task-action-buttons">
-        <button class="btn-secondary" onclick="submitMyTaskUpdate(${index}, '${type}', 'more_time')">Ask More Time</button>
-        <button class="btn-primary" onclick="submitMyTaskUpdate(${index}, '${type}', 'completed')">Task Completed</button>
-      </div>
-      <div style="font-size:11px;color:#64748b">Ticket: ${ticketId || '-'}</div>
-    </div>`;
-  }
-
-  function renderMyTaskRowsHtml(dataArray, columns, type) {
-    return dataArray.length ? dataArray.map((row, index) => `<tr>${columns.map(c => `<td>${escapeHtml(getCellValue(row, c))}</td>`).join('')}<td>${renderMyTaskActionHtml(row, index, type)}</td></tr>`).join('') : `<tr><td colspan="${columns.length + 1}" style="text-align:center">No data found</td></tr>`;
-  }
-
-  function fileToBase64Payload(file) {
-    return new Promise((resolve, reject) => {
-      if (!file) return resolve(null);
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = String(reader.result || '');
-        const parts = result.split(',');
-        resolve({ name: file.name, mimeType: file.type || 'application/octet-stream', data: parts.length > 1 ? parts[1] : result });
-      };
-      reader.onerror = () => reject(reader.error || new Error('File could not be read.'));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function notifyTaskCompletionOrMoreTime(payload, actionType) {
-    const ticketId = payload.ticketId || payload.ticketNumber || '';
-    const actionText = actionType === 'completed' ? 'marked task completed' : 'asked for more time on task';
-    const subject = `QuickBase: ${actionText} - ${ticketId}`;
-    const body = `QuickBase task update\n\nTicket Number: ${ticketId}\nTask: ${payload.title || payload.taskName || ''}\nAction: ${actionText}\nUpdated by: ${currentUser?.['Full Name'] || currentUser?.Email || ''}\nComment: ${payload.assigneeComment || 'No comment'}\nAttachment: ${payload.attachmentLink || 'No attachment uploaded'}\n\nPlease log in to QuickBase to review this task.`;
-    const recipients = [...new Set([payload.createdByEmail || payload.requestedByEmail || payload.issuerEmail || '', ...EXECUTIVE_MANAGERS.map(m => m.email)].filter(Boolean))];
-    await Promise.all(recipients.map(email => sendGeneralEmailViaBackend(email, subject, body)));
-  }
-
-  window.submitMyTaskUpdate = async function(index, type, actionType) {
-    const rows = type === 'auto' ? (window.currentMyAutoTaskRows || []) : (window.currentMyTicketRows || []);
-    const task = rows[index];
-    if (!task) return alert('Task not found. Refresh and try again.');
-    const commentEl = document.getElementById(`myTaskComment_${type}_${index}`);
-    const fileEl = document.getElementById(`myTaskFile_${type}_${index}`);
-    const comment = (commentEl?.value || '').trim();
-    if (actionType === 'more_time' && !comment) return alert('Please add a comment explaining how much more time you need.');
-    if (actionType === 'completed' && !confirm('Submit this task as completed for executive closure?')) return;
-    try {
-      const attachment = await fileToBase64Payload(fileEl?.files?.[0] || null);
-      const ticketId = getTicketIdentity(task) || getCellValue(task, 'Ticket ID') || getCellValue(task, 'Task ID');
-      const payload = Object.assign({}, task, {
-        ticketId,
-        ticketNumber: ticketId,
-        taskId: getCellValue(task, 'Task ID') || ticketId,
-        taskType: type === 'auto' ? 'Automated Tasks' : 'Tasks',
-        sheetTab: type === 'auto' ? 'Automated Tasks' : 'Tasks',
-        assigneeComment: comment,
-        updateType: actionType,
-        status: actionType === 'completed' ? 'Waiting Executive Closure' : 'More Time Requested',
-        Status: actionType === 'completed' ? 'Waiting Executive Closure' : 'More Time Requested',
-        updatedBy: currentUser?.['Full Name'] || currentUser?.Email || '',
-        updatedByEmail: currentUser?.Email || '',
-        updatedDate: new Date().toISOString(),
-        attachment
-      });
-      const res = await apiPost('submitTaskUpdate', payload);
-      if (res && res.attachmentLink) payload.attachmentLink = res.attachmentLink;
-      await notifyTaskCompletionOrMoreTime(payload, actionType);
-      alert(actionType === 'completed' ? 'Task completion submitted. The assigner and executives have been notified.' : 'More-time request submitted. The assigner and executives have been notified.');
-      await renderMyTickets();
-    } catch(e) {
-      alert(`Task update failed: ${e.message || e}`);
+  function renderTaskCellHtml(row, column) {
+    const value = getCellValue(row, column);
+    if (column === 'Proof Link') {
+      const raw = String(value === '-' ? '' : value || '').trim();
+      if (!raw) return '-';
+      const links = raw.split(/[\n,]+/).map(v => v.trim()).filter(Boolean);
+      return links.map((link, index) => `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">Proof ${index + 1}</a>`).join('<br>');
     }
-  };
+    return escapeHtml(value);
+  }
 
   async function getMyAssignedTaskData() {
     const [ticketsRaw, autoTasksRaw] = await Promise.all([safeGet('tickets'), safeGet('automatedTasks')]);
@@ -1643,15 +1556,14 @@ Please action this hiring request in QuickBase.`;
 
   async function renderMyTickets() {
     const assigned = await getMyAssignedTaskData();
-    const ticketColumns = ['Ticket ID','Title','Description','Priority','Status','Department','Assigned To','Due Date'];
+    const ticketColumns = ['Ticket ID','Title','Task Description','Priority','Status','Department','Assigned To','Due Date','Task Response','Proof Link'];
     const autoColumns = ['Ticket ID','Task ID','Task Name','Description','Frequency','Department','Next Run','Status'];
     window.currentMyTicketRows = assigned.tickets;
-    window.currentMyAutoTaskRows = assigned.automatedTasks;
     const main = document.getElementById('mainContent');
     main.innerHTML = `
       <div class="top-bar"><div class="page-title"><h1>My Tickets</h1><p>Tickets and automated recurring tasks assigned to me</p></div><button class="refresh-btn" onclick="loadCurrentSection()">↻ Refresh</button></div>
-      <div class="panel"><div class="panel-header"><h2>📋 My Tickets</h2></div><div class="table-wrapper"><table><thead><tr>${ticketColumns.map(c => `<th>${c}</th>`).join('')}<th>Comment / More Time / Completion</th></tr></thead><tbody>${renderMyTaskRowsHtml(assigned.tickets, ticketColumns, 'ticket')}</tbody></table></div></div>
-      <div class="panel"><div class="panel-header"><h2>🔄 Automated Recurring Tasks</h2></div><div class="table-wrapper"><table><thead><tr>${autoColumns.map(c => `<th>${c}</th>`).join('')}<th>Comment / More Time / Completion</th></tr></thead><tbody>${renderMyTaskRowsHtml(assigned.automatedTasks, autoColumns, 'auto')}</tbody></table></div></div>`;
+      <div class="panel"><div class="panel-header"><h2>📋 My Tickets</h2></div><div class="table-wrapper"><table><thead><tr>${ticketColumns.map(c => `<th>${c}</th>`).join('')}<th>Comment / Proof / Submit</th></tr></thead><tbody>${assigned.tickets.length ? assigned.tickets.map((row, index) => `<tr>${ticketColumns.map(c => `<td>${renderTaskCellHtml(row, c)}</td>`).join('')}<td>${myTicketActionHtml(row, index)}</td></tr>`).join('') : `<tr><td colspan="${ticketColumns.length + 1}" style="text-align:center">No data found</td></tr>`}</tbody></table></div></div>
+      <div class="panel"><div class="panel-header"><h2>🔄 Automated Recurring Tasks</h2></div><div class="table-wrapper"><table><thead><tr>${autoColumns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${renderRowsHtml(assigned.automatedTasks, autoColumns)}</tbody></table></div></div>`;
   }
 
   async function renderSentTickets() {
@@ -1667,7 +1579,7 @@ Please action this hiring request in QuickBase.`;
       const assignedToSomeoneElse = !(isSamePerson(currentName, assigneeName) || (currentEmail && currentEmail === assigneeEmail));
       return issuedByMe && assignedToSomeoneElse;
     });
-    renderSimpleTable('Tickets Sent Out', mine, ['Ticket ID','Title','Priority','Status','Department','Assigned To','Due Date'], 'Tasks');
+    renderSimpleTable('Tickets Sent Out', mine, ['Ticket ID','Title','Task Description','Priority','Status','Department','Assigned To','Due Date'], 'Tasks');
   }
 
   async function renderApprovals() {
@@ -2045,7 +1957,12 @@ Please log in to QuickBase to review and update this item.`
   function isSamePerson(a, b) { return nameMatches(a, b); }
 
   function canCurrentUserCloseTask(task) {
-    return isExecutive();
+    if (isExecutive()) return true;
+    const currentName = getCurrentUserName();
+    const currentEmail = String(currentUser?.Email || '').trim().toLowerCase();
+    const issuerName = getTaskIssuerName(task);
+    const issuerEmail = getTaskIssuerEmail(task);
+    return isSamePerson(currentName, issuerName) || (currentEmail && currentEmail === issuerEmail);
   }
 
   function promptExecutiveTicketRating(task) {
@@ -2168,14 +2085,124 @@ Please log in to QuickBase to review and update this item.`
 
   function ticketActionHtml(task, index) {
     if (isClosedTicket(task)) return '<span class="badge badge-open">Closed</span>';
-    if (!canCurrentUserCloseTask(task)) return '<span style="font-size:11px;color:#94a3b8">Executive only</span>';
+    if (!canCurrentUserCloseTask(task)) return '<span style="font-size:11px;color:#94a3b8">Originator/Executive only</span>';
     return `<button class="btn-secondary" onclick="closeTicketFromTable(${index})">Close</button>`;
   }
+
+
+  function myTicketActionHtml(task, index) {
+    if (isClosedTicket(task)) return '<span class="badge badge-open">Completed</span>';
+    return `<button class="btn-secondary" onclick="showTaskAssigneeUpdateForm(${index})">Update / Submit</button>`;
+  }
+
+  function taskAssigneeUpdateFormHtml(task) {
+    const id = escapeHtml(getTicketIdentity(task));
+    const title = escapeHtml(getCellValue(task, 'Title'));
+    const desc = escapeHtml(getCellValue(task, 'Task Description'));
+    return `<div class="panel"><div class="panel-header"><h2>📝 Task update / completion</h2></div><div style="padding:20px">
+      <p style="font-size:13px;color:#475569;margin-bottom:14px"><strong>${id}</strong> · ${title}<br><span>${desc}</span></p>
+      <div class="form-row">
+        <div class="form-field"><label>Comment / request more time</label><textarea id="taskAssigneeComment" rows="3" placeholder="Comment, completion note, or request more time..."></textarea></div>
+        <div class="form-field"><label>Proof of completion</label><input id="taskProofFile" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"><span style="font-size:11px;color:#64748b">Upload documents or photos as proof. Files are saved to Google Drive and links are stored on the task row.</span></div>
+      </div>
+      <button class="btn-primary" id="submitTaskCompletionBtn" onclick="submitTaskAssigneeUpdate()">Submit</button>
+      <div id="taskAssigneeUpdateMessage" class="message-bar"></div>
+    </div></div>`;
+  }
+
+  window.showTaskAssigneeUpdateForm = function(index) {
+    window.currentAssigneeTaskIndex = index;
+    const task = (window.currentMyTicketRows || [])[index];
+    if (!task) return alert('Task not found. Refresh and try again.');
+    const existing = document.getElementById('taskAssigneeUpdatePanel');
+    if (existing) existing.remove();
+    const wrapper = document.createElement('div');
+    wrapper.id = 'taskAssigneeUpdatePanel';
+    wrapper.innerHTML = taskAssigneeUpdateFormHtml(task);
+    const main = document.getElementById('mainContent');
+    const firstPanel = main.querySelector('.panel');
+    if (firstPanel) firstPanel.insertAdjacentElement('afterend', wrapper);
+    else main.appendChild(wrapper);
+    wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  async function readProofFilesForPayload(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return [];
+    const maxBytes = 8 * 1024 * 1024;
+    return Promise.all(files.map(file => new Promise((resolve, reject) => {
+      if (file.size > maxBytes) return reject(new Error(`${file.name} is larger than 8 MB. Please upload a smaller proof file.`));
+      const reader = new FileReader();
+      reader.onload = () => resolve({
+        fileName: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        dataUrl: reader.result || ''
+      });
+      reader.onerror = () => reject(reader.error || new Error(`Could not read ${file.name}.`));
+      reader.readAsDataURL(file);
+    })));
+  }
+
+  window.submitTaskAssigneeUpdate = async function() {
+    const task = (window.currentMyTicketRows || [])[window.currentAssigneeTaskIndex];
+    if (!task) return alert('Task not found. Refresh and try again.');
+    const comment = document.getElementById('taskAssigneeComment')?.value || '';
+    const files = document.getElementById('taskProofFile')?.files || [];
+    const id = getTicketIdentity(task);
+    setButtonLoading('submitTaskCompletionBtn', true, 'Submitting...');
+    showMessage('Submitting task update...', 'info', 'taskAssigneeUpdateMessage');
+    try {
+      const proofFiles = await readProofFilesForPayload(files);
+      const moreTime = isMoreTimeRequest({ comments: comment });
+      const payload = Object.assign({}, task, {
+        ticketId: id,
+        ticketNumber: id,
+        assigneeComment: comment,
+        'Assignee Comment': comment,
+        'Task Response': comment,
+        taskResponse: comment,
+        proofFiles,
+        taskProofDriveFolderId: TASK_PROOF_DRIVE_FOLDER_ID,
+        completionRequestDate: new Date().toISOString(),
+        submittedBy: currentUser?.['Full Name'] || currentUser?.Email || '',
+        submittedByEmail: currentUser?.Email || '',
+        status: moreTime ? 'More Time Requested' : 'Completed - Awaiting Review',
+        Status: moreTime ? 'More Time Requested' : 'Completed - Awaiting Review',
+        sheetTab: 'Tasks'
+      });
+      await apiPost('submitTaskUpdate', payload);
+      const issuerEmail = getTaskIssuerEmail(task);
+      const issuerName = getTaskIssuerName(task) || 'Task originator';
+      const recipients = [issuerEmail, ...EXECUTIVE_MANAGERS.map(m => m.email)].filter(Boolean).join(',');
+      const subject = moreTime ? `More time requested: ${id}` : `Task submitted for review: ${id}`;
+      const body = `Hi ${issuerName},
+
+The assignee submitted an update in QuickBase.
+
+Ticket: ${id}
+Title: ${getCellValue(task, 'Title')}
+Assignee: ${getAssigneeName(task) || currentUser?.['Full Name'] || ''}
+Status: ${payload.Status}
+Comment: ${comment || 'No comment provided.'}
+Proof files: ${proofFiles.length ? proofFiles.map(f => f.fileName).join(', ') : 'No file uploaded'}
+
+This ticket can only be closed by the originator or executives after scoring.`;
+      await sendGeneralEmailViaBackend(recipients, subject, body);
+      showMessage('Submitted. Task marked as completed and sent for originator/executive review.', 'success', 'taskAssigneeUpdateMessage');
+      alert('Submitted. Task is now completed and awaiting originator/executive review.');
+      await renderMyTickets();
+    } catch(e) {
+      showMessage(e.message || 'Could not submit task update.', 'error', 'taskAssigneeUpdateMessage');
+      alert(`Could not submit task update: ${e.message}`);
+    } finally {
+      setButtonLoading('submitTaskCompletionBtn', false);
+    }
+  };
 
   window.closeTicketFromTable = async function(index) {
     const task = (window.currentTicketRows || [])[index];
     if (!task) return alert('Task not found. Refresh and try again.');
-    if (!canCurrentUserCloseTask(task)) return alert('Only the assignee, the person who issued this task, or an Executive can close it.');
+    if (!canCurrentUserCloseTask(task)) return alert('Only the person who originated this ticket or an Executive can close it.');
     const executiveRatingPayload = promptExecutiveTicketRating(task);
     if (executiveRatingPayload === null) return;
     if (!confirm('Close this task?')) return;
@@ -2202,6 +2229,7 @@ Please log in to QuickBase to review and update this item.`
 
   function isClosedTicket(t) {
     const status = getStatus(t);
+    if (status.includes('awaiting review') || status.includes('more time requested')) return false;
     return ['closed', 'resolved', 'done', 'completed', 'complete'].some(s => status === s || status.includes(s));
   }
 
@@ -2821,7 +2849,7 @@ Please log in to QuickBase to review and update this item.`
     else if (window.taskFilter === 'closed-on-time') data = stats.closedOnTime;
     else if (window.taskFilter === 'closed-late') data = stats.closedLate;
 
-    const columns = ['Ticket ID', 'Title', 'Priority', 'Status', 'Department', 'Assigned To', 'Due Date'];
+    const columns = ['Ticket ID', 'Title', 'Task Description', 'Priority', 'Status', 'Department', 'Assigned To', 'Due Date', 'Task Response', 'Proof Link'];
     const automatedTaskRows = expandAutomatedTaskMonthlyOccurrences(automatedTasks.filter(hasPerformanceAssignee), true);
     const automatedTaskColumns = ['Ticket ID', 'Task ID', 'Task Name', 'Description', 'Frequency', 'Department', 'Next Run', 'Status'];
     window.currentTicketRows = data;
@@ -2847,7 +2875,7 @@ Please log in to QuickBase to review and update this item.`
         <div class="chart-card"><h3>Tickets by Priority</h3><p>Current ticket count grouped by priority</p><canvas id="ticketsPriorityChart"></canvas></div>
         <div class="chart-card"><h3>Tickets by Department</h3><p>Current ticket count grouped by department</p><canvas id="ticketsDepartmentChart"></canvas></div>
       </div>
-      <div class="panel"><div class="panel-header"><h2>📋 Tickets</h2></div><div class="table-wrapper"><table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}<th>Action</th></tr></thead><tbody>${data.length ? data.map((row, index) => `<tr>${columns.map(c => `<td>${escapeHtml(getCellValue(row, c))}</td>`).join('')}<td>${ticketActionHtml(row, index)}</td></tr>`).join('') : `<tr><td colspan="${columns.length + 1}" style="text-align:center">No data found</td></tr>`}</tbody></table></div></div>
+      <div class="panel"><div class="panel-header"><h2>📋 Tickets</h2></div><div class="table-wrapper"><table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}<th>Action</th></tr></thead><tbody>${data.length ? data.map((row, index) => `<tr>${columns.map(c => `<td>${renderTaskCellHtml(row, c)}</td>`).join('')}<td>${ticketActionHtml(row, index)}</td></tr>`).join('') : `<tr><td colspan="${columns.length + 1}" style="text-align:center">No data found</td></tr>`}</tbody></table></div></div>
       <div class="panel"><div class="panel-header"><h2>🔄 Automated Tasks</h2></div><div class="table-wrapper"><table><thead><tr>${automatedTaskColumns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${automatedTaskRows.length ? automatedTaskRows.map(row => `<tr>${automatedTaskColumns.map(c => `<td>${escapeHtml(getCellValue(row, c))}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${automatedTaskColumns.length}" style="text-align:center">No data found</td></tr>`}</tbody></table></div></div>`;
 
     if (typeof Chart !== 'undefined') {
@@ -3024,7 +3052,7 @@ Please log in to QuickBase to review and update this item.`
         <button class="btn-primary" id="saveDataEntryBtn">💾 Save ${title}</button>
         <div id="dataEntryMessage" class="message-bar"></div>
       </div></div>
-      <div class="panel"><div class="panel-header"><h2>📋 ${title}</h2></div><div class="table-wrapper"><table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${dataArray.length ? dataArray.map(row => `<tr>${columns.map(c => `<td>${escapeHtml(getCellValue(row, c))}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}" style="text-align:center">No data found</td></tr>`}</tbody></table></div></div>`;
+      <div class="panel"><div class="panel-header"><h2>📋 ${title}</h2></div><div class="table-wrapper"><table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${dataArray.length ? dataArray.map(row => `<tr>${columns.map(c => `<td>${renderTaskCellHtml(row, c)}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}" style="text-align:center">No data found</td></tr>`}</tbody></table></div></div>`;
 
     if (columns.includes('Assigned To') && columns.includes('Assigned Email')) {
       wireAssigneeEmail(fieldId('Assigned To'), fieldId('Assigned Email'));
@@ -3074,7 +3102,7 @@ Please log in to QuickBase to review and update this item.`
   function renderSimpleTable(title, data, columns, sheetTabName = title) {
     const main = document.getElementById('mainContent');
     const dataArray = Array.isArray(data) ? data : [];
-    main.innerHTML = `<div class="top-bar"><div class="page-title"><h1>${title}</h1><p>Sheet tab: ${sheetTabName}</p></div><button class="refresh-btn" onclick="loadCurrentSection()">↻ Refresh</button></div><div class="panel"><div class="panel-header"><h2>📋 ${title}</h2></div><div class="table-wrapper"><table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${dataArray.length ? dataArray.map(row => `<tr>${columns.map(c => `<td>${escapeHtml(getCellValue(row, c))}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}" style="text-align:center">No data found</td></tr>`}</tbody></table></div></div>`;
+    main.innerHTML = `<div class="top-bar"><div class="page-title"><h1>${title}</h1><p>Sheet tab: ${sheetTabName}</p></div><button class="refresh-btn" onclick="loadCurrentSection()">↻ Refresh</button></div><div class="panel"><div class="panel-header"><h2>📋 ${title}</h2></div><div class="table-wrapper"><table><thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${dataArray.length ? dataArray.map(row => `<tr>${columns.map(c => `<td>${renderTaskCellHtml(row, c)}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}" style="text-align:center">No data found</td></tr>`}</tbody></table></div></div>`;
   }
 
   async function loadCurrentSection() {
