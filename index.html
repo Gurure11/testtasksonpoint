@@ -745,7 +745,7 @@
 
 <script>
   // ==================== CONFIGURATION ====================
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzCY1qE06TV7kd45bp36psxlq8Tk2fulQ0WZYB72pEPOcESJMZ6rlZiniqAmJKdlIwU/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgIqGpFDChEpxnW3FPcKCeRCUnhQCTCaSenA52EjrYdDiCIS9ZemdUkI2kpQVZNPQB/exec';
   const SHEET_ID = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
   const TASK_PROOF_DRIVE_FOLDER_ID = '19GoN9yzz0ODP_F-4ffba_olb3cD0b0f4';
 
@@ -1415,8 +1415,8 @@ Please action this hiring request in QuickBase.`;
       'Ticket ID': ['Ticket ID', 'Ticket Number', 'Ticket No', 'Ticket No.', 'TicketNumber', 'TicketID', 'ticketId', 'ticketID', 'ticketNumber', 'Task ID', 'TaskID', 'taskId', 'ID'],
       'Title': ['Title', 'Task Name', 'Name'],
       'Task Description': ['Task Description', 'Description', 'description', 'Task Details', 'Details'],
-      'Task Response': ['Task Response', 'Assignee Comment', 'assigneeComment', 'Comments', 'comments', 'Last Response'],
-      'Proof Link': ['Proof Link', 'Proof Links', 'proofLink', 'proofLinks', 'Attachment Link', 'attachmentLink'],
+      'Task Response': ['Task Response', 'Update Comment', 'Assignee Comment', 'assigneeComment', 'Comments', 'comments', 'Last Response'],
+      'Proof Link': ['Proof Link', 'Update Proof Link', 'Proof Links', 'proofLink', 'proofLinks', 'Attachment Link', 'attachmentLink'],
       'Task Name': ['Task Name', 'Title', 'Name'],
       'Due Date': ['Due Date', 'DueDate', 'Next Run'],
       'Completion Date': ['Completion Date', 'CompletionDate', 'Closed Date'],
@@ -1850,6 +1850,7 @@ Please log in to QuickBase to review and update this item.`
     document.getElementById('createTicketBtn')?.addEventListener('click', async () => {
       const ticketNumber = document.getElementById('ticketNumber')?.value || generateTicketNumber();
       const payload = {
+        'Task ID': ticketNumber,
         'Ticket ID': ticketNumber,
         'Ticket Number': ticketNumber,
         ticketId: ticketNumber,
@@ -2162,6 +2163,7 @@ Please log in to QuickBase to review and update this item.`
       const proofFiles = await readProofFilesForPayload(files);
       const moreTime = isMoreTimeRequest({ comments: comment });
       const payload = Object.assign({}, task, {
+        'Task ID': id,
         'Ticket ID': id,
         'Ticket Number': id,
         ticketId: id,
