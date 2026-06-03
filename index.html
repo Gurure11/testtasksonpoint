@@ -798,7 +798,7 @@
 
 <script>
   // ==================== CONFIGURATION ====================
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyw180z0i-u7LpHF0cTo6jF35ECwJw91x_EIhCAjD6cevjmYaYJjgP1iKAVMYDTw30S-Q/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxbZb-y1vdqfPeRzy-vvWdTV3MV7xaIg3kqlJuIToQP8APM_9zfMnrNz7JYr413Mm7SsQ/exec';
   const SHEET_ID = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
   const TASK_PROOF_DRIVE_FOLDER_ID = '19GoN9yzz0ODP_F-4ffba_olb3cD0b0f4';
 
@@ -2264,7 +2264,8 @@ Please log in to QuickBase to review and update this item.`
     const [ticketsRaw, automatedTasksRaw] = await Promise.all([safeGet('tickets'), safeGet('automatedTasks')]);
     const tickets = Array.isArray(ticketsRaw) ? ticketsRaw : [];
     const automatedTasks = expandAutomatedTaskMonthlyOccurrences((Array.isArray(automatedTasksRaw) ? automatedTasksRaw : []).filter(hasPerformanceAssignee), true);
-    const stats = calculateTicketStats(tickets);
+    const allRows = [...tickets, ...automatedTasks];
+    const stats = calculateTicketStats(allRows);
     let title = 'Summary Transactions';
     let rows = [];
     let columns = ['Ticket ID', 'Title', 'Priority', 'Status', 'Department', 'Assigned To', 'Due Date'];
@@ -2275,6 +2276,7 @@ Please log in to QuickBase to review and update this item.`
     } else if (type === 'openOnTime') rows = stats.openOnTime;
     else if (type === 'openLate') rows = stats.openLate;
     else if (type === 'closedLate') rows = stats.closedLate;
+    else if (type === 'closed') rows = stats.closed;
     renderSimpleTable(title, rows, columns, type === 'automated' ? 'Automated Tasks' : 'Tasks');
   };
 
