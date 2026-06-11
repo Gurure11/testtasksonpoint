@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -14,7 +14,6 @@
     section{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 16px 50px #0001}h2{margin:0 0 14px;color:#1d1606}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}@media(max-width:760px){.form-grid{grid-template-columns:1fr}}
     label{font-size:12px;font-weight:800;color:#4b5563;text-transform:uppercase;letter-spacing:.04em}input,textarea,select{width:100%;margin-top:6px;border:1px solid #d1d5db;border-radius:12px;padding:11px;background:#fff;font:inherit}textarea{min-height:86px;resize:vertical}.wide{grid-column:1/-1}.samples{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}@media(max-width:760px){.samples{grid-template-columns:1fr}}
     .sample-row{display:grid;grid-template-columns:70px 1fr;gap:8px;align-items:end}.hint{font-size:12px;color:var(--muted);margin-top:6px}.cards{display:grid;gap:12px}.project-card{border:1px solid var(--line);border-radius:16px;padding:14px;background:#fffdf8}.project-card h3{margin:0 0 6px}.meta{font-size:13px;color:var(--muted);line-height:1.5}.pill{display:inline-flex;border-radius:999px;padding:3px 9px;background:#fff3c4;color:#6b4600;font-size:12px;font-weight:800;margin-right:4px}.images-preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.images-preview img{width:82px;height:72px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}.modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:18px}.modal.open{display:flex}.modal-card{background:white;max-width:900px;width:100%;border-radius:22px;padding:20px;max-height:90vh;overflow:auto}.codebox{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;min-height:120px;background:#111827;color:#e5e7eb}.required:after{content:" *";color:var(--danger)}
-
     .project-card{cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
     .project-card:hover{transform:translateY(-2px);box-shadow:0 14px 34px #0002;border-color:var(--gold);background:#fffaf0}
     .project-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
@@ -25,23 +24,36 @@
     .detail-item b{display:block;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
     .map-link{color:#8a5c00;font-weight:800;text-decoration:none}.map-link:hover{text-decoration:underline}
     .syncing:after{content:' Synchronising...';font-weight:800}
+    body.logged-out main{display:none}
+    .login-card{background:white;max-width:430px;margin:32px auto;border-radius:22px;padding:22px;box-shadow:0 22px 70px #0003;border:1px solid #ffffff80}
+    .login-card h2{margin-top:0}.login-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.live-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#9ca3af;margin-right:6px}.live-dot.on{background:var(--ok);box-shadow:0 0 0 4px #0f766e22}.live-dot.off{background:var(--danger)}
   </style>
 </head>
-<body>
+<body class="logged-out">
   <header><div class="brand"><div class="logo">LM</div><div><h1>LM Commodities Mining Projects</h1><p>Mining survey reporting, sample results, inspection records and image evidence.</p></div></div></header>
+
+  <div class="login-card" id="loginPanel">
+    <h2>🔐 Login Required</h2>
+    <p class="meta">Authenticate with your credentials stored in "Users" tab (Sheet ID: 1ij3UKjHE-bqJdp7ZK_8lcGp2nkDmHi_icUEy_CKuNQY).</p>
+    <form id="loginForm">
+      <label>Username / Email</label><input id="loginUsername" required autocomplete="username">
+      <label>Password</label><input id="loginPassword" type="password" required autocomplete="current-password">
+      <p class="login-actions"><button class="gold" type="submit">Login</button><span class="status" id="loginStatus">⚠️ Not connected. Provide valid credentials.</span></p>
+    </form>
+  </div>
   <main>
     <div class="toolbar">
-      <div><strong>Gold Sheet Sync</strong><div class="status" id="syncStatus">Set your deployed Apps Script Web App URL to begin.</div></div>
-      <div><button class="secondary" onclick="openSettings()">Settings</button><button class="secondary" onclick="initSheet()">Create/Check Tabs</button><button class="gold" onclick="loadProjects()">Fetch Data</button></div>
+      <div><strong>⛏️ Gold Sheet Sync</strong><div class="status" id="syncStatus"><span class="live-dot" id="liveDot"></span>Ready — Login to establish live connection.</div></div>
+      <div><button class="secondary" onclick="openSettings()">⚙️ Settings</button><button class="secondary" onclick="initSheet(event.currentTarget)">📁 Create/Check Tabs</button><button class="gold" onclick="loadProjects(event.currentTarget)">🔄 Fetch Data</button><button class="secondary" onclick="logoutUser()">🚪 Logout</button></div>
     </div>
     <div class="grid">
       <section>
-        <h2>Mining Survey Form</h2>
+        <h2>📋 Mining Survey Form</h2>
         <form id="surveyForm">
           <div class="form-grid">
             <div><label class="required">Name of Mine Visited</label><input name="mineName" required></div>
             <div><label>Location</label><input name="location"></div>
-            <div><label>Geo Coordinates</label><input name="coordinates" placeholder="-17.8292, 30.9700"><div class="hint"><button type="button" class="secondary" onclick="getGPS()">Use My GPS</button></div></div>
+            <div><label>Geo Coordinates</label><input name="coordinates" placeholder="-17.8292, 30.9700"><div class="hint"><button type="button" class="secondary" onclick="getGPS()">📍 Use My GPS</button></div></div>
             <div><label>Size of the Mine</label><input name="mineSize" placeholder="e.g. 25 ha"></div>
             <div><label>Average Grade</label><input name="averageGrade" placeholder="e.g. 3.5 g/t"></div>
             <div><label>No. of Samples Collected</label><input name="sampleCount" type="number" min="0" max="10" value="0" onchange="syncSampleCount()"></div>
@@ -63,58 +75,304 @@
             <div class="wide"><label>Upload Images, up to 5</label><input name="images" id="images" type="file" accept="image/*" multiple onchange="previewImages()"><div class="hint">Images are uploaded to Drive by Apps Script and links are stored in the Gold spreadsheet.</div><div class="images-preview" id="imagesPreview"></div></div>
             <div class="wide"><label>Comment</label><textarea name="comment"></textarea></div>
           </div>
-          <p><button class="gold" type="submit">Submit Survey</button> <button class="secondary" type="reset">Clear</button></p>
+          <p><button class="gold" type="submit">✅ Submit Survey</button> <button class="secondary" type="reset">🗑️ Clear</button></p>
         </form>
       </section>
       <section>
-        <h2>Saved Mining Projects</h2>
-        <input id="projectSearch" class="searchbox" placeholder="Search by mine name, location or area of interest..." oninput="renderProjects(window.LM_PROJECTS||[])">
-        <div id="projectList" class="cards"><div class="meta">No data loaded yet.</div></div>
+        <h2>📌 Saved Mining Projects</h2>
+        <input id="projectSearch" class="searchbox" placeholder="🔍 Search by mine name, location, or surrounding activity..." oninput="renderProjects(window.LM_PROJECTS||[])">
+        <div id="projectList" class="cards"><div class="meta">✨ Please login to load projects — live data will appear automatically.</div></div>
       </section>
     </div>
   </main>
-  <div class="modal" id="settingsModal"><div class="modal-card"><h2>Connection Settings</h2><p class="meta">Paste your deployed Apps Script Web App URL below. You can also paste notes or Apps Script code here for safekeeping; the app only uses the Web App URL for syncing.</p><label>Apps Script Web App URL</label><input id="webAppUrl" placeholder="https://script.google.com/macros/s/AKfycbwLLatrcwdAgT0OjV7A-HhYzDKtnCAIfVzwWkQpvOuVoiQuUVz1wEnycUBwH25YHvsfsA/exec"><label>Paste Apps Script Code / Notes</label><textarea id="scriptPaste" class="codebox" placeholder="Paste code here if you want to keep a local copy in this browser."></textarea><p><button class="gold" onclick="saveSettings()">Save</button> <button class="secondary" onclick="closeSettings()">Close</button></p></div></div>
-
+  <div class="modal" id="settingsModal"><div class="modal-card"><h2>🔌 Connection Settings</h2><p class="meta">Paste your deployed Apps Script Web App URL below. The pre-filled URL is the target endpoint for this dashboard.</p><label>📡 Apps Script Web App URL</label><input id="webAppUrl" placeholder="https://script.google.com/macros/s/.../exec"><label>📝 Apps Script Code / Notes (local)</label><textarea id="scriptPaste" class="codebox" placeholder="Paste code snippet or notes for reference (stored in browser)."></textarea><p><button class="gold" onclick="saveSettings()">💾 Save</button> <button class="secondary" onclick="closeSettings()">Cancel</button></p></div></div>
   <div class="modal" id="projectModal"><div class="modal-card"><h2 id="projectModalTitle">Project Details</h2><div id="projectModalBody"></div><p><button class="secondary" onclick="closeProjectDetails()">Close</button></p></div></div>
 <script>
+// ======================== CONFIGURATION ========================
 const SHEET_ID = '1ij3UKjHE-bqJdp7ZK_8lcGp2nkDmHi_icUEy_CKuNQY';
 const MAX_IMAGES = 5;
+const DEFAULT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzgs5EI3RQbmHoDNffWmxwa4nZGKLAKZonwe6MDVFHOntrfjJh9B95heh2m_ZBt7ItIsg/exec';
 
-let syncBusy=false;
-window.LM_PROJECTS=[];
-function setButtonsBusy(isBusy){syncBusy=isBusy;document.querySelectorAll('button').forEach(b=>{if(!b.closest('#settingsModal')&&!b.closest('#projectModal'))b.disabled=isBusy;});document.body.classList.toggle('syncing',isBusy)}
-function withSync(label,task){if(syncBusy)return Promise.resolve();setStatus(label);setButtonsBusy(true);return Promise.resolve().then(task).finally(()=>setButtonsBusy(false));}
-function mapUrl(coords){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(coords||'')}
-function valueOf(p,key){return p&&p[key]!=null&&p[key]!==''?p[key]:''}
-function areaText(p){return [p.mineName,p.location,p.surroundingActivity,p.comment].filter(Boolean).join(' ').toLowerCase()}
-function normalizeImages(images){if(!images)return[];if(Array.isArray(images))return images;if(typeof images==='string'){return images.split(/[,
-]/).map(x=>x.trim()).filter(Boolean)}return[]}
-function normalizeSamples(samples,p){if(Array.isArray(samples))return samples;let out=[];if(typeof samples==='string'&&samples.trim()){try{const parsed=JSON.parse(samples);if(Array.isArray(parsed))return parsed}catch(e){}samples.split(/[,
-]/).map(x=>x.trim()).filter(Boolean).forEach((result,i)=>out.push({sampleId:'A'+(i+1),result}));}
-for(let i=1;i<=10;i++){const r=p['sampleResult'+i]||p['A'+i];if(r)out.push({sampleId:'A'+i,result:r});}
-return out}
-function detailRow(label,value,isHtml=false){return `<div class="detail-item"><b>${escapeHtml(label)}</b>${isHtml?value:escapeHtml(value||'')}</div>`}
-function openProjectDetails(index){const p=(window.LM_PROJECTS||[])[index];if(!p)return;const samples=normalizeSamples(p.samples,p);const images=normalizeImages(p.images||p.imageUrls||p.imageLinks);const coords=valueOf(p,'coordinates');let sampleHtml=samples.length?`<div class="detail-item wide"><b>Samples</b>${samples.map(s=>`<div>${escapeHtml(s.sampleId||'')} : ${escapeHtml(s.result||s.value||s)}</div>`).join('')}</div>`:'';let imageHtml=images.length?`<div class="detail-item wide"><b>Images</b><div class="images-preview">${images.slice(0,5).map(u=>`<a href="${escapeHtml(u)}" target="_blank"><img src="${escapeHtml(u)}" alt="Mine image"></a>`).join('')}</div></div>`:'';const mapLink=coords?`<a class="map-link" target="_blank" href="${mapUrl(coords)}">${escapeHtml(coords)} - Open Google Map</a>`:'';document.getElementById('projectModalTitle').textContent=valueOf(p,'mineName')||'Project Details';document.getElementById('projectModalBody').innerHTML=`<div class="detail-grid">${detailRow('Name of Mine Visited',valueOf(p,'mineName'))}${detailRow('Location',valueOf(p,'location'))}${detailRow('Geo Coordinates',mapLink,true)}${detailRow('Size of the Mine',valueOf(p,'mineSize'))}${detailRow('Average Grade',valueOf(p,'averageGrade'))}${detailRow('No. of Samples Collected',valueOf(p,'sampleCount'))}${detailRow('Price Asking For',valueOf(p,'priceAsking'))}${detailRow('Distance from Harare',valueOf(p,'distanceHarare'))}${detailRow('Distance from Chinhoyi',valueOf(p,'distanceChinhoyi'))}${detailRow('Last Mining Inspection',valueOf(p,'lastInspection'))}${detailRow('Previous Gold Production',valueOf(p,'previousProduction'))}${detailRow('Production Period',valueOf(p,'productionPeriod'))}${detailRow('Ownership',valueOf(p,'ownership'))}${detailRow('Depth of Belt from Surface',valueOf(p,'beltDepth'))}${detailRow('Cost of Fuel Per Trip',valueOf(p,'fuelCost'))}${detailRow('Size of Mining Belt',valueOf(p,'beltSize'))}${detailRow('Average Grade History Source',valueOf(p,'gradeHistorySource'))}${detailRow('Proof of Gold Deposit to Fidelity',valueOf(p,'fidelityProofKgs'))}${detailRow('Next Review Date',valueOf(p,'nextReviewDate'))}${detailRow('Mining Activity in Surrounding',valueOf(p,'surroundingActivity'))}${detailRow('Comment',valueOf(p,'comment'))}${sampleHtml}${imageHtml}</div>`;document.getElementById('projectModal').classList.add('open')}
-function closeProjectDetails(){document.getElementById('projectModal').classList.remove('open')}
-function qs(name){return document.querySelector(`[name="${name}"]`)}
-function getUrl(){return localStorage.getItem('LM_MINING_WEBAPP_URL')||'https://script.google.com/macros/s/AKfycbzNDKxYLnYxzVBQhZgf2K2LAexnQqqWsQI1Ofd15BB9HdlBs6RsCCV2gqwakgs7uJYF/exec'}
-function setStatus(msg){document.getElementById('syncStatus').textContent=msg}
-function openSettings(){document.getElementById('webAppUrl').value=getUrl();document.getElementById('scriptPaste').value=localStorage.getItem('LM_MINING_SCRIPT_CODE')||'';document.getElementById('settingsModal').classList.add('open')}
-function closeSettings(){document.getElementById('settingsModal').classList.remove('open')}
-function saveSettings(){localStorage.setItem('LM_MINING_WEBAPP_URL',document.getElementById('webAppUrl').value.trim());localStorage.setItem('LM_MINING_SCRIPT_CODE',document.getElementById('scriptPaste').value);closeSettings();setStatus('Connected URL saved.');}
-function post(action,payload={}){const url=getUrl();if(!url){openSettings();throw new Error('Missing Apps Script Web App URL');}return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,sheetId:SHEET_ID,...payload})}).then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||'Request failed');return j})}
-function buildSamples(){const wrap=document.getElementById('sampleResults');wrap.innerHTML='';for(let i=1;i<=10;i++){const row=document.createElement('div');row.className='sample-row';row.innerHTML=`<div><label>ID</label><input name="sampleId${i}" value="A${i}" readonly></div><div><label>Result ${i}</label><input name="sampleResult${i}" placeholder="Result for A${i}"></div>`;wrap.appendChild(row)}}
-function syncSampleCount(){let n=Math.max(0,Math.min(10,Number(qs('sampleCount').value||0)));qs('sampleCount').value=n;for(let i=1;i<=10;i++){qs('sampleResult'+i).disabled=i>n;}}
-function getGPS(){navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{qs('coordinates').value=`${p.coords.latitude.toFixed(6)}, ${p.coords.longitude.toFixed(6)}`},e=>alert(e.message)):alert('Geolocation is not available in this browser.')}
-function previewImages(){const files=[...document.getElementById('images').files].slice(0,MAX_IMAGES);const box=document.getElementById('imagesPreview');box.innerHTML='';files.forEach(f=>{const img=document.createElement('img');img.src=URL.createObjectURL(f);box.appendChild(img)});if(document.getElementById('images').files.length>MAX_IMAGES)alert('Only the first 5 images will be uploaded.');}
-function fileToBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve({name:file.name,type:file.type,data:String(r.result).split(',')[1]});r.onerror=reject;r.readAsDataURL(file);})}
-async function collectForm(){const fd=new FormData(document.getElementById('surveyForm'));const data=Object.fromEntries(fd.entries());data.samples=[];for(let i=1;i<=10;i++){const result=qs('sampleResult'+i).value.trim();if(result)data.samples.push({sampleId:'A'+i,result});}const files=[...document.getElementById('images').files].slice(0,MAX_IMAGES);data.images=await Promise.all(files.map(fileToBase64));return data}
-document.getElementById('surveyForm').addEventListener('submit',async e=>{e.preventDefault();await withSync('Synchronising survey submission...',async()=>{try{const data=await collectForm();const res=await post('saveProject',{project:data});setStatus(`Saved ${res.projectId}.`);e.target.reset();buildSamples();syncSampleCount();document.getElementById('imagesPreview').innerHTML='';await loadProjects();}catch(err){setStatus(err.message);alert(err.message)}})});
-async function initSheet(){return withSync('Synchronising tabs...',async()=>{try{const r=await post('init',{});setStatus(r.message);}catch(err){setStatus(err.message)}})}
-async function loadProjects(){return withSync('Synchronising projects...',async()=>{try{const r=await post('listProjects',{});window.LM_PROJECTS=r.projects||[];renderProjects(window.LM_PROJECTS);setStatus(`Loaded ${window.LM_PROJECTS.length} projects.`)}catch(err){setStatus(err.message)}})}
-function renderProjects(projects){const box=document.getElementById('projectList');const q=(document.getElementById('projectSearch')?.value||'').trim().toLowerCase();const filtered=q?projects.filter(p=>areaText(p).includes(q)):projects;if(!filtered.length){box.innerHTML='<div class="meta">No projects found.</div>';return;}box.innerHTML=filtered.map(p=>{const i=projects.indexOf(p);const coords=p.coordinates?`<a class="map-link" href="${mapUrl(p.coordinates)}" target="_blank" onclick="event.stopPropagation()">${escapeHtml(p.coordinates)}</a>`:'';return `<div class="project-card" onclick="openProjectDetails(${i})" title="Click to view all saved project data"><h3>${escapeHtml(p.mineName||'Unnamed Mine')}</h3><div><span class="pill">${escapeHtml(p.ownership||'')}</span><span class="pill">${escapeHtml(p.averageGrade||'Grade N/A')}</span></div><div class="meta">Location: ${escapeHtml(p.location||'')}<br>Coordinates: ${coords}<br>Samples: ${escapeHtml(String(p.sampleCount||0))} | Price: ${escapeHtml(p.priceAsking||'')}<br>Next review: ${escapeHtml(p.nextReviewDate||'')}</div></div>`}).join('')}
-function escapeHtml(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]))}
-buildSamples();syncSampleCount();if(getUrl()){setStatus('Connected URL saved. Loading projects...');loadProjects();}
+let syncBusy = false;
+let activeUser = null;
+window.LM_PROJECTS = [];
+
+// UI helpers
+function setLive(isLive, msg) {
+  const dot = document.getElementById('liveDot');
+  if (dot) { dot.classList.toggle('on', !!isLive); dot.classList.toggle('off', !isLive); }
+  const syncDiv = document.getElementById('syncStatus');
+  if (syncDiv) syncDiv.innerHTML = (isLive ? '🟢 LIVE: ' : '🔴 OFFLINE: ') + (msg || '');
+}
+function setButtonsBusy(isBusy, clickedButton) {
+  syncBusy = isBusy;
+  document.querySelectorAll('button').forEach(b => {
+    if (!b.closest('#settingsModal') && !b.closest('#projectModal')) b.disabled = isBusy;
+  });
+  if (clickedButton && isBusy) {
+    clickedButton.dataset.oldText = clickedButton.textContent;
+    clickedButton.textContent = '⏳ Syncing...';
+  } else if (clickedButton && clickedButton.dataset.oldText) {
+    clickedButton.textContent = clickedButton.dataset.oldText;
+    delete clickedButton.dataset.oldText;
+  }
+}
+function withSync(label, task, clickedButton) {
+  if (syncBusy) return Promise.resolve();
+  const statusEl = document.getElementById('syncStatus');
+  if (statusEl) statusEl.innerHTML = `🔄 ${label} ...`;
+  setButtonsBusy(true, clickedButton);
+  return Promise.resolve().then(task).finally(() => { setButtonsBusy(false, clickedButton); });
+}
+function getUrl() { return localStorage.getItem('LM_MINING_WEBAPP_URL') || DEFAULT_WEBAPP_URL; }
+function setStatus(msg) { const el = document.getElementById('syncStatus'); if (el) el.innerHTML = msg; }
+function escapeHtml(v) { return String(v).replace(/[&<>'"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#039;', '"':'&quot;' }[c])); }
+function mapUrl(coords) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(coords||''); }
+function valueOf(p, key) { return p && p[key] != null && p[key] !== '' ? p[key] : ''; }
+function areaText(p) { return [p.mineName, p.location, p.surroundingActivity, p.comment].filter(Boolean).join(' ').toLowerCase(); }
+function normalizeImages(images) { if (!images) return []; if (Array.isArray(images)) return images; if (typeof images === 'string') return images.split(/[\n,]/).map(x=>x.trim()).filter(Boolean); return []; }
+function normalizeSamples(samples, p) {
+  if (Array.isArray(samples)) return samples;
+  let out = [];
+  if (typeof samples === 'string' && samples.trim()) {
+    try { const parsed = JSON.parse(samples); if (Array.isArray(parsed)) return parsed; } catch(e) {}
+    samples.split(/[\n,]/).map(x=>x.trim()).filter(Boolean).forEach((result,i)=> out.push({sampleId:'A'+(i+1), result}));
+  }
+  for(let i=1;i<=10;i++){ const r = p['sampleResult'+i] || p['A'+i]; if(r) out.push({sampleId:'A'+i,result:r}); }
+  return out;
+}
+function detailRow(label, value, isHtml=false){ return `<div class="detail-item"><b>${escapeHtml(label)}</b>${isHtml?value:escapeHtml(value||'')}</div>`; }
+function openProjectDetails(index){
+  const p = (window.LM_PROJECTS||[])[index];
+  if(!p) return;
+  const samples = normalizeSamples(p.samples, p);
+  const images = normalizeImages(p.images || p.imageUrls || p.imageLinks);
+  const coords = valueOf(p,'coordinates');
+  let sampleHtml = samples.length ? `<div class="detail-item wide"><b>🧪 Sample Results</b>${samples.map(s=>`<div>${escapeHtml(s.sampleId||'')} : ${escapeHtml(s.result||s.value||s)}</div>`).join('')}</div>` : '';
+  let imageHtml = images.length ? `<div class="detail-item wide"><b>🖼️ Evidence Images</b><div class="images-preview">${images.slice(0,5).map(u=>`<a href="${escapeHtml(u)}" target="_blank"><img src="${escapeHtml(u)}" alt="Mine image" loading="lazy"></a>`).join('')}</div></div>` : '';
+  const mapLink = coords ? `<a class="map-link" target="_blank" href="${mapUrl(coords)}">📍 ${escapeHtml(coords)} - Open in Google Maps</a>` : '';
+  document.getElementById('projectModalTitle').innerHTML = escapeHtml(valueOf(p,'mineName')||'Project Details');
+  document.getElementById('projectModalBody').innerHTML = `<div class="detail-grid">${detailRow('Mine Name',valueOf(p,'mineName'))}${detailRow('Location',valueOf(p,'location'))}${detailRow('Geo Coordinates',mapLink,true)}${detailRow('Size',valueOf(p,'mineSize'))}${detailRow('Average Grade',valueOf(p,'averageGrade'))}${detailRow('Sample Count',valueOf(p,'sampleCount'))}${detailRow('Price Asking',valueOf(p,'priceAsking'))}${detailRow('Distance Harare',valueOf(p,'distanceHarare'))}${detailRow('Distance Chinhoyi',valueOf(p,'distanceChinhoyi'))}${detailRow('Last Inspection',valueOf(p,'lastInspection'))}${detailRow('Prev Gold Production',valueOf(p,'previousProduction'))}${detailRow('Production Period',valueOf(p,'productionPeriod'))}${detailRow('Ownership',valueOf(p,'ownership'))}${detailRow('Belt Depth',valueOf(p,'beltDepth'))}${detailRow('Fuel Cost',valueOf(p,'fuelCost'))}${detailRow('Belt Size',valueOf(p,'beltSize'))}${detailRow('Grade Source',valueOf(p,'gradeHistorySource'))}${detailRow('Fidelity Proof (kg)',valueOf(p,'fidelityProofKgs'))}${detailRow('Next Review Date',valueOf(p,'nextReviewDate'))}${detailRow('Surrounding Activity',valueOf(p,'surroundingActivity'))}${detailRow('Comment',valueOf(p,'comment'))}${sampleHtml}${imageHtml}</div>`;
+  document.getElementById('projectModal').classList.add('open');
+}
+function closeProjectDetails(){ document.getElementById('projectModal').classList.remove('open'); }
+function qs(name){ return document.querySelector(`[name="${name}"]`); }
+
+// ======================== APPS SCRIPT POST ========================
+async function post(action, payload = {}) {
+  const url = getUrl();
+  if (!url) throw new Error('Apps Script Web App URL missing. Set it in settings.');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, sheetId: SHEET_ID, user: activeUser, ...payload })
+  });
+  const rawText = await response.text();
+  let json;
+  try { json = JSON.parse(rawText); } catch (e) { throw new Error(rawText || 'Server returned invalid response'); }
+  if (json.status === 'success' && json.ok == null) json.ok = true;
+  if (!json.ok) throw new Error(json.error || `Server error: ${json.message || 'Unknown'}`);
+  return json;
+}
+
+// ======================== AUTHENTICATION & SESSION ========================
+async function loginUser(username, password, clickedButton) {
+  return withSync('Authenticating...', async () => {
+    try {
+      const loginStatusSpan = document.getElementById('loginStatus');
+      if(loginStatusSpan) loginStatusSpan.textContent = '🔄 Verifying credentials...';
+      const result = await post('login', { username, password, tab: 'Users' });
+      activeUser = result.user || { username };
+      sessionStorage.setItem('LM_MINING_ACTIVE_USER', JSON.stringify(activeUser));
+      document.body.classList.remove('logged-out');
+      const loginPanel = document.getElementById('loginPanel');
+      if(loginPanel) loginPanel.style.display = 'none';
+      if(loginStatusSpan) loginStatusSpan.textContent = '✅ Logged in successfully.';
+      setLive(true, 'Connected — fetching projects...');
+      await fetchProjectsDirect(true);
+      alert('✅ Connected successfully. Mining project data has loaded automatically.');
+    } catch (err) {
+      activeUser = null;
+      sessionStorage.removeItem('LM_MINING_ACTIVE_USER');
+      setLive(false, err.message);
+      const loginStatusSpan = document.getElementById('loginStatus');
+      if(loginStatusSpan) loginStatusSpan.textContent = `❌ Login failed: ${err.message}`;
+      alert('Login error: ' + err.message);
+      throw err;
+    }
+  }, clickedButton);
+}
+
+function logoutUser() {
+  activeUser = null;
+  sessionStorage.removeItem('LM_MINING_ACTIVE_USER');
+  document.body.classList.add('logged-out');
+  window.LM_PROJECTS = [];
+  renderProjects([]);
+  setLive(false, 'Logged out. Please login again.');
+  const syncDiv = document.getElementById('syncStatus');
+  if(syncDiv) syncDiv.innerHTML = '🔒 Logged out — login to sync.';
+  const loginPanel = document.getElementById('loginPanel');
+  if(loginPanel) loginPanel.style.display = 'block';
+}
+
+// ======================== FETCH PROJECTS (AUTO-LOAD ON LOGIN) ========================
+async function fetchProjectsDirect(showStatus = true) {
+  if (!activeUser) throw new Error('No active session. Please login.');
+  const result = await post('listProjects', {});
+  window.LM_PROJECTS = result.projects || [];
+  renderProjects(window.LM_PROJECTS);
+  if(showStatus) setLive(true, `Loaded ${window.LM_PROJECTS.length} mining projects.`);
+  return result;
+}
+
+async function loadProjects(clickedButton) {
+  if (!activeUser) { alert('Please login first.'); return; }
+  return withSync('Fetching latest project data...', async () => {
+    await fetchProjectsDirect(true);
+    setLive(true, `Refreshed — ${window.LM_PROJECTS.length} projects.`);
+  }, clickedButton);
+}
+
+async function initSheet(clickedButton) {
+  if (!activeUser) { alert('Login required to initialize/verify tabs.'); return; }
+  return withSync('Checking/creating spreadsheet tabs...', async () => {
+    const res = await post('init', {});
+    setLive(true, res.message);
+    alert(res.message);
+  }, clickedButton);
+}
+
+// ======================== SURVEY FORM & SAMPLES ========================
+function buildSamples() {
+  const wrap = document.getElementById('sampleResults');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  for(let i=1;i<=10;i++) {
+    const row = document.createElement('div');
+    row.className = 'sample-row';
+    row.innerHTML = `<div><label>ID</label><input name="sampleId${i}" value="A${i}" readonly></div><div><label>Result ${i}</label><input name="sampleResult${i}" placeholder="Value e.g. 2.3 g/t"></div>`;
+    wrap.appendChild(row);
+  }
+}
+function syncSampleCount() {
+  let n = Math.max(0, Math.min(10, Number(qs('sampleCount')?.value || 0)));
+  if(qs('sampleCount')) qs('sampleCount').value = n;
+  for(let i=1;i<=10;i++) {
+    const input = document.querySelector(`[name="sampleResult${i}"]`);
+    if(input) input.disabled = i > n;
+  }
+}
+function getGPS() {
+  navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => {
+    if(qs('coordinates')) qs('coordinates').value = `${p.coords.latitude.toFixed(6)}, ${p.coords.longitude.toFixed(6)}`;
+  }, e => alert(e.message)) : alert('Geolocation unsupported');
+}
+function previewImages() {
+  const files = [...document.getElementById('images').files].slice(0, MAX_IMAGES);
+  const box = document.getElementById('imagesPreview');
+  if(box) {
+    box.innerHTML = '';
+    files.forEach(f => { const img = document.createElement('img'); img.src = URL.createObjectURL(f); box.appendChild(img); });
+  }
+  if(document.getElementById('images').files.length > MAX_IMAGES) alert('Max 5 images, only first 5 will be processed.');
+}
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve({ name: file.name, type: file.type, data: String(r.result).split(',')[1] });
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+async function collectForm() {
+  const fd = new FormData(document.getElementById('surveyForm'));
+  const data = Object.fromEntries(fd.entries());
+  data.samples = [];
+  for(let i=1;i<=10;i++) {
+    const result = document.querySelector(`[name="sampleResult${i}"]`)?.value?.trim();
+    if(result) data.samples.push({ sampleId: 'A'+i, result });
+  }
+  const files = [...document.getElementById('images').files].slice(0, MAX_IMAGES);
+  data.images = await Promise.all(files.map(fileToBase64));
+  return data;
+}
+
+document.getElementById('surveyForm')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!activeUser) { alert('You must be logged in to submit a survey.'); return; }
+  await withSync('Submitting survey...', async () => {
+    try {
+      const formData = await collectForm();
+      const res = await post('saveProject', { project: formData });
+      setLive(true, `Saved "${formData.mineName || 'Project'}" (ID: ${res.projectId}). Reloading list...`);
+      e.target.reset();
+      buildSamples();
+      syncSampleCount();
+      document.getElementById('imagesPreview').innerHTML = '';
+      await fetchProjectsDirect(true);
+    } catch (err) {
+      setLive(false, err.message);
+      alert('Submission error: ' + err.message);
+    }
+  }, e.submitter);
+});
+
+function renderProjects(projects) {
+  const box = document.getElementById('projectList');
+  if(!box) return;
+  const q = (document.getElementById('projectSearch')?.value || '').trim().toLowerCase();
+  const filtered = q ? projects.filter(p => areaText(p).includes(q)) : projects;
+  if (!filtered.length) { box.innerHTML = '<div class="meta">🔎 No mining projects match your search.</div>'; return; }
+  box.innerHTML = filtered.map((p, idx) => {
+    const originalIndex = projects.indexOf(p);
+    const coords = p.coordinates ? `<a class="map-link" href="${mapUrl(p.coordinates)}" target="_blank" onclick="event.stopPropagation()">📍 ${escapeHtml(p.coordinates)}</a>` : '';
+    return `<div class="project-card" onclick="openProjectDetails(${originalIndex})" title="Click to view full details"><h3>⛏️ ${escapeHtml(p.mineName || 'Unnamed')}</h3><div><span class="pill">🏷️ ${escapeHtml(p.ownership || 'N/A')}</span><span class="pill">📊 ${escapeHtml(p.averageGrade || 'Grade N/A')}</span></div><div class="meta">📍 ${escapeHtml(p.location || 'Location not set')}<br>${coords}<br>🧪 Samples: ${escapeHtml(String(p.sampleCount || 0))} | 💰 Price: ${escapeHtml(p.priceAsking || '—')}<br>📅 Next review: ${escapeHtml(p.nextReviewDate || 'Not scheduled')}</div></div>`;
+  }).join('');
+}
+
+// ======================== SETTINGS UI ========================
+function openSettings() {
+  document.getElementById('webAppUrl').value = getUrl();
+  document.getElementById('scriptPaste').value = localStorage.getItem('LM_MINING_SCRIPT_CODE') || '';
+  document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+function saveSettings() {
+  const newUrl = document.getElementById('webAppUrl').value.trim();
+  if(newUrl) localStorage.setItem('LM_MINING_WEBAPP_URL', newUrl);
+  localStorage.setItem('LM_MINING_SCRIPT_CODE', document.getElementById('scriptPaste').value);
+  closeSettings();
+  setStatus('✅ Settings saved. Re-login or fetch data to reconnect.');
+  if(activeUser) loadProjects();
+  else setLive(false, 'URL updated. Please login.');
+}
+
+// ======================== INITIALIZATION & AUTO-LOAD ON LOGIN CHECK ========================
+function restoreSessionAndAutoLoad() {
+  try {
+    const savedUser = JSON.parse(sessionStorage.getItem('LM_MINING_ACTIVE_USER') || 'null');
+    if(savedUser && savedUser.username) {
+      activeUser = savedUser;
+      document.body.classList.remove('logged-out');
+      const loginPanel = document.getElementById('loginPanel');
+      if(loginPanel) loginPanel.style.display = 'none';
+      setLive(true, 'Restoring session... loading projects automatically.');
+      fetchProjectsDirect(true).catch(err => {
+        console.warn('Auto-fetch failed, login may be stale', err);
+        if(err.message.includes('login')) logoutUser();
+      });
+    } else {
+      document.body.classList.add('logged-out');
+      setLive(false, 'Session expired or not logged in.');
+    }
+  } catch(e) { document.body.classList.add('logged-out'); }
+}
+restoreSessionAndAutoLoad();
+buildSamples();
+syncSampleCount();
+document.getElementById('loginForm')?.addEventListener('submit', async e => { e.preventDefault(); await loginUser(document.getElementById('loginUsername').value.trim(), document.getElementById('loginPassword').value, e.submitter); });
+window.renderProjects = renderProjects;
 </script>
 </body>
 </html>
