@@ -561,6 +561,33 @@ button:focus-visible,.tab:focus-visible,select:focus-visible,input:focus-visible
 .conn.error{color:var(--late);border-color:#EFC9C9;background:var(--late-soft)}
 .conn.error::before{background:var(--late)}
 
+
+/* ===== OnpointBase login and role access layer ===== */
+.login-screen{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#F1F4F7,#E6F6FE);display:flex;align-items:center;justify-content:center;padding:22px}
+.login-card{width:420px;max-width:100%;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 70px rgba(15,22,34,.18);padding:26px}
+.login-card h1{font-size:21px;margin-bottom:6px;color:var(--ink)}
+.login-card p{font-size:13px;color:var(--ink2);line-height:1.5;margin-bottom:18px}
+.login-card label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin:12px 0 5px}
+.login-card input{width:100%;border:1px solid var(--line2);border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;color:var(--ink);background:#fff}
+.login-card input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.login-card .btn{width:100%;justify-content:center;margin-top:16px;background:var(--brand);border-color:var(--brand);color:#fff;font-weight:700}
+.login-error{min-height:18px;color:var(--late);font-size:12.5px;margin-top:10px}
+.login-foot{font-size:11px;color:var(--ink3);margin-top:13px;line-height:1.45}
+body.login-locked main,body.login-locked header.top,body.login-locked .asst,body.login-locked .asst-fab{filter:blur(2px);pointer-events:none;user-select:none}
+.rolepill{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;border:1px solid #CDEBFA;background:var(--brand-soft);color:var(--brand-ink);border-radius:999px;padding:4px 8px;white-space:nowrap}
+.task-submit-box{border:1px solid var(--line);border-radius:10px;background:#FAFCFE;padding:12px;margin-top:12px}
+.task-submit-box textarea{width:100%;min-height:72px;border:1px solid var(--line2);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;resize:vertical;margin-top:7px}
+.task-submit-box input[type=file]{display:block;margin:9px 0;font-size:12px;color:var(--ink2)}
+.task-submit-box .hint{font-size:11px;color:var(--ink3);line-height:1.4;margin-top:6px}
+.submitted-link{display:inline-block;margin:2px 10px 2px 0;color:var(--brand-ink);font-size:12.5px;text-decoration:none;border-bottom:1px solid #CDEBFA}
+
+/* ===== task create assignee autofill patch ===== */
+.cf-autofill{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:7px}
+.cf-autofill .cf-mini input{background:#F7F9FB;color:var(--ink2)}
+.cf-whatsapp{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12.5px;color:var(--ink2)}
+.cf-whatsapp input{width:auto}
+@media(max-width:720px){.cf-autofill{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -2237,8 +2264,8 @@ const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycbwWJV0zyeBU63-94uY3NgQ3KFEi_wmhX6LPB-BAhzotcblzFby6kcHLJGAsODBWcgpmfQ/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycbwWJV0zyeBU63-94uY3NgQ3KFEi_wmhX6LPB-BAhzotcblzFby6kcHLJGAsODBWcgpmfQ/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycbxyY0iEchQUCG_P0okHA66hVLzGBkxETGHmNrzLqnpXz_mJ-yZDTrnkXcvX4JeAqrLuCw/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbxyY0iEchQUCG_P0okHA66hVLzGBkxETGHmNrzLqnpXz_mJ-yZDTrnkXcvX4JeAqrLuCw/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -2250,7 +2277,7 @@ const OPOT_SHEETS = {
     employees:['Employees','Users']
   }
 };
-const EXECUTIVE_LEVEL = String(new URLSearchParams(location.search).get('exec') || localStorage.getItem('opotExecutiveLevel') || '1') === '2' ? 2 : 1;
+let EXECUTIVE_LEVEL = String(new URLSearchParams(location.search).get('exec') || localStorage.getItem('opotExecutiveLevel') || '1') === '2' ? 2 : 1;
 let scoringQueue = [];
 let liveRows = {};
 function _normKey(k){return String(k||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
@@ -2384,6 +2411,281 @@ function init(){
   renderTiles();headlines();renderTable('review');renderCrumbs();renderExec();if($('#pghead'))$('#pghead').classList.add('head-hidden');
   if(typeof l99boot==='function')l99boot();
 }
+
+
+/* ---------- Login, Users sheet roles, uploads and access control patch ---------- */
+const OPOT_LOGIN = {user:null,isExecutive:false,ready:false};
+function currentUserName(){return (OPOT_LOGIN.user&&OPOT_LOGIN.user.fullName)||DATA.me||'';}
+function currentUserEmail(){return (OPOT_LOGIN.user&&OPOT_LOGIN.user.email)||'';}
+function currentUserRole(){return (OPOT_LOGIN.user&&OPOT_LOGIN.user.role)||'';}
+function isExecutiveUser(){return !!(OPOT_LOGIN.isExecutive || /executive/i.test(currentUserRole()));}
+function roleLabelForUser(u){const n=String((u&&u.fullName)||''); if(/tafadzwa\s+magejo/i.test(n))return 'Executive 1'; if(/lameck\s+chindove/i.test(n))return 'Executive 2'; return (u&&u.role)||'User';}
+function execLevelForUser(u){const n=String((u&&u.fullName)||''); if(/lameck\s+chindove/i.test(n))return 2; return 1;}
+function ensureLoginUi(){
+  if(document.getElementById('loginScreen'))return;
+  document.body.classList.add('login-locked');
+  const d=document.createElement('div'); d.id='loginScreen'; d.className='login-screen';
+  d.innerHTML=`<form class="login-card" onsubmit="event.preventDefault(); loginSubmit();">
+    <h1>OnpointBase Login</h1><p>Sign in using the <b>Users</b> sheet. Executives see all baskets and scorecards; other users only see tasks assigned to them.</p>
+    <label>Email</label><input id="loginEmail" type="email" autocomplete="username" required>
+    <label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" required>
+    <button class="btn" id="loginBtn" type="submit">Sign in</button><div class="login-error" id="loginError"></div>
+    <div class="login-foot">Sheet ID: ${esc(OPOT_SHEETS.spreadsheetId)} · Tab: Users</div></form>`;
+  document.body.appendChild(d); setTimeout(()=>{const e=document.getElementById('loginEmail'); if(e)e.focus();},50);
+}
+function clearLoginUi(){const d=document.getElementById('loginScreen'); if(d)d.remove(); document.body.classList.remove('login-locked');}
+async function loginSubmit(){
+  const email=(document.getElementById('loginEmail')||{}).value||''; const password=(document.getElementById('loginPassword')||{}).value||'';
+  const err=document.getElementById('loginError'), btn=document.getElementById('loginBtn'); if(err)err.textContent=''; if(btn){btn.disabled=true;btn.textContent='Signing in...';}
+  try{const data=await jsonp(OPOT_SHEETS.writeUrl,{mode:'auth',spreadsheetId:OPOT_SHEETS.spreadsheetId,email:email,password:password});
+    if(!data.ok)throw new Error(data.error||'Login failed');
+    OPOT_LOGIN.user=data.user; OPOT_LOGIN.isExecutive=!!data.user.isExecutive; OPOT_LOGIN.ready=true;
+    sessionStorage.setItem('opotUser',JSON.stringify(data.user));
+    EXECUTIVE_LEVEL=execLevelForUser(data.user); localStorage.setItem('opotExecutiveLevel', String(EXECUTIVE_LEVEL));
+    DATA.me=data.user.fullName||DATA.me; clearLoginUi(); setConnectionStatus('connected','Logged in · '+roleLabelForUser(data.user));
+    await afterLoginReady();
+  }catch(e){if(err)err.textContent=e.message||String(e); setConnectionStatus('error','Login failed');}
+  finally{if(btn){btn.disabled=false;btn.textContent='Sign in';}}
+}
+function waitForLogin(){
+  return new Promise(resolve=>{
+    try{const saved=JSON.parse(sessionStorage.getItem('opotUser')||'null'); if(saved&&saved.email){OPOT_LOGIN.user=saved;OPOT_LOGIN.isExecutive=!!saved.isExecutive;OPOT_LOGIN.ready=true;EXECUTIVE_LEVEL=execLevelForUser(saved);DATA.me=saved.fullName||DATA.me;setConnectionStatus('connected','Logged in · '+roleLabelForUser(saved));resolve(saved);return;}}catch(e){}
+    ensureLoginUi(); const old=afterLoginReady; window.afterLoginReady=function(){resolve(OPOT_LOGIN.user); return old?old.apply(this,arguments):undefined;};
+  });
+}
+async function afterLoginReady(){return true;}
+function applyUserHeader(){
+  const v=document.querySelector('.viewas'); if(!v||!OPOT_LOGIN.user)return;
+  const label=roleLabelForUser(OPOT_LOGIN.user); v.innerHTML=`<span class="role">${esc(label)}</span> ${esc(OPOT_LOGIN.user.fullName||OPOT_LOGIN.user.email||'User')} <button class="kbtn no-print" style="margin-left:8px" onclick="logoutUser()"><span class="kk">↩</span> Logout</button>`;
+}
+function logoutUser(){sessionStorage.removeItem('opotUser'); location.reload();}
+function matchesCurrentUserTask(t){const n=currentUserName().toLowerCase(), e=currentUserEmail().toLowerCase(); return String(t.owner||'').toLowerCase()===n || String(t.submittedBy||'').toLowerCase()===n || String(t.upBy||'').toLowerCase()===n || String(t.ownerEmail||'').toLowerCase()===e;}
+function applyUserPermissionsBeforeRender(){
+  applyUserHeader();
+  if(isExecutiveUser()){
+    document.querySelectorAll('[data-tab]').forEach(b=>b.style.display=''); return;
+  }
+  const rows=T.filter(matchesCurrentUserTask); T.splice(0,T.length,...rows); DATA.me=currentUserName();
+  if(CFG&&CFG.mine){CFG.mine.rows=()=>T.filter(t=>matchesCurrentUserTask(t)&&matchQ(t,state.mine.q));}
+  document.querySelectorAll('[data-tab]').forEach(b=>{const tab=b.getAttribute('data-tab'); b.style.display=(tab==='mine'||tab==='assigned'||tab==='activity')?'':'none';});
+  if(state)state.tab='mine';
+}
+const _opRenderMine=renderMine;
+renderMine=function(){
+  if(isExecutiveUser())return _opRenderMine();
+  const mine=T.filter(matchesCurrentUserTask); const open=mine.filter(t=>t.status==='Open').length, awaiting=mine.filter(t=>t.status==='Awaiting review').length;
+  if($('#mine-demo'))$('#mine-demo').innerHTML=''; if($('#mine-ppl'))$('#mine-ppl').innerHTML='';
+  if($('#hl-mine'))$('#hl-mine').innerHTML=mine.length?`Welcome <span class="k">${esc(currentUserName())}</span> — you have <span class="k">${mine.length}</span> assigned tasks · <span class="k">${open}</span> open · <span class="k">${awaiting}</span> submitted.`:'No tasks are currently assigned to you.';
+  renderTable('mine');
+};
+function fileToBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||'').split(',')[1]||'');r.onerror=()=>reject(r.error||new Error('File read failed'));r.readAsDataURL(file);});}
+async function submitTaskUpdate(ref){
+  const t=T.find(x=>x.ref===ref); if(!t)return; const note=(document.getElementById('taskSubmitComment')||{}).value||''; const files=(document.getElementById('taskSubmitFiles')||{}).files||[];
+  const btn=document.getElementById('taskSubmitBtn'); if(btn){btn.disabled=true;btn.textContent='Submitting...';}
+  try{const uploads=[]; for(const file of files){uploads.push({name:file.name,type:file.type,data:await fileToBase64(file)});}
+    const payload={action:'submit_task_update',taskId:ref,comment:note,updatedBy:currentUserName(),email:currentUserEmail(),department:(OPOT_LOGIN.user&&OPOT_LOGIN.user.department)||t.dept,files:uploads};
+    await sheetWrite('submit_task_update',payload);
+    t.status='Awaiting review'; t.upStatus='Completed - Awaiting Review'; t.upComment=note; t.comment=note||t.comment; t.upBy=currentUserName(); t.upTs=new Date().toISOString().slice(0,10); t.lastResp=t.upTs; t.compReq=t.upTs; if(uploads.length)t.proofs=(t.proofs||[]).concat(uploads.map(u=>'Uploaded to Google Drive - refresh for link'));
+    buildWorkflowQueues({updates:[{'Task ID':ref,'Updated By':currentUserName(),'Update Comment':note,'Stage':'Scoring Executive 1'}],scoring:scoringQueue.map(x=>x.raw||{})}); recomputeData(); renderTiles(); renderMine(); closeTicket(); toast('Task submitted · sent to Executive 1 scoring');
+  }catch(e){alert('Submit failed: '+(e.message||e));}
+  finally{if(btn){btn.disabled=false;btn.textContent='Submit update';}}
+}
+const _opOpenTicket=openTicket;
+openTicket=function(ref,keepList){_opOpenTicket(ref,keepList); const t=T.find(x=>x.ref===ref); if(!t)return;
+  if(!isExecutiveUser() && matchesCurrentUserTask(t) && t.status!=='Closed'){
+    const host=document.getElementById('dw-body'); if(host){host.insertAdjacentHTML('beforeend',`<div class="task-submit-box"><div class="t">Submit update / documents</div><textarea id="taskSubmitComment" placeholder="Update comment / completion note"></textarea><input id="taskSubmitFiles" type="file" multiple><button class="btn primary" id="taskSubmitBtn" onclick="submitTaskUpdate('${esc(ref)}')">Submit update</button><div class="hint">Files upload to Google Drive through Apps Script, then links are written to the task row and visible after refresh.</div></div>`);} }
+};
+const _opOpenReportFor=openReportFor;
+openReportFor=function(emp){if(!isExecutiveUser() && String(emp||'').toLowerCase()!==currentUserName().toLowerCase()){toast('Scorecards are restricted to executives','warn');return;} return _opOpenReportFor(emp);};
+function archivePastMonthClient(){return sheetWrite('archive_month_end',{month:new Date().toISOString().slice(0,7)});}
+const _origBoot=onpointEnhancedBoot;
+onpointEnhancedBoot=async function(){
+  await waitForLogin(); await _origBoot();
+  applyUserPermissionsBeforeRender();
+  if(isExecutiveUser() && EXECUTIVE_LEVEL===1 && !localStorage.getItem('opotCriticalMovedToReview')){localStorage.setItem('opotCriticalMovedToReview','1'); sheetWrite('move_critical_to_review',{limit:28}).catch(()=>{}); T.filter(t=>t.prio==='Critical'&&t.status==='Open').slice(0,28).forEach(t=>{t.status='Awaiting review';t.upStatus='Ready for Executive 1 Review';}); reviewQueue=T.filter(t=>t.status==='Awaiting review').map(t=>({...t}));}
+  recomputeData();
+};
+const _origInit=init;
+init=function(){_origInit(); applyUserHeader(); if(!isExecutiveUser())setTab('mine');};
+
+
+
+/* ---------- Task creation live Users autofill, Gmail notice, optional WhatsApp ---------- */
+function opotUserRows(){
+  const rows=[];
+  if(window.liveRows){
+    ['Users','Employees'].forEach(k=>{ if(Array.isArray(liveRows[k])) rows.push(...liveRows[k]); });
+  }
+  return rows;
+}
+function opotUserName(u){return String(_pick(u,['Full Name','Name','User','Employee'],'')).trim();}
+function opotUserEmail(u){return String(_pick(u,['Email','Email Address'],'')).trim();}
+function opotUserDept(u){return String(_pick(u,['Department','Dept'],'')).trim();}
+function opotUserWhatsapp(u){return String(_pick(u,['Whatsapp No.','WhatsApp No','Whatsapp','WhatsApp','Phone','Mobile'],'')).trim();}
+function opotUserCostCenter(u){return String(_pick(u,['CostCenter','Cost Center'],'')).trim();}
+function opotActiveUsers(){return opotUserRows().filter(u=>{const n=opotUserName(u); const status=String(_pick(u,['Status'],'Active')); return n && !/inactive|disabled|left|terminated/i.test(status);}).sort((a,b)=>opotUserName(a).localeCompare(opotUserName(b)));}
+function opotFindUserByName(name){const n=String(name||'').trim().toLowerCase(); if(!n)return null; return opotActiveUsers().find(u=>opotUserName(u).toLowerCase()===n) || opotActiveUsers().find(u=>opotUserName(u).toLowerCase().includes(n));}
+function cfAssigneeChanged(){
+  const owner=($('#cf-owner')||{}).value||''; const u=opotFindUserByName(owner);
+  const set=(id,val)=>{const el=$(id); if(el)el.value=val||'';};
+  set('#cf-owner-email', u?opotUserEmail(u):'');
+  set('#cf-owner-dept', u?opotUserDept(u):'');
+  set('#cf-owner-whatsapp', u?opotUserWhatsapp(u):'');
+  set('#cf-owner-costcenter', u?opotUserCostCenter(u):'');
+  if(u && $('#cf-dept')) $('#cf-dept').value=opotUserDept(u)||$('#cf-dept').value;
+  cfPreview();
+}
+function cfWhatsappUrl(number, text){
+  const digits=String(number||'').replace(/[^0-9]/g,'');
+  if(!digits)return '';
+  return 'https://wa.me/'+digits+'?text='+encodeURIComponent(text||'');
+}
+const _taskCreateOriginalRenderCreate = renderCreate;
+renderCreate=function(){
+  const users=opotActiveUsers();
+  const DEPTS=[...new Set([].concat(T.map(t=>t.dept),users.map(opotUserDept)).filter(Boolean))].sort();
+  const OWN=users.length?users.map(opotUserName):[...new Set(T.map(t=>t.owner))].filter(Boolean).sort();
+  const today=_iso(ASAT);
+  const mode=state.cf&&state.cf.mode?state.cf.mode:'once';
+  const dopt=DEPTS.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+  const own=OWN.map(o=>`<option value="${esc(o)}">`).join('');
+  $('#create-body').innerHTML=`
+  <div id="cf-success"></div>
+  <div class="cf-banner"><span>&#128279;</span><span><b>Live task creation.</b> Assignee details are pulled from the <b>Users</b> sheet and the ticket is posted to the <b>Tasks</b> tab. An email is sent automatically through Apps Script. WhatsApp opens only when selected.</span></div>
+
+  <div class="cf-seg" role="tablist">
+    <button data-m="once" class="${mode==='once'?'on':''}" onclick="cfMode('once')">One-off ticket</button>
+    <button data-m="recurring" class="${mode==='recurring'?'on':''}" onclick="cfMode('recurring')">Recurring ticket</button>
+  </div>
+
+  <div class="cf-grid">
+    <div class="cf-f cf-wide"><label>Title <span class="req">*</span></label>
+      <input id="cf-title" maxlength="140" placeholder="Short description of the task" oninput="cfPreview()"></div>
+    <div class="cf-f"><label>Department <span class="req">*</span></label>
+      <select id="cf-dept" onchange="cfPreview()"><option value="">Select department&hellip;</option>${dopt}</select></div>
+    <div class="cf-f"><label>Priority <span class="req">*</span></label>
+      <select id="cf-prio" onchange="cfPreview()"><option>Critical</option><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+    <div class="cf-f cf-wide"><label>Assigned to <span class="req">*</span></label>
+      <input id="cf-owner" list="cf-owners" placeholder="Select assignee from Users sheet" oninput="cfAssigneeChanged()" onchange="cfAssigneeChanged()">
+      <datalist id="cf-owners">${own}</datalist>
+      <div class="cf-autofill">
+        <div class="cf-mini"><label>Email</label><input id="cf-owner-email" readonly placeholder="Auto-filled"></div>
+        <div class="cf-mini"><label>Whatsapp No.</label><input id="cf-owner-whatsapp" readonly placeholder="Auto-filled"></div>
+        <div class="cf-mini"><label>CostCenter</label><input id="cf-owner-costcenter" readonly placeholder="Auto-filled"></div>
+      </div>
+      <input id="cf-owner-dept" type="hidden">
+      <label class="cf-whatsapp"><input id="cf-send-whatsapp" type="checkbox"> Ask to open WhatsApp message after creation</label>
+    </div>
+    <div class="cf-f"><label>Raised by</label>
+      <input id="cf-raisedby" value="${esc(currentUserName?currentUserName():DATA.me)}" oninput="cfPreview()">
+      <span class="cf-hint">Defaults to the logged-in user.</span></div>
+    <div class="cf-f cf-wide"><label>Description</label>
+      <textarea id="cf-desc" placeholder="Context, scope, acceptance criteria&hellip;" oninput="cfPreview()"></textarea></div>
+  </div>
+
+  <div class="cf-sec" id="cf-once" style="${mode==='once'?'':'display:none'}">
+    <h3>Dates</h3>
+    <div class="cf-row3">
+      <div class="cf-f"><label>Created</label><input type="date" id="cf-created" value="${today}" onchange="cfPreview()"></div>
+      <div class="cf-f"><label>Due date <span class="req">*</span></label><input type="date" id="cf-due" onchange="cfPreview()"></div>
+      <div class="cf-f"><label>Completion required by</label><input type="date" id="cf-compreq" onchange="cfPreview()"><span class="cf-hint">Optional.</span></div>
+    </div>
+  </div>
+
+  <div class="cf-sec" id="cf-rec" style="${mode==='recurring'?'':'display:none'}">
+    <h3>Recurrence</h3>
+    <div class="cf-row3">
+      <div class="cf-f"><label>Frequency <span class="req">*</span></label>
+        <select id="cf-freq" onchange="cfPreview()"><option>Daily</option><option selected>Weekly</option><option>Monthly</option><option>Quarterly</option></select></div>
+      <div class="cf-f"><label>Repeat every</label><input type="number" id="cf-interval" min="1" value="1" oninput="cfPreview()"></div>
+      <div class="cf-f"><label>Start date <span class="req">*</span></label><input type="date" id="cf-start" value="${today}" onchange="cfPreview()"></div>
+    </div>
+    <div class="cf-row3" style="margin-top:12px">
+      <div class="cf-f"><label>Due, days after each start</label><input type="number" id="cf-offset" min="0" value="3" oninput="cfPreview()"></div>
+      <div class="cf-f cf-wide"><label>Ends</label>
+        <div class="cf-end">
+          <label class="opt"><input type="radio" name="cf-endmode" value="never" checked onchange="cfPreview()"> Never (ongoing)</label>
+          <label class="opt"><input type="radio" name="cf-endmode" value="count" onchange="cfPreview()"> After <input type="number" id="cf-count" min="1" value="12" oninput="cfPreview()"> occurrences</label>
+          <label class="opt"><input type="radio" name="cf-endmode" value="until" onchange="cfPreview()"> On date <input type="date" id="cf-until" onchange="cfPreview()"></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cf-side" id="cf-preview"></div>
+  <div class="cf-actions">
+    <button class="btn primary" onclick="cfSubmit()">Create ticket</button>
+    <button class="btn ghost" onclick="cfReset(false)">Clear</button>
+  </div>
+  <div class="cf-err" id="cf-err"></div>`;
+  cfPreview();
+};
+const _taskCreateOriginalCfPreview = cfPreview;
+cfPreview=function(){
+  _taskCreateOriginalCfPreview();
+  const p=$('#cf-preview'); if(!p)return;
+  const email=($('#cf-owner-email')||{}).value||'';
+  const wa=($('#cf-owner-whatsapp')||{}).value||'';
+  const cc=($('#cf-owner-costcenter')||{}).value||'';
+  const add=`<div class="cf-kv"><span class="k">Assignee email</span><span class="v">${email?esc(email):'—'}</span></div>
+    <div class="cf-kv"><span class="k">Assignee WhatsApp</span><span class="v">${wa?esc(wa):'—'}</span></div>
+    <div class="cf-kv"><span class="k">CostCenter</span><span class="v">${cc?esc(cc):'—'}</span></div>
+    <div class="cf-kv"><span class="k">Google Sheet</span><span class="v">Tasks</span></div>`;
+  p.innerHTML=p.innerHTML.replace('<div class="cf-occ" style="color:var(--ink3);margin-top:10px">Held in this session \· exportable as JSON</div>', '<div class="cf-occ" style="color:var(--ink3);margin-top:10px">Writes live to Google Sheet tab: Tasks</div>');
+  p.insertAdjacentHTML('beforeend',add);
+};
+const _taskCreateOriginalCfValidate = cfValidate;
+cfValidate=function(){
+  const v=_taskCreateOriginalCfValidate(); if(!v.ok)return v;
+  if(!($('#cf-owner-email')||{}).value) return {ok:false,msg:'Select an assignee from the Users sheet so email, department and WhatsApp can auto-fill.',focus:'#cf-owner'};
+  return {ok:true};
+};
+cfSubmit=async function(){
+  const v=cfValidate(); const err=$('#cf-err');
+  if(!v.ok){if(err)err.textContent=v.msg; const el=$(v.focus); if(el)el.focus(); return;}
+  if(err)err.textContent='';
+  const mode=state.cf&&state.cf.mode?state.cf.mode:'once';
+  const ref=cfGenRef();
+  const title=$('#cf-title').value.trim();
+  const dept=$('#cf-dept').value || ($('#cf-owner-dept')||{}).value || '';
+  const prio=$('#cf-prio').value;
+  const owner=$('#cf-owner').value.trim();
+  const assigneeEmail=($('#cf-owner-email')||{}).value||'';
+  const assigneeWhatsapp=($('#cf-owner-whatsapp')||{}).value||'';
+  const assigneeCostCenter=($('#cf-owner-costcenter')||{}).value||'';
+  const raisedBy=(($('#cf-raisedby').value)||'').trim()||currentUserName();
+  const desc=(($('#cf-desc').value)||'').trim();
+  let created,due,compreq='',rec=null;
+  if(mode==='once'){created=$('#cf-created').value||_iso(ASAT); due=$('#cf-due').value; compreq=$('#cf-compreq').value||'';}
+  else {const sch=cfSchedule(1); const first=sch.list[0]; created=_iso(ASAT); due=_iso(first.due); rec={freq:sch.freq,interval:sch.interval,start:$('#cf-start').value,offset:sch.offset,end:sch.endmode,count:sch.total,until:sch.until};}
+  const dueD=_parseD(due); const overdue=!!(dueD&&dueD<ASAT); const daysLate=overdue?Math.round((ASAT-dueD)/86400000):0;
+  const tk={ref,name:title,dept,prio,status:'Open',owner,ownerEmail:assigneeEmail,ownerWhatsapp:assigneeWhatsapp,costCenter:assigneeCostCenter,created,due,closed:'',submittedBy:owner,overdue,daysLate,daysWaiting:0,desc,comment:'',upStatus:'',upComment:'',upBy:'',upTs:'',lastResp:'',compReq:compreq,proofs:[],raisedBy,draft:false};
+  if(rec){tk.recurring=true; tk.rec=rec;}
+  const btn=document.querySelector('#v-create .cf-actions .btn.primary'); if(btn){btn.disabled=true;btn.textContent='Creating ticket...';}
+  try{
+    await sheetWrite('create_task',{sheet:'Tasks',task:tk,ref,title,department:dept,priority:prio,assignee:owner,assigneeEmail,assigneeWhatsapp,costCenter:assigneeCostCenter,created,due,completionRequired:compreq,description:desc,raisedBy,raisedByEmail:currentUserEmail(),recurring:!!rec,recurrence:rec});
+    T.unshift(tk); recomputeSummary(); recomputeData(); renderTiles(); if(state.tab==='exec')renderExec(); logAudit('Created ticket',ref,'Posted to Google Sheet Tasks'); cfLastRef=ref;
+    const whatsappText=`Task ${ref}: ${title}
+Assigned to: ${owner}
+Due: ${due}
+Please log in to OnpointBase to view and update this task.`;
+    const waUrl=cfWhatsappUrl(assigneeWhatsapp, whatsappText);
+    $('#cf-success').innerHTML=`<div class="cf-ok"><h3>&#10003; Ticket created and posted &mdash; <span class="ref">${esc(ref)}</span></h3>
+      <div class="cf-hint">Saved to Google Sheet tab <b>Tasks</b>. Email notification sent automatically to ${esc(assigneeEmail)}.</div>
+      <div class="row">
+        <button class="btn primary sm" onclick="openTicket('${esc(ref)}')">Open ticket</button>
+        ${waUrl?`<button class="btn sm" onclick="window.open('${esc(waUrl)}','_blank')">Open WhatsApp</button>`:''}
+        <button class="btn ghost sm" onclick="cfReset(true)">Create another</button>
+      </div></div>`;
+    if(waUrl && ($('#cf-send-whatsapp')||{}).checked){ if(confirm('Ticket created and email sent. Open WhatsApp to notify '+owner+'?')) window.open(waUrl,'_blank'); }
+    cfClearInputs(); const o=$('#cf-owner'); if(o)o.value=''; ['#cf-owner-email','#cf-owner-whatsapp','#cf-owner-costcenter','#cf-owner-dept'].forEach(id=>{const el=$(id); if(el)el.value='';}); cfPreview(); toast('Ticket '+ref+' created · email sent'); window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){if(err)err.textContent='Create failed: '+(e.message||e); toast('Ticket create failed','warn');}
+  finally{if(btn){btn.disabled=false;btn.textContent='Create ticket';}}
+};
+const _taskCreateOriginalTaskFromRow = taskFromRow;
+taskFromRow=function(r){const t=_taskCreateOriginalTaskFromRow(r); t.ownerEmail=String(_pick(r,['Assignee Email','Owner Email','Email'],'')).trim(); t.ownerWhatsapp=String(_pick(r,['Assignee Whatsapp','Assignee WhatsApp','Whatsapp No.','WhatsApp No'],'')).trim(); t.costCenter=String(_pick(r,['CostCenter','Cost Center'],'')).trim(); return t;};
+
+
 onpointEnhancedBoot().then(init).catch(function(e){console.warn(e);init();});
 </script>
 </body>
