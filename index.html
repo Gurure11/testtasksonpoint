@@ -312,7 +312,7 @@ kbd{font-family:var(--mono);font-size:10px;background:var(--bg);border:1px solid
 .bulkbar[hidden]{display:none}
 .bulkbar .bb-n{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--brand-ink)}
 .selcol{width:34px;text-align:center}
-.rowsel,#sel-all{cursor:pointer;width:15px;height:15px;accent-color:var(--brand);vertical-align:middle}
+.rowsel,.critrowsel,#sel-all,#crit-sel-all{cursor:pointer;width:15px;height:15px;accent-color:var(--brand);vertical-align:middle}
 .ageprof{margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:var(--card)}
 .ageprof .cap{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink3);margin-bottom:8px}
 .agebar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--bg)}
@@ -588,6 +588,19 @@ body.login-locked main,body.login-locked header.top,body.login-locked .asst,body
 .cf-whatsapp input{width:auto}
 @media(max-width:720px){.cf-autofill{grid-template-columns:1fr}}
 
+
+/* ===== targeted responsive/debug patch 2026-06-15 ===== */
+.chartcard,.needpill,.exk .c,.atrow,.dh tr.rowlink,.hbar.rowlink{cursor:pointer}
+.chartcard:hover,.needpill:hover,.exk .c:hover,.panel.nav-card:hover{border-color:var(--brand);box-shadow:0 4px 14px rgba(15,22,34,.07)}
+.donut{max-width:100%;height:auto}
+.drawer,.asst,.modal-box,.cmdk-box{max-width:calc(100vw - 24px)}
+.cf-actions{position:sticky;bottom:0;background:var(--card);padding:10px 0;z-index:5;flex-wrap:wrap}
+.cf-actions .btn{min-height:38px}
+#v-create .cf-seg{display:flex;flex-wrap:wrap}
+#v-create .cf-seg button{flex:1 1 180px}
+@media(max-width:900px){.exk{grid-template-columns:repeat(2,1fr)}.exgrid,.exgrid2,.exch{grid-template-columns:1fr}.pulse{grid-template-columns:1fr}.hbar .hl{flex-basis:120px}.top .wrap{height:auto;min-height:var(--h-top);flex-wrap:wrap;padding-top:8px;padding-bottom:8px}.tabs{top:auto;position:relative}}
+@media(max-width:560px){.exk,.tiles{grid-template-columns:1fr}.vhead{align-items:flex-start}.ctrl{width:100%}.ctrl .find,.ctrl select.mini{width:100%}.btn{justify-content:center}.cf-actions .btn{flex:1 1 100%}.dwgrid,.agestrip{grid-template-columns:1fr}.drawer{max-width:100vw}.chartcard{padding:12px}.hbar{align-items:flex-start;flex-direction:column}.hbar .hl,.hbar .hv{flex:auto}.hbar .ht{width:100%}}
+
 </style>
 </head>
 <body>
@@ -617,20 +630,20 @@ body.login-locked main,body.login-locked header.top,body.login-locked .asst,body
   <div class="tiles" id="tiles"></div>
 
   <div class="tabs" id="tabs">
-    <button class="tab active" data-tab="exec" onclick="setTab('exec')">Executive</button>
-    <button class="tab" data-tab="review" onclick="setTab('review')">Review</button>
-    <button class="tab" data-tab="approvals" onclick="setTab('approvals')">Approvals</button>
-    <button class="tab" data-tab="scoring" onclick="setTab('scoring')">Scoring</button>
-    <button class="tab" data-tab="mine" onclick="setTab('mine')">My tickets</button>
-    <button class="tab" data-tab="critical" onclick="setTab('critical')">Critical</button>
-    <button class="tab" data-tab="assigned" onclick="setTab('assigned')">Assigned</button>
-    <button class="tab" data-tab="late" onclick="setTab('late')">Open &amp; late</button>
-    <button class="tab" data-tab="closed" onclick="setTab('closed')">Closed on time</button>
-    <button class="tab" data-tab="reports" onclick="setTab('reports')">Scorecards</button>
-    <button class="tab" data-tab="perf" onclick="setTab('perf')">Performance</button>
-    <button class="tab" data-tab="explore" onclick="setTab('explore')">Explore</button>
-    <button class="tab" data-tab="activity" onclick="setTab('activity')">Activity</button>
-    <button class="tab tab-cta" data-tab="create" onclick="setTab('create')">+ Create ticket</button>
+    <button class="tab tab-cta" data-tab="create" type="button" onclick="goCreate('once');return false">+ Create Task</button>
+    <button class="tab active" data-tab="exec" type="button" onclick="setTab('exec')">Executive</button>
+    <button class="tab" data-tab="review" type="button" onclick="setTab('review')">Review</button>
+    <button class="tab" data-tab="approvals" type="button" onclick="setTab('approvals')">Approvals</button>
+    <button class="tab" data-tab="scoring" type="button" onclick="setTab('scoring')">Scoring</button>
+    <button class="tab" data-tab="mine" type="button" onclick="setTab('mine')">My tickets</button>
+    <button class="tab" data-tab="critical" type="button" onclick="setTab('critical')">Critical</button>
+    <button class="tab" data-tab="assigned" type="button" onclick="setTab('assigned')">Assigned</button>
+    <button class="tab" data-tab="late" type="button" onclick="setTab('late')">Open &amp; late</button>
+    <button class="tab" data-tab="closed" type="button" onclick="setTab('closed')">Closed on time</button>
+    <button class="tab" data-tab="reports" type="button" onclick="setTab('reports')">Scorecards</button>
+    <button class="tab" data-tab="perf" type="button" onclick="setTab('perf')">Performance</button>
+    <button class="tab" data-tab="explore" type="button" onclick="setTab('explore')">Explore</button>
+    <button class="tab" data-tab="activity" type="button" onclick="setTab('activity')">Activity</button>
   </div>
 
   <!-- REVIEW BASKET -->
@@ -686,8 +699,20 @@ body.login-locked main,body.login-locked header.top,body.login-locked .asst,body
           <button class="on" data-c="all" onclick="setCflt('all')">All</button>
           <button data-c="late" onclick="setCflt('late')">Overdue only</button>
         </div>
-        <button class="btn sm" onclick="csvOf('critical')">⬇ CSV</button><button class="btn sm" onclick="printView()">⎙ Print</button>
+        <button class="btn sm go" type="button" onclick="criticalSelectAllVisible(true)">Select all</button><button class="btn sm" type="button" onclick="clearCriticalSel()">Clear</button><button class="btn sm" onclick="csvOf('critical')">⬇ CSV</button><button class="btn sm" onclick="printView()">⎙ Print</button>
       </div>
+    </div>
+    <div class="bulkbar no-print" id="critical-bulkbar" hidden>
+      <span class="bb-n" id="critical-bulk-n">0 selected</span>
+      <label>Action</label>
+      <select class="mini" id="critical-action">
+        <option value="review">Move to Review</option>
+        <option value="close">Close</option>
+        <option value="high">Downgrade priority to High</option>
+        <option value="review_high">Move to Review + downgrade to High</option>
+      </select>
+      <button class="btn sm go" type="button" onclick="runCriticalBulkAction()">Apply</button>
+      <button class="btn sm ghost" type="button" onclick="clearCriticalSel()">Clear</button>
     </div>
     <div class="tablecard scroll"><table id="t-critical"></table></div>
   </section>
@@ -903,7 +928,7 @@ const ASAT=new Date('2026-06-05');
 const PRANK={Critical:0,High:1,Medium:2,Low:3,'—':9};
 const SRANK={'Open':0,'Awaiting review':1,'More time':2,'Closed':3};
 
-let state={tab:'exec', person:'all', status:'all', dept:'all', latePerson:'all', period:'month', q:'', ql:'', qc:'', cflt:'all', repEmp:'', repPeriod:'monthly', repScope:'person', drawerList:[], drawerIdx:-1, weights:{default:{q:40,d:30,r:15,t:15}, byDept:{}}, returns:{}, ex:{pivot:'prio', dept:'all', prio:'all', status:'all', age:'all', raiser:'all', ball:'all', q:''}, mine:{owner:'all', q:''}, repExpand:null, sel:{}, savedViews:[], audit:[], _undo:null, cursor:-1, dense:false, focus:false, cf:{mode:'once'}, asst:{open:false,msgs:[]}};
+let state={tab:'exec', person:'all', status:'all', dept:'all', latePerson:'all', period:'month', q:'', ql:'', qc:'', cflt:'all', repEmp:'', repPeriod:'monthly', repScope:'person', drawerList:[], drawerIdx:-1, weights:{default:{q:40,d:30,r:15,t:15}, byDept:{}}, returns:{}, ex:{pivot:'prio', dept:'all', prio:'all', status:'all', age:'all', raiser:'all', ball:'all', q:''}, mine:{owner:'all', q:''}, repExpand:null, sel:{}, critSel:{}, savedViews:[], audit:[], _undo:null, cursor:-1, dense:false, focus:false, cf:{mode:'once'}, asst:{open:false,msgs:[]}};
 let reviewQueue=T.filter(t=>t.status==='Awaiting review').map(t=>({...t}));
 let approvalsQueue=DATA.approvals.map(a=>({...a}));
 let scores={};  // {ticketRef:{score:1-5, comment}} — set by the approver, session-only in this preview
@@ -945,6 +970,7 @@ const CFG={
   critical:{table:'#t-critical',sort:{key:'daysLate',dir:-1},
     rows:()=>T.filter(t=>t.prio==='Critical'&&t.status!=='Closed'&&(state.cflt==='all'||t.overdue)&&matchQ(t,state.qc)),
     cols:[
+      {k:'_sel',label:'<input type="checkbox" id="crit-sel-all" onclick="event.stopPropagation();toggleCriticalSelAll(this.checked)" aria-label="Select all critical tasks">',cls:'selcol no-print',get:t=>`<input type="checkbox" class="critrowsel" ${state.critSel&&state.critSel[t.ref]?'checked':''} onclick="event.stopPropagation();toggleCriticalSel('${esc(t.ref)}',this.checked)" aria-label="Select critical task">`},
       {k:'ref',label:'Ref',get:refc,sort:t=>t.ref},
       {k:'name',label:'Task',get:t=>`<span class="t-name">${esc(t.name)}</span>`,sort:t=>t.name.toLowerCase()},
       {k:'owner',label:'Assigned to',get:t=>esc(t.owner),sort:t=>t.owner.toLowerCase()},
@@ -1018,6 +1044,7 @@ function renderTable(view){
   const lab = view==='late'?' open & late':view==='critical'?' critical':(' ticket'+(rows.length===1?'':'s'));
   $('#c-'+view).textContent=rows.length+lab;
   if(view==='review')updateBulkBar();
+  if(view==='critical')updateCriticalBulkBar();
 }
 
 /* ---------- explore: filter builder · pivot · ageing ---------- */
@@ -1754,9 +1781,9 @@ function renderExec(){
     <div class="exk">${kc}</div>
     <div class="exsec">Composition</div>
     <div class="exch">
-      <div class="panel chartcard"><h3>Status</h3>${donut(statusSegs,active.length,'open')}${dleg(statusSegs)}</div>
-      <div class="panel chartcard"><h3>Priority</h3>${donut(prioSegs,cC,'critical')}${dleg(prioSegs)}</div>
-      <div class="panel chartcard"><h3>Ageing of open work</h3>${donut(ageSegs,overdue,'overdue')}${dleg(ageSegs)}</div>
+      <div class="panel chartcard" onclick="setTab('assigned')" title="Open assigned work"><h3>Status</h3>${donut(statusSegs,active.length,'open')}${dleg(statusSegs)}</div>
+      <div class="panel chartcard" onclick="setTab('critical')" title="Open critical work"><h3>Priority</h3>${donut(prioSegs,cC,'critical')}${dleg(prioSegs)}</div>
+      <div class="panel chartcard" onclick="setTab('late')" title="Open and late work"><h3>Ageing of open work</h3>${donut(ageSegs,overdue,'overdue')}${dleg(ageSegs)}</div>
     </div>
     <div class="exsec">Accountability</div>
     <div class="exgrid">
@@ -2264,8 +2291,8 @@ const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycby6Hpq_qCbPoAZQ39BYh7fnUx6VDcp6XgeZjQIK8S7JLZW4cirsryvk4d6uWGyVIKjBNg/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycby6Hpq_qCbPoAZQ39BYh7fnUx6VDcp6XgeZjQIK8S7JLZW4cirsryvk4d6uWGyVIKjBNg/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycbw9z8X3h5iy1JzvcdeZA3ALQXVpXCNNnsk_IUm02MZfhVzzD1uXMQQXy8DdRjMAfmA61g/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbw9z8X3h5iy1JzvcdeZA3ALQXVpXCNNnsk_IUm02MZfhVzzD1uXMQQXy8DdRjMAfmA61g/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -2389,7 +2416,7 @@ function renderScoring(){
 function scoreSet(id,n){const a=scoringQueue.find(x=>x.id===id); if(!a)return; if(EXECUTIVE_LEVEL===1)a.score1=n; else a.score2=n; const t=T.find(x=>x.ref===a.ref); if(t)scores[t.ref]=Object.assign({},scores[t.ref],{score:n}); renderScoring(); if(state.tab==='reports')renderReport();}
 function scoreDecision(id,ok){const a=scoringQueue.find(x=>x.id===id); if(!a)return; const score=EXECUTIVE_LEVEL===1?a.score1:a.score2; if(ok&&!score){toast('Choose a score from 1 to 5 first.','warn');return;} if(!ok){askModal({title:'Return scored task',label:'Reason for return (required)',placeholder:'Explain why the ticket must reopen…',confirmText:'Return',danger:true,onConfirm:reason=>doScoreDecision(id,false,reason)});return;} doScoreDecision(id,true,'');}
 function doScoreDecision(id,ok,reason){const i=scoringQueue.findIndex(x=>x.id===id); if(i<0)return; const a=scoringQueue.splice(i,1)[0]; const t=T.find(x=>x.ref===a.ref); if(ok&&EXECUTIVE_LEVEL===1){sheetWrite('score_exec1_approved',{sheet:'Score_approvals',taskId:a.ref,score:a.score1,nextStage:'Scoring Executive 2'}); logAudit('Executive 1 scored',a.item,'Score '+a.score1+'/5 · moved to Executive 2'); toast('Scored and moved to Executive 2');}
-  else if(ok&&EXECUTIVE_LEVEL===2){if(t){t.status='Closed';t.closed=new Date().toISOString().slice(0,10);t.overdue=false;t.daysLate=0;} sheetWrite('score_exec2_approved_close',{sheet:'Score_approvals',taskId:a.ref,score:a.score2,nextStage:'Closed'}); logAudit('Executive 2 scored & closed',a.item,'Score '+a.score2+'/5'); toast('Approved, scored and closed');}
+  else if(ok&&EXECUTIVE_LEVEL===2){if(t){const today=new Date().toISOString().slice(0,10);t.status='Closed';t.closed=t.closedOnTimePendingReview&&t.closed?t.closed:today;t.overdue=!!(t.due&&t.closed>t.due);t.daysLate=t.overdue?_daysBetween(t.due,t.closed):0;} sheetWrite('score_exec2_approved_close',{sheet:'Score_approvals',taskId:a.ref,score:a.score2,nextStage:'Closed',closedDate:t?t.closed:'',closedOnTime:t&&t.due&&t.closed<=t.due?'Yes':'No'}); logAudit('Executive 2 scored & closed',a.item,'Score '+a.score2+'/5'); toast('Approved, scored and closed');}
   else {if(t){t.status='Open';t.closed='';} sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason,nextStage:'Returned / Reopened'}); logAudit('Scoring returned',a.item,reason||''); toast('Returned and ticket reopened','warn');}
   recomputeData(); renderScoring(); renderTiles(); headlines(); if(state.tab==='activity')renderActivity();}
 
@@ -2483,10 +2510,13 @@ async function submitTaskUpdate(ref){
   const t=T.find(x=>x.ref===ref); if(!t)return; const note=(document.getElementById('taskSubmitComment')||{}).value||''; const files=(document.getElementById('taskSubmitFiles')||{}).files||[];
   const btn=document.getElementById('taskSubmitBtn'); if(btn){btn.disabled=true;btn.textContent='Submitting...';}
   try{const uploads=[]; for(const file of files){uploads.push({name:file.name,type:file.type,data:await fileToBase64(file)});}
-    const payload={action:'submit_task_update',taskId:ref,comment:note,updatedBy:currentUserName(),email:currentUserEmail(),department:(OPOT_LOGIN.user&&OPOT_LOGIN.user.department)||t.dept,files:uploads};
+    const submittedAt=new Date().toISOString().slice(0,10);
+    const onTime=!!(t.due && submittedAt<=t.due);
+    const payload={action:'submit_task_update',taskId:ref,comment:note,updatedBy:currentUserName(),email:currentUserEmail(),department:(OPOT_LOGIN.user&&OPOT_LOGIN.user.department)||t.dept,files:uploads,nextStatus:'Awaiting review',nextStage:'Scoring Executive 1',closedOnTime:onTime,closedDate:onTime?submittedAt:''};
     await sheetWrite('submit_task_update',payload);
-    t.status='Awaiting review'; t.upStatus='Completed - Awaiting Review'; t.upComment=note; t.comment=note||t.comment; t.upBy=currentUserName(); t.upTs=new Date().toISOString().slice(0,10); t.lastResp=t.upTs; t.compReq=t.upTs; if(uploads.length)t.proofs=(t.proofs||[]).concat(uploads.map(u=>'Uploaded to Google Drive - refresh for link'));
-    buildWorkflowQueues({updates:[{'Task ID':ref,'Updated By':currentUserName(),'Update Comment':note,'Stage':'Scoring Executive 1'}],scoring:scoringQueue.map(x=>x.raw||{})}); recomputeData(); renderTiles(); renderMine(); closeTicket(); toast('Task submitted · sent to Executive 1 scoring');
+    t.status='Awaiting review'; t.upStatus='Completed - Awaiting Review'; t.upComment=note; t.comment=note||t.comment; t.upBy=currentUserName(); t.upTs=submittedAt; t.lastResp=t.upTs; t.compReq=t.upTs; t.closed=onTime?submittedAt:t.closed; t.closedOnTimePendingReview=onTime; if(onTime){t.overdue=false;t.daysLate=0;} if(uploads.length)t.proofs=(t.proofs||[]).concat(uploads.map(u=>'Uploaded to Google Drive - refresh for link'));
+    if(!reviewQueue.some(x=>x.ref===t.ref))reviewQueue.unshift({...t});
+    buildWorkflowQueues({updates:[{'Task ID':ref,'Updated By':currentUserName(),'Update Comment':note,'Stage':'Scoring Executive 1','Closed On Time':onTime?'Yes':'No'}],scoring:scoringQueue.map(x=>x.raw||{})}); recomputeData(); renderTiles(); renderMine(); if(state.tab==='review')renderReviewView(); closeTicket(); toast('Task submitted · moved to Review and Executive 1 scoring');
   }catch(e){alert('Submit failed: '+(e.message||e));}
   finally{if(btn){btn.disabled=false;btn.textContent='Submit update';}}
 }
@@ -2502,7 +2532,8 @@ const _origBoot=onpointEnhancedBoot;
 onpointEnhancedBoot=async function(){
   await waitForLogin(); await _origBoot();
   applyUserPermissionsBeforeRender();
-  if(isExecutiveUser() && EXECUTIVE_LEVEL===1 && !localStorage.getItem('opotCriticalMovedToReview')){localStorage.setItem('opotCriticalMovedToReview','1'); sheetWrite('move_critical_to_review',{limit:28}).catch(()=>{}); T.filter(t=>t.prio==='Critical'&&t.status==='Open').slice(0,28).forEach(t=>{t.status='Awaiting review';t.upStatus='Ready for Executive 1 Review';}); reviewQueue=T.filter(t=>t.status==='Awaiting review').map(t=>({...t}));}
+  // Critical tickets are moved to Review only when the user clicks the Critical basket action button.
+  window.moveCriticalBasketToReview=window.moveCriticalBasketToReview||function(){return moveCriticalBasketToReview();};
   recomputeData();
 };
 const _origInit=init;
@@ -2671,7 +2702,26 @@ cfSubmit=async function(){
   if(rec){tk.recurring=true; tk.rec=rec;}
   const btn=document.querySelector('#v-create .cf-actions .btn.primary'); if(btn){btn.disabled=true;btn.textContent='Creating ticket...';}
   try{
-    await sheetWrite('create_task',{sheet:'Tasks',task:tk,ref,title,department:dept,priority:prio,assignee:owner,assigneeEmail,assigneeWhatsapp,costCenter:assigneeCostCenter,created,due,completionRequired:compreq,description:desc,raisedBy,raisedByEmail:currentUserEmail(),recurring:!!rec,recurrence:rec});
+    const notificationMessage=[
+      'Hello '+owner,
+      '',
+      'A new OnpointBase task has been assigned to you.',
+      '',
+      'Task ID: '+ref,
+      'Title: '+title,
+      'Department: '+dept,
+      'Priority: '+prio,
+      'Due date: '+due,
+      'Raised by: '+raisedBy,
+      '',
+      'Description:',
+      desc||'',
+      '',
+      'Please log in to OnpointBase to view and update this task.',
+      '',
+      'This is an automated OnpointBase notification.'
+    ].join('\n');
+    await sheetWrite('create_task',{sheet:'Tasks',task:tk,ref,title,department:dept,priority:prio,assignee:owner,assigneeEmail,assigneeWhatsapp,costCenter:assigneeCostCenter,created,due,completionRequired:compreq,description:desc,raisedBy,raisedByEmail:currentUserEmail(),recurring:!!rec,recurrence:rec,sendGmail:true,gmailTo:assigneeEmail,gmailSubject:'New OnpointBase Task: '+ref+' - '+title,gmailBody:notificationMessage,sendWhatsApp:true,whatsappTo:assigneeWhatsapp,whatsappBody:notificationMessage});
     T.unshift(tk); recomputeSummary(); recomputeData(); renderTiles(); if(state.tab==='exec')renderExec(); logAudit('Created ticket',ref,'Posted to Google Sheet Tasks'); cfLastRef=ref;
     const whatsappText=[
       'Hello '+owner,
@@ -2708,6 +2758,100 @@ cfSubmit=async function(){
 const _taskCreateOriginalTaskFromRow = taskFromRow;
 taskFromRow=function(r){const t=_taskCreateOriginalTaskFromRow(r); t.ownerEmail=String(_pick(r,['Assignee Email','Owner Email','Email'],'')).trim(); t.ownerWhatsapp=String(_pick(r,['Assignee Whatsapp','Assignee WhatsApp','Whatsapp No.','WhatsApp No'],'')).trim(); t.costCenter=String(_pick(r,['CostCenter','Cost Center'],'')).trim(); return t;};
 
+
+
+/* ---------- Critical basket -> Review + create navigation + notification/debug patch ---------- */
+function goCreate(mode){
+  state.cf=state.cf||{}; state.cf.mode=mode||state.cf.mode||'once';
+  if(typeof setTab==='function')setTab('create');
+  else {
+    document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='v-create'));
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab==='create'));
+  }
+  setTimeout(()=>{try{if(typeof renderCreate==='function')renderCreate(); if(typeof cfMode==='function')cfMode(state.cf.mode);}catch(e){console.warn(e);}
+    const target=document.getElementById(state.cf.mode==='recurring'?'cf-rec':'cf-once')||document.getElementById('v-create');
+    if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
+  },50);
+}
+function routePanel(tab,opts){
+  opts=opts||{}; setTab(tab);
+  setTimeout(()=>{
+    if(tab==='late'&&opts.dept&&typeof setDept==='function')setDept(opts.dept);
+    if(tab==='assigned'&&opts.person&&typeof setPerson==='function')setPerson(opts.person);
+    const el=document.querySelector('#v-'+tab+' .tablecard, #v-'+tab); if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+  },50);
+}
+function criticalVisibleRows(){
+  const cfg=CFG.critical; let rows=cfg.rows();
+  const s=cfg.sort, col=cfg.cols.find(c=>c.k===s.key);
+  if(col&&col.sort)rows=rows.slice().sort((a,b)=>{const x=col.sort(a),y=col.sort(b);return (x<y?-1:x>y?1:0)*s.dir;});
+  return rows;
+}
+function selectedCriticalRefs(){return criticalVisibleRows().filter(t=>state.critSel&&state.critSel[t.ref]).map(t=>t.ref);}
+function toggleCriticalSel(ref,on){state.critSel=state.critSel||{};if(on)state.critSel[ref]=true;else delete state.critSel[ref];updateCriticalBulkBar();}
+function toggleCriticalSelAll(on){criticalVisibleRows().forEach(t=>{state.critSel=state.critSel||{};if(on)state.critSel[t.ref]=true;else delete state.critSel[t.ref];});renderTable('critical');}
+function criticalSelectAllVisible(on){toggleCriticalSelAll(on!==false);}
+function clearCriticalSel(){state.critSel={};renderTable('critical');}
+function updateCriticalBulkBar(){
+  const bar=document.getElementById('critical-bulkbar'); if(!bar)return;
+  const refs=selectedCriticalRefs(); const n=refs.length;
+  bar.hidden=!n; const lab=document.getElementById('critical-bulk-n'); if(lab)lab.textContent=n+' selected';
+  const all=document.getElementById('crit-sel-all'); if(all){const rows=criticalVisibleRows();all.checked=!!rows.length&&rows.every(t=>state.critSel&&state.critSel[t.ref]);all.indeterminate=rows.some(t=>state.critSel&&state.critSel[t.ref])&&!all.checked;}
+}
+function applyCriticalLocal(refs,action){
+  const movedAt=new Date().toISOString().slice(0,10);
+  refs.forEach(r=>{
+    const t=T.find(x=>x.ref===r); if(!t)return;
+    if(action==='review'||action==='review_high'){
+      t.status='Awaiting review'; t.upStatus='Ready for Executive Review'; t.upTs=t.upTs||movedAt; t.lastResp=t.lastResp||movedAt; t.daysWaiting=t.daysWaiting||0;
+      if(!reviewQueue.some(x=>x.ref===t.ref))reviewQueue.unshift({...t});
+    }
+    if(action==='close'){t.status='Closed';t.closed=t.closed||movedAt;t.closedOnTimePendingReview=false;}
+    if(action==='high'||action==='review_high'){t.prio='High';}
+  });
+}
+async function runCriticalBulkAction(){
+  const refs=selectedCriticalRefs(); if(!refs.length){toast('Select one or more Critical tasks first.','warn');return;}
+  const action=(document.getElementById('critical-action')||{}).value||'review';
+  applyCriticalLocal(refs,action);
+  const updates={};
+  if(action==='review'||action==='review_high')Object.assign(updates,{Status:'Awaiting review','Task Status':'Awaiting review','Workflow Stage':'Scoring Executive 1','Scoring Status':'Scoring Executive 1','Update Status':'Ready for Executive 1 Review'});
+  if(action==='close')Object.assign(updates,{Status:'Closed','Task Status':'Closed','Workflow Stage':'Closed','Scoring Status':'Closed','Closed Date':new Date().toISOString().slice(0,10)});
+  if(action==='high'||action==='review_high')Object.assign(updates,{Priority:'High',Prio:'High'});
+  try{await sheetWrite('bulk_update_tasks',{sheet:'Tasks',taskIds:refs,updates:updates,bulkAction:action});}catch(e){console.warn(e);}
+  refs.forEach(r=>logAudit('Critical bulk action',r,action));
+  state.critSel={};
+  recomputeData(); renderTiles(); headlines(); renderTable('critical'); renderReviewView(); if(state.tab==='exec')renderExec(); if(state.tab==='activity')renderActivity();
+  const label={review:'moved to Review',close:'closed',high:'downgraded to High',review_high:'moved to Review and downgraded to High'}[action]||'updated';
+  toast(refs.length+' critical task'+(refs.length===1?'':'s')+' '+label);
+}
+async function moveCriticalBasketToReview(){
+  criticalSelectAllVisible(true);
+  const actionEl=document.getElementById('critical-action'); if(actionEl)actionEl.value='review';
+  return runCriticalBulkAction();
+}
+function refreshAfterWorkflowChange(){
+  recomputeData(); renderTiles(); headlines();
+  if(state.tab==='review')renderReviewView();
+  if(state.tab==='critical')renderTable('critical');
+  if(state.tab==='assigned')renderTable('assigned');
+  if(state.tab==='exec')renderExec();
+  if(state.tab==='scoring')renderScoring();
+}
+const _patchedDoReview=doReview;
+doReview=function(r,ok,reason){
+  const t=T.find(x=>x.ref===r);
+  if(t&&ok){const today=new Date().toISOString().slice(0,10);t.status='Closed';t.closed=t.closedOnTimePendingReview&&t.closed?t.closed:today;t.overdue=!!(t.due&&t.closed>t.due);t.daysLate=t.overdue?_daysBetween(t.due,t.closed):0;sheetWrite('review_approved_close',{sheet:'Tasks',taskId:r,nextStatus:'Closed',closedDate:t.closed,closedOnTime:t.due&&t.closed<=t.due?'Yes':'No'}).catch(()=>{});} 
+  if(t&&!ok){t.status='Open';t.closed='';t.closedOnTimePendingReview=false;sheetWrite('review_returned_reopen',{sheet:'Tasks',taskId:r,nextStatus:'Open',reason:reason||''}).catch(()=>{});} 
+  _patchedDoReview(r,ok,reason); refreshAfterWorkflowChange();
+};
+const _patchedDoBulkReview=doBulkReview;
+doBulkReview=function(refs,ok,reason){
+  const today=new Date().toISOString().slice(0,10);
+  refs.forEach(r=>{const t=T.find(x=>x.ref===r); if(!t)return; if(ok){t.status='Closed';t.closed=t.closedOnTimePendingReview&&t.closed?t.closed:today;t.overdue=!!(t.due&&t.closed>t.due);t.daysLate=t.overdue?_daysBetween(t.due,t.closed):0;}else{t.status='Open';t.closed='';t.closedOnTimePendingReview=false;}});
+  sheetWrite(ok?'review_bulk_approved_close':'review_bulk_returned_reopen',{sheet:'Tasks',taskIds:refs,nextStatus:ok?'Closed':'Open',reason:reason||'',closedDate:ok?today:''}).catch(()=>{});
+  _patchedDoBulkReview(refs,ok,reason); refreshAfterWorkflowChange();
+};
 
 onpointEnhancedBoot().then(init).catch(function(e){console.warn(e);init();});
 </script>
