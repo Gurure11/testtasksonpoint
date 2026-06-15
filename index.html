@@ -550,6 +550,17 @@ button:focus-visible,.tab:focus-visible,select:focus-visible,input:focus-visible
 .asst-muted{color:var(--ink3);font-size:12.5px}
 @media(max-width:720px){.asst{right:8px;left:8px;bottom:8px;width:auto;height:82vh}.asst-fab{right:12px;bottom:12px}}
 @media print{.asst,.asst-fab{display:none!important}}
+
+/* ===== live Google Sheet connection status ===== */
+.conn{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--line2);border-radius:999px;padding:4px 9px;color:var(--ink3);background:#fff;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.conn::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ink3);display:inline-block}
+.conn.connecting{color:var(--wait);border-color:#EBD6A8;background:var(--wait-soft)}
+.conn.connecting::before{background:var(--wait)}
+.conn.connected{color:var(--ontime);border-color:#BFE6D3;background:var(--ontime-soft)}
+.conn.connected::before{background:var(--ontime)}
+.conn.error{color:var(--late);border-color:#EFC9C9;background:var(--late-soft)}
+.conn.error::before{background:var(--late)}
+
 </style>
 </head>
 <body>
@@ -563,6 +574,7 @@ button:focus-visible,.tab:focus-visible,select:focus-visible,input:focus-visible
     <button class="kbtn no-print" id="focusBtn" onclick="toggleFocus()" title="Dim everything except what is waiting on you" aria-label="Toggle focus mode"><span class="kk">◉</span> Focus</button>
     <button class="kbtn no-print" id="asstBtn" onclick="openAsst()" title="Ask the operations assistant" aria-label="Open assistant"><span class="kk">✦</span> Assistant</button>
     <div class="asat">Data as at 5 June 2026</div>
+    <div class="conn connecting no-print" id="connStatus" title="Google Sheet connection status">Connecting Sheet</div>
     <div class="viewas"><span class="role">APPROVER</span> Tafadzwa Magejo</div>
   </div>
 </header>
@@ -2224,9 +2236,9 @@ function openReportFor(emp){state.repEmp=emp;if($('#repEmp'))$('#repEmp').value=
 const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
-  // Optional: paste a deployed Apps Script Web App URL here to persist approvals/scoring back to Google Sheets.
-  // Read-only fetch works from public/published sheets via gviz; write-back requires Apps Script or an authenticated backend.
-  writeUrl: 'https://script.google.com/macros/s/AKfycbzgifT1S3nLpz03hahXqh5ebahJ59m_snL2zpok6SWbs2FjJ5_EfhqnTeerVpPXQLe2hA/exec',
+  // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
+  readUrl: 'https://script.google.com/macros/s/AKfycbwWJV0zyeBU63-94uY3NgQ3KFEi_wmhX6LPB-BAhzotcblzFby6kcHLJGAsODBWcgpmfQ/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbwWJV0zyeBU63-94uY3NgQ3KFEi_wmhX6LPB-BAhzotcblzFby6kcHLJGAsODBWcgpmfQ/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -2250,6 +2262,29 @@ function _stage(row){return String(_pick(row,['Stage','Approval Stage','Workflow
 function _isExec2(row){return /exec(utive)?\s*2|executive two|waiting.*2|2nd/i.test(_stage(row));}
 function _isClosedStage(row){return /approved|closed|complete|done|declined|rejected|returned/i.test(_stage(row));}
 function _statusForExec(row){if(EXECUTIVE_LEVEL===2)return _isExec2(row); return !_isExec2(row)&&!_isClosedStage(row);}
+function setConnectionStatus(mode,msg){
+  const el=document.getElementById('connStatus'); if(!el)return;
+  el.classList.remove('connecting','connected','error'); el.classList.add(mode||'connecting');
+  el.textContent=msg||'Connecting Sheet'; el.title='Google Sheet ID: '+OPOT_SHEETS.spreadsheetId+' · '+(msg||'Connecting');
+}
+function jsonp(url,params){
+  return new Promise((resolve,reject)=>{
+    const cb='opot_cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const s=document.createElement('script'); const u=new URL(url);
+    Object.keys(params||{}).forEach(k=>u.searchParams.set(k,params[k]));
+    u.searchParams.set('callback',cb); u.searchParams.set('_',Date.now());
+    const timer=setTimeout(()=>{cleanup();reject(new Error('Apps Script read timed out'));},20000);
+    function cleanup(){clearTimeout(timer); try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode)s.parentNode.removeChild(s);}
+    window[cb]=(data)=>{cleanup(); data&&data.ok?resolve(data):reject(new Error((data&&data.error)||'Apps Script returned an error'));};
+    s.onerror=()=>{cleanup();reject(new Error('Apps Script JSONP connection failed'));};
+    s.src=u.toString(); document.head.appendChild(s);
+  });
+}
+async function loadAllFromWebApp(){
+  const url=OPOT_SHEETS.readUrl||OPOT_SHEETS.writeUrl; if(!url)return null;
+  const data=await jsonp(url,{mode:'readAll',spreadsheetId:OPOT_SHEETS.spreadsheetId});
+  liveRows=data.sheets||{}; return data;
+}
 async function gsheetFetch(tab){
   const url='https://docs.google.com/spreadsheets/d/'+OPOT_SHEETS.spreadsheetId+'/gviz/tq?tqx=out:json&sheet='+encodeURIComponent(tab)+'&t='+(Date.now());
   const res=await fetch(url,{cache:'no-store'}); if(!res.ok)throw new Error('Sheet fetch failed: '+tab+' '+res.status);
@@ -2257,7 +2292,13 @@ async function gsheetFetch(tab){
   const cols=(json.table.cols||[]).map((c,i)=>c.label||c.id||('Column '+(i+1)));
   return (json.table.rows||[]).map(r=>{const o={}; (r.c||[]).forEach((c,i)=>o[cols[i]]=c?((c.f&&/^Date\(/.test(String(c.v)))?c.f:c.v):''); return o;}).filter(o=>Object.values(o).some(v=>String(v||'').trim()!==''));
 }
-async function firstSheet(names){names=Array.isArray(names)?names:[names]; for(const n of names){try{const rows=await gsheetFetch(n); liveRows[n]=rows; if(rows.length)return rows;}catch(e){console.warn(e.message);} } return [];}
+async function firstSheet(names){
+  names=Array.isArray(names)?names:[names];
+  for(const n of names){if(Array.isArray(liveRows[n]))return liveRows[n];}
+  for(const n of names){try{const rows=await gsheetFetch(n); liveRows[n]=rows; return rows;}catch(e){console.warn(e.message);} }
+  return [];
+}
+
 function taskFromRow(r){
   const ref=String(_pick(r,['Ref','Reference','Ticket ID','Task ID','ID','Ticket Number'],'')).trim()||('GS-'+Math.random().toString(36).slice(2,8).toUpperCase());
   const due=_asDate(_pick(r,['Due','Due Date','Deadline','Target Date'],''));
@@ -2288,18 +2329,29 @@ function buildWorkflowQueues(rows){
 async function sheetWrite(action,payload){
   payload=Object.assign({action,spreadsheetId:OPOT_SHEETS.spreadsheetId,workbookName:OPOT_SHEETS.workbookName,executiveLevel:EXECUTIVE_LEVEL,at:new Date().toISOString()},payload||{});
   try{localStorage.setItem('opotPendingWrites',JSON.stringify([...(JSON.parse(localStorage.getItem('opotPendingWrites')||'[]')),payload]));}catch(e){}
-  if(!OPOT_SHEETS.writeUrl){console.info('Write queued locally; configure OPOT_SHEETS.writeUrl to persist to Google Sheets.',payload);return {queued:true};}
-  try{return await fetch(OPOT_SHEETS.writeUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});}catch(e){console.warn('Write failed/queued',e);return {queued:true,error:String(e)};}
+  if(!OPOT_SHEETS.writeUrl){console.info('Write queued locally; configure OPOT_SHEETS.writeUrl to persist to Google Sheets.',payload);setConnectionStatus('error','Write URL missing');return {queued:true};}
+  try{
+    setConnectionStatus('connecting','Posting to Sheet');
+    const res=await fetch(OPOT_SHEETS.writeUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    setConnectionStatus('connected','Live Sheet Connected');
+    return res;
+  }catch(e){console.warn('Write failed/queued',e);setConnectionStatus('error','Sheet write failed');return {queued:true,error:String(e)};}
 }
 async function onpointEnhancedBoot(){
   document.body.setAttribute('data-exec-level',EXECUTIVE_LEVEL); const rv=document.querySelector('.viewas .role'); if(rv)rv.textContent='EXECUTIVE '+EXECUTIVE_LEVEL;
   const vn=document.querySelector('.viewas'); if(vn)vn.lastChild.textContent=' '+(EXECUTIVE_LEVEL===1?'Executive 1':'Executive 2');
   try{
+    setConnectionStatus('connecting','Connecting Sheet');
+    let source='Apps Script';
+    try{await loadAllFromWebApp();}catch(appErr){console.warn('Apps Script live read failed; trying public gviz read.',appErr); source='Google gviz';}
     const rows={tasks:await firstSheet(OPOT_SHEETS.tabs.tasks),updates:await firstSheet(OPOT_SHEETS.tabs.updates),approvals:await firstSheet(OPOT_SHEETS.tabs.approvals),hiring:await firstSheet(OPOT_SHEETS.tabs.hiring),scoring:await firstSheet(OPOT_SHEETS.tabs.scoring),extensions:await firstSheet(OPOT_SHEETS.tabs.extensions)};
     if(rows.tasks.length){T.splice(0,T.length,...rows.tasks.map(taskFromRow));}
     buildWorkflowQueues(rows); recomputeData();
     reviewQueue=T.filter(t=>t.status==='Awaiting review').map(t=>({...t}));
-  }catch(e){console.warn('Using bundled snapshot because Google Sheet could not be loaded.',e); buildWorkflowQueues({}); recomputeData();}
+    const totalRows=Object.values(rows).reduce((a,b)=>a+(Array.isArray(b)?b.length:0),0);
+    setConnectionStatus('connected','Live Sheet Connected');
+    const asat=document.querySelector('.asat'); if(asat)asat.textContent='Live data · '+source+' · '+totalRows+' rows';
+  }catch(e){console.warn('Using bundled snapshot because Google Sheet could not be loaded.',e); setConnectionStatus('error','Sheet not connected'); buildWorkflowQueues({}); recomputeData();}
 }
 function renderScoring(){
   const q=scoringQueue||[]; const c=document.getElementById('c-scoring'); if(c)c.textContent=q.length+' pending'; const h=document.getElementById('hl-scoring'); if(h)h.innerHTML=q.length?`<span class="k">${q.length}</span> task${q.length===1?'':'s'} waiting for Executive ${EXECUTIVE_LEVEL} scoring.`:'Scoring basket is clear.';
