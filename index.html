@@ -2158,7 +2158,7 @@ function renderRepCharts(){
   const comp=[['Quality',r.Q],['Delivery',r.D],['Responsiveness',r.R],['Throughput',r.T]];
   const compHTML='<div class="hbars">'+comp.map(c=>`<div class="hbar"><span class="hl">${c[0]}</span><span class="ht"><span class="hf" style="width:${c[1]==null?0:Math.round(c[1])}%"></span></span><span class="hv">${c[1]==null?'<span class="muted2">n/a</span>':Math.round(c[1])+'%'}</span></div>`).join('')+'</div>';
   const league=unitsList(isDept).map(u=>{const rows=unitRows(u,p,isDept);return {u,active:rows.filter(t=>t.status!=='Closed').length,overdue:rows.filter(t=>t.overdue).length};}).filter(x=>x.active>0||x.overdue>0).sort((a,b)=>b.active-a.active||b.overdue-a.overdue).slice(0,12);
-  const leagueItems=league.map(x=>({lab:x.u,v:x.active,disp:x.active+(x.overdue?(' \· '+x.overdue+' late'):''),click:`openReportForScope('${_jq(x.u)}','${state.repScope}')`}));
+  const leagueItems=league.map(x=>({lab:x.u,v:x.active,disp:x.active+(x.overdue?(' \· '+x.overdue+' late'):''),click:isDept?`openReportForScope('${_jq(x.u)}','dept')`:`routePanel('assigned',{person:'${_jq(x.u)}'})`}));
   const g=bandGroups(isDept,p);
   const distItems=[{lab:'Excellence',v:g.strong},{lab:'On track',v:g.ok},{lab:'Needs improvement',v:g.imp},{lab:'Not yet scoreable',v:g.na}];
   const scopeLab=isDept?'department':'person';
@@ -2291,8 +2291,8 @@ const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycbw9z8X3h5iy1JzvcdeZA3ALQXVpXCNNnsk_IUm02MZfhVzzD1uXMQQXy8DdRjMAfmA61g/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycbw9z8X3h5iy1JzvcdeZA3ALQXVpXCNNnsk_IUm02MZfhVzzD1uXMQQXy8DdRjMAfmA61g/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycbw1KWV4I3slygZZbH_Jb903fdop8gc2f-eyAAlaQZ0ITeZpWYA7DasBPPlD4abZax8/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbw1KWV4I3slygZZbH_Jb903fdop8gc2f-eyAAlaQZ0ITeZpWYA7DasBPPlD4abZax8/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -2369,7 +2369,7 @@ function recomputeData(){
   DATA.deptLate=Object.values(byDept).map(x=>(x.pct=x.open?Math.round(x.late/x.open*100):0,x)).sort((a,b)=>b.late-a.late||b.pct-a.pct);
   const byP={}; active.forEach(t=>{const o=t.owner||'Unassigned'; byP[o]=byP[o]||{name:o,total:0,open:0,awaiting:0,late:0}; byP[o].total++; if(t.status==='Awaiting review')byP[o].awaiting++; else byP[o].open++; if(t.overdue)byP[o].late++;});
   DATA.people=Object.values(byP).sort((a,b)=>b.late-a.late||b.total-a.total||a.name.localeCompare(b.name));
-  Object.assign(DATA.summary,{awaiting:T.filter(t=>t.status==='Awaiting review').length,late:active.filter(t=>t.overdue).length,closedTotal:T.filter(t=>t.status==='Closed').length,activeAssigned:active.length,peopleLate:DATA.people.filter(p=>p.late).length,approvals:approvalsQueue.length,hirePending:approvalsQueue.filter(a=>a.type==='Hiring').length,critical:active.filter(t=>t.prio==='Critical').length,total:T.length,mine:T.filter(t=>t.raisedBy===DATA.me).length,scoring:scoringQueue.length});
+  Object.assign(DATA.summary,{awaiting:T.filter(t=>t.status==='Awaiting review').length,late:active.filter(t=>t.overdue).length,closedTotal:T.filter(t=>t.status==='Closed').length,activeAssigned:active.length,peopleLate:DATA.people.filter(p=>p.late).length,approvals:approvalsQueue.length,hirePending:approvalsQueue.filter(a=>a.type==='Hiring').length,critical:active.filter(t=>t.prio==='Critical'&&!opotCriticalIsAwaitingReview(t)).length,total:T.length,mine:T.filter(t=>t.raisedBy===DATA.me).length,scoring:scoringQueue.length});
 }
 function approvalFromRow(r,type){return {id:String(_pick(r,['ID','Request ID','Ticket ID','Task ID','Ref','Reference'],'')).trim()||('REQ-'+Math.random().toString(36).slice(2,8).toUpperCase()),item:String(_pick(r,['Item','Request','Title','Position','Task','Reason'],'Approval request')).trim(),type,by:String(_pick(r,['Requested By','Requestor','Requester','Raised By','User','Employee'],'')).trim(),dept:String(_pick(r,['Department','Dept','Division'],'')).trim(),detail:String(_pick(r,['Detail','Details','Reason','Description','Justification'],'')).trim(),due:_asDate(_pick(r,['Due','Due Date','Start Date','Requested Date'],'')),stage:_stage(r),raw:r};}
 function scoringFromRow(r,source){const ref=String(_pick(r,['Task ID','Ticket ID','Ref','Reference','ID'],'')).trim()||String(_pick(r,['Task','Task Name','Title'],'')).trim(); const t=T.find(x=>x.ref===ref)||T.find(x=>x.name===ref)||{}; return {id:ref||('SCORE-'+Math.random().toString(36).slice(2,8).toUpperCase()),ref:ref||t.ref,item:t.name||String(_pick(r,['Task','Task Name','Title','Item'],'Task update')).trim(),by:String(_pick(r,['Submitted By','Updated By','User','Employee'],t.owner||'')).trim(),dept:String(_pick(r,['Department','Dept'],t.dept||'')).trim(),detail:String(_pick(r,['Update','Update Comment','Comment','Details','Description'],'Submitted / updated for scoring')).trim(),stage:_stage(r)||'Scoring Executive 1',score1:Number(_pick(r,['Executive 1 Score','Exec 1 Score','Score 1'],0))||0,score2:Number(_pick(r,['Executive 2 Score','Exec 2 Score','Score 2'],0))||0,source,raw:r};}
@@ -2577,9 +2577,18 @@ function cfWhatsappUrl(number, text){
   return 'https://wa.me/'+digits+'?text='+encodeURIComponent(text||'');
 }
 const _taskCreateOriginalRenderCreate = renderCreate;
+let _taskCreateUsersLoading = false;
+let _taskCreateUsersLoadedOnce = false;
 renderCreate=function(){
   const users=opotActiveUsers();
-  if(!users.length){ opotEnsureUsersLoaded().then(()=>{ if(state.tab==='create') renderCreate(); }); }
+  if(!users.length && !_taskCreateUsersLoading && !_taskCreateUsersLoadedOnce){
+    _taskCreateUsersLoading = true;
+    opotEnsureUsersLoaded().then(()=>{
+      _taskCreateUsersLoading = false;
+      _taskCreateUsersLoadedOnce = true;
+      if(state.tab==='create') renderCreate();
+    }).catch(()=>{ _taskCreateUsersLoading = false; _taskCreateUsersLoadedOnce = true; });
+  }
   const DEPTS=[...new Set([].concat(T.map(t=>t.dept),users.map(opotUserDept)).filter(Boolean))].sort();
   const OWN=users.length?users.map(opotUserName):[...new Set(T.map(t=>t.owner))].filter(Boolean).sort();
   const today=_iso(ASAT);
@@ -2768,7 +2777,7 @@ function goCreate(mode){
     document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='v-create'));
     document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab==='create'));
   }
-  setTimeout(()=>{try{if(typeof renderCreate==='function')renderCreate(); if(typeof cfMode==='function')cfMode(state.cf.mode);}catch(e){console.warn(e);}
+  setTimeout(()=>{try{if(typeof cfMode==='function')cfMode(state.cf.mode);}catch(e){console.warn(e);}
     const target=document.getElementById(state.cf.mode==='recurring'?'cf-rec':'cf-once')||document.getElementById('v-create');
     if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
   },50);
@@ -2852,6 +2861,138 @@ doBulkReview=function(refs,ok,reason){
   sheetWrite(ok?'review_bulk_approved_close':'review_bulk_returned_reopen',{sheet:'Tasks',taskIds:refs,nextStatus:ok?'Closed':'Open',reason:reason||'',closedDate:ok?today:''}).catch(()=>{});
   _patchedDoBulkReview(refs,ok,reason); refreshAfterWorkflowChange();
 };
+
+
+
+/* ---------- Targeted patch only: Users-sheet assignee list/autofill + Critical to Review ---------- */
+const OPOT_USERS_SHEET_ID_TARGET = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
+let opotUsersSheetCache = null;
+let opotUsersSheetLoading = null;
+function opotUsersSheetUrl(){
+  return 'https://docs.google.com/spreadsheets/d/'+OPOT_USERS_SHEET_ID_TARGET+'/gviz/tq?tqx=out:json&sheet=Users&t='+(Date.now());
+}
+async function opotFetchUsersSheetDirect(){
+  const res = await fetch(opotUsersSheetUrl(), {cache:'no-store'});
+  if(!res.ok) throw new Error('Users sheet fetch failed: '+res.status);
+  const txt = await res.text();
+  const json = JSON.parse(txt.substring(txt.indexOf('{'), txt.lastIndexOf('}')+1));
+  const cols = (json.table.cols||[]).map((c,i)=>c.label||c.id||('Column '+(i+1)));
+  return (json.table.rows||[]).map(r=>{const o={}; (r.c||[]).forEach((c,i)=>o[cols[i]]=c?(c.f||c.v||''):'' ); return o;})
+    .filter(o=>String(_pick(o,['Full Name','Email','User ID'],'')).trim()!=='');
+}
+async function opotFetchUsersSheet(){
+  if(opotUsersSheetCache) return opotUsersSheetCache;
+  if(opotUsersSheetLoading) return opotUsersSheetLoading;
+  opotUsersSheetLoading = (async function(){
+    let rows=[];
+    try{ rows = await opotFetchUsersSheetDirect(); }
+    catch(e){
+      console.warn(e.message||e);
+      try{ rows = await firstSheet('Users'); }catch(e2){ console.warn(e2.message||e2); rows=[]; }
+    }
+    opotUsersSheetCache = rows||[];
+    liveRows['Users'] = opotUsersSheetCache;
+    opotUsersSheetLoading = null;
+    return opotUsersSheetCache;
+  })();
+  return opotUsersSheetLoading;
+}
+opotUserRows=function(){
+  return opotUsersSheetCache || (Array.isArray(liveRows['Users']) ? liveRows['Users'] : []);
+};
+opotEnsureUsersLoaded=function(){
+  if(opotUserRows().length) return Promise.resolve(opotUserRows());
+  return opotFetchUsersSheet();
+};
+opotUserName=function(u){return String(_pick(u,['Full Name'],'')).trim();};
+opotUserEmail=function(u){return String(_pick(u,['Email'],'')).trim();};
+opotUserDept=function(u){return String(_pick(u,['Department'],'')).trim();};
+opotUserWhatsapp=function(u){return String(_pick(u,['Whatsapp No.','WhatsApp No.'],'')).trim();};
+opotUserCostCenter=function(u){return String(_pick(u,['CostCenter','Cost Center'],'')).trim();};
+opotActiveUsers=function(){
+  return opotUserRows().filter(u=>{
+    const n=opotUserName(u);
+    const status=String(_pick(u,['Status'],'Active')).trim();
+    return n && !/inactive|disabled|left|terminated/i.test(status);
+  }).sort((a,b)=>opotUserName(a).localeCompare(opotUserName(b)));
+};
+opotFindUserByName=function(name){
+  const n=String(name||'').trim().toLowerCase(); if(!n)return null;
+  const users=opotActiveUsers();
+  return users.find(u=>opotUserName(u).toLowerCase()===n)
+    || users.find(u=>String(_pick(u,['User ID'],'')).trim().toLowerCase()===n)
+    || users.find(u=>opotUserEmail(u).toLowerCase()===n)
+    || users.find(u=>opotUserName(u).toLowerCase().includes(n));
+};
+function opotRefreshCreateAssigneeOptions(){
+  const dl=document.getElementById('cf-owners');
+  const owner=document.getElementById('cf-owner');
+  if(!dl)return;
+  const users=opotActiveUsers();
+  dl.innerHTML=users.map(u=>`<option value="${esc(opotUserName(u))}"></option>`).join('');
+  if(owner) owner.placeholder = users.length ? 'Select assignee from Users sheet' : 'Loading assignees from Users sheet...';
+}
+const _opotUsersOnlyRenderCreate = renderCreate;
+renderCreate=function(){
+  _opotUsersOnlyRenderCreate();
+  opotRefreshCreateAssigneeOptions();
+  opotEnsureUsersLoaded().then(()=>{
+    if(state.tab==='create'){
+      opotRefreshCreateAssigneeOptions();
+      if(document.getElementById('cf-owner')) cfAssigneeChanged();
+    }
+  }).catch(e=>console.warn(e.message||e));
+};
+
+function opotCriticalIsAwaitingReview(t){return /awaiting\s*review|ready\s*for\s*executive/i.test(String(t&&t.status||'')+' '+String(t&&t.upStatus||''));}
+if(CFG && CFG.critical){
+  CFG.critical.rows=function(){
+    return T.filter(t=>t.prio==='Critical' && t.status!=='Closed' && !opotCriticalIsAwaitingReview(t) && (state.cflt==='all'||t.overdue) && matchQ(t,state.qc));
+  };
+}
+criticalVisibleRows=function(){
+  const cfg=CFG.critical; let rows=cfg.rows();
+  const s=cfg.sort, col=cfg.cols.find(c=>c.k===s.key);
+  if(col&&col.sort)rows=rows.slice().sort((a,b)=>{const x=col.sort(a),y=col.sort(b);return (x<y?-1:x>y?1:0)*s.dir;});
+  return rows;
+};
+applyCriticalLocal=function(refs,action){
+  const movedAt=new Date().toISOString().slice(0,10);
+  refs.forEach(r=>{
+    const t=T.find(x=>x.ref===r); if(!t)return;
+    if(action==='review'||action==='review_high'){
+      t.status='Awaiting review';
+      t.upStatus='Ready for Executive 1 Review';
+      t.upTs=t.upTs||movedAt;
+      t.lastResp=t.lastResp||movedAt;
+      t.daysWaiting=t.daysWaiting||0;
+      if(!reviewQueue.some(x=>x.ref===t.ref)) reviewQueue.unshift({...t});
+    }
+    if(action==='close'){t.status='Closed';t.closed=t.closed||movedAt;t.closedOnTimePendingReview=false;}
+    if(action==='high'||action==='review_high'){t.prio='High';}
+  });
+};
+runCriticalBulkAction=async function(){
+  const refs=selectedCriticalRefs(); if(!refs.length){toast('Select one or more Critical tasks first.','warn');return;}
+  const action=(document.getElementById('critical-action')||{}).value||'review';
+  applyCriticalLocal(refs,action);
+  const updates={};
+  if(action==='review'||action==='review_high')Object.assign(updates,{Status:'Awaiting review','Task Status':'Awaiting review','Workflow Stage':'Scoring Executive 1','Scoring Status':'Scoring Executive 1','Update Status':'Ready for Executive 1 Review','Review Basket':'Yes','Review Basket Owner':'Executive 1','Moved From':'Critical Basket','Moved To':'Review Basket','Moved To Review At':new Date().toISOString().slice(0,10),'Submitted Date':new Date().toISOString().slice(0,10),'Completion Requested':new Date().toISOString().slice(0,10)});
+  if(action==='close')Object.assign(updates,{Status:'Closed','Task Status':'Closed','Workflow Stage':'Closed','Scoring Status':'Closed','Closed Date':new Date().toISOString().slice(0,10)});
+  if(action==='high'||action==='review_high')Object.assign(updates,{Priority:'High',Prio:'High'});
+  try{await sheetWrite((action==='review'||action==='review_high')?'move_critical_to_review':'bulk_update_tasks',{sheet:'Tasks',taskIds:refs,updates:updates,bulkAction:action,nextStatus:updates.Status||'',moveToReview:(action==='review'||action==='review_high')});}catch(e){console.warn(e);}
+  refs.forEach(r=>logAudit('Critical bulk action',r,action));
+  state.critSel={};
+  recomputeData(); renderTiles(); headlines(); renderTable('critical'); renderReviewView(); if(state.tab==='exec')renderExec(); if(state.tab==='activity')renderActivity();
+  const label={review:'moved to Review',close:'closed',high:'downgraded to High',review_high:'moved to Review and downgraded to High'}[action]||'updated';
+  toast(refs.length+' critical task'+(refs.length===1?'':'s')+' '+label);
+};
+moveCriticalBasketToReview=async function(){
+  criticalSelectAllVisible(true);
+  const actionEl=document.getElementById('critical-action'); if(actionEl)actionEl.value='review';
+  return runCriticalBulkAction();
+};
+window.moveCriticalBasketToReview=moveCriticalBasketToReview;
 
 onpointEnhancedBoot().then(init).catch(function(e){console.warn(e);init();});
 </script>
