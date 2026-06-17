@@ -2294,8 +2294,8 @@ const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycbzd9XOIOUyznbhr7GPxFzfjpH2vwPeBJzTgy1s8cTFk0dcjazrjQUjrAeCxuFgh7Pa_/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycbzd9XOIOUyznbhr7GPxFzfjpH2vwPeBJzTgy1s8cTFk0dcjazrjQUjrAeCxuFgh7Pa_/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycbyhTlgeWuodye2OCjHZPOwxlxPH61uY_8xF60Plv4HJn0TnFc9GBRy81Tqsnv8vThvx/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbyhTlgeWuodye2OCjHZPOwxlxPH61uY_8xF60Plv4HJn0TnFc9GBRy81Tqsnv8vThvx/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -3654,6 +3654,109 @@ doScoreDecision=function(id,ok,reason){
   if(ok&&ref&&EXECUTIVE_LEVEL===2){
     window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>String(x.ref||'').trim()!==String(ref).trim());
     opotRecountScoringQueues();
+  }
+};
+
+
+
+/* ---------- Authoritative scoring queue fix 2026-06-17 ----------
+   Prevents Executive 1-scored tickets from returning to Executive 1.
+   Score_approvals is now authoritative per ticket ref. Task Updates are only used
+   to create a new Exec 1 item when there is no Score_approvals row for that ref.
+   window.OPOT_ALL_SCORING_QUEUE always stores de-duplicated, non-closed scoring rows. */
+function opotAuthPick(r,names,fallback){
+  if(typeof _pick==='function') return _pick(r,names,fallback||'');
+  for(const n of names){ if(r && r[n] !== undefined && r[n] !== null && String(r[n]).trim() !== '') return r[n]; }
+  return fallback||'';
+}
+function opotAuthRef(x){
+  const r=(x&&x.raw)||x||{};
+  return String((x&&x.ref)||opotAuthPick(r,['Ticket Number','Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
+}
+function opotAuthText(x){
+  const r=(x&&x.raw)||x||{};
+  return [
+    x&&x.stage,
+    opotAuthPick(r,['Current Approver','Approver Queue','Next Approver','Scoring Status','Workflow Stage','Stage','Status','Approval Status','Executive 1 View Status','Closed To Executive 1','Permanent Closed','Final Approval By'],'')
+  ].filter(Boolean).join(' ');
+}
+function opotAuthIsClosed(x){
+  const txt=opotAuthText(x);
+  const ref=opotAuthRef(x);
+  const t=ref && typeof opotFindTaskByRef==='function' ? opotFindTaskByRef(ref) : null;
+  const taskTxt=t?[t.status,t.taskStatus,t.workflowStage,t.scoringStatus,t.approvalStatus,t.closed,t.closedDate].filter(Boolean).join(' '):'';
+  return /\bclosed\b|permanent\s*closed|final\s*approval\s*by\s*executive\s*2|current\s*approver\s*closed|approver\s*queue\s*closed/i.test(txt+' '+taskTxt);
+}
+function opotAuthIsReturned(x){return /returned|reopened/i.test(opotAuthText(x));}
+function opotAuthIsExec2(x){
+  const txt=opotAuthText(x);
+  return /current\s*approver\s*executive\s*2|approver\s*queue\s*executive\s*2|next\s*approver\s*executive\s*2|scoring\s*executive\s*2|waiting\s*executive\s*2|executive\s*2\s*approval|exec\s*2|closed\s*to\s*executive\s*1/i.test(txt);
+}
+function opotAuthNormalizeScoreRow(x){
+  const r=(x&&x.raw)||{};
+  const ref=opotAuthRef(x);
+  const is2=opotAuthIsExec2(x);
+  x.ref=ref;
+  x.id=ref || x.id;
+  x.stage=opotAuthIsClosed(x)?'Closed':(is2?'Scoring Executive 2':'Scoring Executive 1');
+  x.raw=Object.assign({},r,{
+    'Current Approver': opotAuthIsClosed(x)?'Closed':(is2?'Executive 2':'Executive 1'),
+    'Approver Queue': opotAuthIsClosed(x)?'Closed':(is2?'Executive 2':'Executive 1'),
+    'Scoring Status': x.stage,
+    'Workflow Stage': x.stage,
+    'Stage': x.stage
+  });
+  return x;
+}
+function opotAuthRebuildScoringQueues(allRows){
+  const rows=Array.isArray(allRows)?allRows:(window.OPOT_ALL_SCORING_QUEUE||[]);
+  const byRef=new Map();
+  rows.forEach(row=>{
+    if(!row)return;
+    const x=opotAuthNormalizeScoreRow(row);
+    const ref=opotAuthRef(x); if(!ref || opotAuthIsReturned(x) || opotAuthIsClosed(x))return;
+    const prior=byRef.get(ref);
+    if(!prior || (x.source==='Score_approvals' && prior.source!=='Score_approvals') || opotAuthIsExec2(x)) byRef.set(ref,x);
+  });
+  const all=[...byRef.values()];
+  window.OPOT_ALL_SCORING_QUEUE=all;
+  window.OPOT_SCORING_COUNTS={exec1:all.filter(x=>!opotAuthIsExec2(x)).length,exec2:all.filter(opotAuthIsExec2).length,total:all.length};
+  scoringQueue=all.filter(x=>EXECUTIVE_LEVEL===2?opotAuthIsExec2(x):!opotAuthIsExec2(x));
+  return scoringQueue;
+}
+const _opotAuthOriginalBuildWorkflowQueues=buildWorkflowQueues;
+buildWorkflowQueues=function(rows){
+  rows=rows||{};
+  const approvalRows=(rows.approvals||[]).map(r=>approvalFromRow(r,'Approval')).concat((rows.extensions||[]).map(r=>approvalFromRow(r,'Extension')),(rows.hiring||[]).map(r=>approvalFromRow(r,'Hiring')));
+  approvalsQueue=approvalRows.filter(_statusForExec);
+  const scoreRows=(rows.scoring||[]).map(r=>scoringFromRow(r,'Score_approvals'));
+  const scoreRefs=new Set(scoreRows.map(opotAuthRef).filter(Boolean));
+  const updateRows=(rows.updates||[])
+    .filter(r=>/_submitted|submitted|updated|complete|completed/i.test(Object.values(r).join(' ')))
+    .map(r=>scoringFromRow(r,'Task Updates'))
+    .filter(x=>!scoreRefs.has(opotAuthRef(x)));
+  opotAuthRebuildScoringQueues(scoreRows.concat(updateRows));
+};
+const _opotAuthOriginalRecountScoringQueues=opotRecountScoringQueues;
+opotRecountScoringQueues=function(){ opotAuthRebuildScoringQueues(window.OPOT_ALL_SCORING_QUEUE||[]); };
+const _opotAuthOriginalDoScoreDecision=doScoreDecision;
+doScoreDecision=function(id,ok,reason){
+  const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id);
+  const ref=a&&a.ref;
+  _opotAuthOriginalDoScoreDecision(id,ok,reason);
+  if(ok && ref && EXECUTIVE_LEVEL===1){
+    const row=opotAuthNormalizeScoreRow(Object.assign({},a,{stage:'Scoring Executive 2',raw:Object.assign({},(a&&a.raw)||{}, {'Current Approver':'Executive 2','Approver Queue':'Executive 2','Next Approver':'Executive 2','Scoring Status':'Scoring Executive 2','Workflow Stage':'Scoring Executive 2','Stage':'Scoring Executive 2','Executive 1 View Status':'Closed','Closed To Executive 1':'Yes'})}));
+    window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>opotAuthRef(x)!==ref).concat([row]);
+    if(typeof opotPruneExec1Review==='function') opotPruneExec1Review(ref);
+    opotAuthRebuildScoringQueues();
+    renderReviewView();renderTiles();headlines();renderScoring();
+    return;
+  }
+  if(ok && ref && EXECUTIVE_LEVEL===2){
+    window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>opotAuthRef(x)!==ref);
+    scoringQueue=(scoringQueue||[]).filter(x=>opotAuthRef(x)!==ref);
+    opotAuthRebuildScoringQueues();
+    renderTiles();headlines();renderScoring();
   }
 };
 
