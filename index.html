@@ -1093,7 +1093,7 @@ function syncExControls(){const e=state.ex,set=(s,v)=>{if($(s))$(s).value=v;};se
 /* ---------- my tickets (raised by me) ---------- */
 function renderMine(){
   const me=DATA.me, mine=T.filter(t=>t.raisedBy===me);
-  if($('#mine-demo'))$('#mine-demo').innerHTML=DATA.demoRaiser?'<span class="i">Sample data</span><span><b>Illustrative raiser.</b> The live “Raised By” field isn’t in the system yet, so attribution here is a working preview — it switches to real data once the field is added.</span>':'';
+  if($('#mine-demo'))$('#mine-demo').innerHTML='';
   const open=mine.filter(t=>t.status==='Open').length, late=mine.filter(t=>t.overdue).length, awaiting=mine.filter(t=>t.status==='Awaiting review').length;
   if($('#hl-mine'))$('#hl-mine').innerHTML=mine.length?`You've raised <span class="k">${mine.length}</span> tickets — <span class="k">${open}</span> still open · <span class="${late?'hot':'k'}">${late} late</span> · <span class="k">${awaiting}</span> awaiting your review.`:'No tickets are recorded as raised by you yet.';
   const byo={};mine.forEach(t=>{(byo[t.owner]=byo[t.owner]||{n:0,late:0});byo[t.owner].n++;if(t.overdue)byo[t.owner].late++;});
@@ -2291,8 +2291,8 @@ const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycbw1KWV4I3slygZZbH_Jb903fdop8gc2f-eyAAlaQZ0ITeZpWYA7DasBPPlD4abZax8/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycbw1KWV4I3slygZZbH_Jb903fdop8gc2f-eyAAlaQZ0ITeZpWYA7DasBPPlD4abZax8/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycbzP1sA4hpajFBDd_-64srJ7WfN0NocGoJ0Wb_d8FeuKxMWUZxD5OOea_BH4bp_OTu76/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbzP1sA4hpajFBDd_-64srJ7WfN0NocGoJ0Wb_d8FeuKxMWUZxD5OOea_BH4bp_OTu76/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -2319,7 +2319,7 @@ function _statusForExec(row){if(EXECUTIVE_LEVEL===2)return _isExec2(row); return
 function setConnectionStatus(mode,msg){
   const el=document.getElementById('connStatus'); if(!el)return;
   el.classList.remove('connecting','connected','error'); el.classList.add(mode||'connecting');
-  el.textContent=msg||'Connecting Sheet'; el.title='Google Sheet ID: '+OPOT_SHEETS.spreadsheetId+' · '+(msg||'Connecting');
+  el.textContent=msg||'Connecting Sheet'; el.title=(msg||'Connecting');
 }
 function jsonp(url,params){
   return new Promise((resolve,reject)=>{
@@ -2457,7 +2457,7 @@ function ensureLoginUi(){
     <label>Email</label><input id="loginEmail" type="email" autocomplete="username" required>
     <label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" required>
     <button class="btn" id="loginBtn" type="submit">Sign in</button><div class="login-error" id="loginError"></div>
-    <div class="login-foot">Sheet ID: ${esc(OPOT_SHEETS.spreadsheetId)} · Tab: Users</div></form>`;
+    <div class="login-foot">Secure login · Users tab</div></form>`;
   document.body.appendChild(d); setTimeout(()=>{const e=document.getElementById('loginEmail'); if(e)e.focus();},50);
 }
 function clearLoginUi(){const d=document.getElementById('loginScreen'); if(d)d.remove(); document.body.classList.remove('login-locked');}
@@ -2993,6 +2993,75 @@ moveCriticalBasketToReview=async function(){
   return runCriticalBulkAction();
 };
 window.moveCriticalBasketToReview=moveCriticalBasketToReview;
+
+
+
+/* ---------- Targeted requested changes 2026-06-17 ---------- */
+function opotScorePercent(n){n=Number(n)||0;return n?Math.round((n/5)*100):0;}
+function opotScoreLabel(n){const pct=opotScorePercent(n);return n?`${n}/5 · ${pct}%`:'—';}
+function opotDateTimeFromTask(t){return t?(t.upTs||t.lastResp||t.compReq||t.created||''):'';}
+function opotTaskDueText(t){return t&&t.due?fmtD(t.due):'—';}
+function opotOpenScoringTicket(id){const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id); if(a&&a.ref)openTicket(a.ref);}
+function opotOpenScoringUser(id){const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id); if(!a)return; state.repScope='person'; populateRepSelect(); state.repEmp=a.by||''; const re=document.getElementById('repEmp'); if(re)re.value=state.repEmp; setTab('reports'); renderWeightPanel(); renderReport();}
+function opotNewTicketsForUser(){const u=currentUserName(); if(!u)return[]; return T.filter(t=>String(t.owner||'').trim().toLowerCase()===u.toLowerCase()&&!/closed|awaiting review/i.test(String(t.status||'')));}
+function opotShowNewTicketAlert(){
+  if(!OPOT_LOGIN||!OPOT_LOGIN.user||OPOT_LOGIN.isExecutive)return;
+  const rows=opotNewTicketsForUser(); if(!rows.length)return;
+  const key='opotAlertedTickets:'+currentUserEmail();
+  let old=[]; try{old=JSON.parse(sessionStorage.getItem(key)||'[]');}catch(e){}
+  const fresh=rows.filter(t=>old.indexOf(t.ref)===-1);
+  if(!fresh.length)return;
+  sessionStorage.setItem(key,JSON.stringify(Array.from(new Set(old.concat(fresh.map(t=>t.ref))))));
+  const msg='You have '+fresh.length+' new ticket'+(fresh.length===1?'':'s')+' assigned to you. Open your assigned tickets now?';
+  setTimeout(()=>{ if(confirm(msg)){ routePanel('assigned',{person:currentUserName()}); } },250);
+}
+const _opotRequestedOriginalClearLoginUi = clearLoginUi;
+clearLoginUi=function(){ _opotRequestedOriginalClearLoginUi(); setTimeout(opotShowNewTicketAlert,700); };
+const _opotRequestedOriginalOnpointBoot = onpointEnhancedBoot;
+onpointEnhancedBoot=async function(){ await _opotRequestedOriginalOnpointBoot(); try{await opotEnsureUsersLoaded();}catch(e){} populateRepSelect(); };
+
+/* Person scorecard selector must come from Users tab, while still showing score records. */
+const _opotRequestedOriginalUnitsList = unitsList;
+unitsList=function(isDept){
+  if(isDept) return _opotRequestedOriginalUnitsList(isDept);
+  const users=opotActiveUsers();
+  if(users&&users.length) return users.map(opotUserName).filter(Boolean).sort();
+  return _opotRequestedOriginalUnitsList(isDept);
+};
+populateRepSelect=function(){
+  const el=document.getElementById('repEmp'); if(!el)return;
+  const isDept=state.repScope==='dept';
+  const list=unitsList(isDept);
+  el.innerHTML=list.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+  if(list.length && (!state.repEmp || list.indexOf(state.repEmp)===-1)) state.repEmp=list[0];
+  el.value=state.repEmp||'';
+};
+
+/* Enrich scoring basket: Executive 1 % as Executive 2 guide, due date, update/submission date, clickable ticket/user. */
+const _opotRequestedOriginalScoringFromRow = scoringFromRow;
+scoringFromRow=function(r,source){
+  const a=_opotRequestedOriginalScoringFromRow(r,source);
+  const t=T.find(x=>x.ref===a.ref)||{};
+  a.due=_asDate(_pick(r,['Due','Due Date','Deadline'],t.due||''));
+  a.submittedAt=_asDate(_pick(r,['Submitted Date','Updated At','Update Date','Timestamp','Last Updated'],t.upTs||t.lastResp||t.created||''));
+  a.exec1Pct=Number(_pick(r,['Executive 1 %','Exec 1 %','Executive 1 Percent','Executive 1 Score %','Score 1 %'],0))||opotScorePercent(a.score1);
+  return a;
+};
+renderScoring=function(){
+  const q=scoringQueue||[]; const c=document.getElementById('c-scoring'); if(c)c.textContent=q.length+' pending'; const h=document.getElementById('hl-scoring'); if(h)h.innerHTML=q.length?`<span class="k">${q.length}</span> task${q.length===1?'':'s'} waiting for Executive ${EXECUTIVE_LEVEL} scoring.`:'Scoring basket is clear.';
+  const host=document.getElementById('scoringBody'); if(!host)return;
+  if(!q.length){host.innerHTML='<div class="tablecard"><div class="empty"><div class="ic">✓</div><h3>No scoring pending</h3><p>Submitted and updated tasks will appear here for Executive 1 first, then Executive 2.</p></div></div>';return;}
+  host.innerHTML=`<div class="tablecard scroll"><table><thead><tr><th>Ticket / Task</th><th>User</th><th>Dept</th><th>Due date</th><th>Submitted / updated</th><th>Exec 1 guide</th><th>Stage</th><th>Score</th><th class="no-print">Decision</th></tr></thead><tbody>${q.map(a=>{const cur=EXECUTIVE_LEVEL===1?a.score1:a.score2;const t=T.find(x=>x.ref===a.ref)||{};const due=a.due||t.due||'';const upd=a.submittedAt||opotDateTimeFromTask(t);return `<tr><td class="t-name"><span class="reflink" onclick="opotOpenScoringTicket('${esc(a.id)}')">${esc(a.ref||'')}</span> ${esc(a.item||'')}</td><td><span class="reflink" onclick="opotOpenScoringUser('${esc(a.id)}')">${esc(a.by||'')}</span></td><td>${esc(a.dept)}</td><td>${due?fmtD(due):'—'}</td><td>${upd?esc(upd):'—'}</td><td><span class="scoredot ${a.score1>=4?'s-strong':a.score1>=3?'s-ok':a.score1?'s-warn':'s-na'}">${a.score1?opotScoreLabel(a.score1):'—'}</span></td><td>${esc(a.stage)}</td><td><span class="rscore" onclick="event.stopPropagation()">${[1,2,3,4,5].map(n=>`<button class="rb${cur>=n?' on':''}" onclick="scoreSet('${esc(a.id)}',${n})">${n}</button>`).join('')}</span></td><td class="no-print"><button class="btn sm go" onclick="scoreDecision('${esc(a.id)}',true)">${EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2'}</button> <button class="btn sm ret" onclick="scoreDecision('${esc(a.id)}',false)">Return</button></td></tr>`}).join('')}</tbody></table></div>`;
+};
+scoreSet=function(id,n){const a=scoringQueue.find(x=>x.id===id); if(!a)return; if(EXECUTIVE_LEVEL===1){a.score1=n;a.exec1Pct=opotScorePercent(n);} else a.score2=n; const t=T.find(x=>x.ref===a.ref); if(t)scores[t.ref]=Object.assign({},scores[t.ref],{score:n}); renderScoring(); if(state.tab==='reports')renderReport();};
+doScoreDecision=function(id,ok,reason){const i=scoringQueue.findIndex(x=>x.id===id); if(i<0)return; const a=scoringQueue.splice(i,1)[0]; const t=T.find(x=>x.ref===a.ref); if(ok&&EXECUTIVE_LEVEL===1){sheetWrite('score_exec1_approved',{sheet:'Score_approvals',taskId:a.ref,score:a.score1,scorePercent:opotScorePercent(a.score1),nextStage:'Scoring Executive 2'}); logAudit('Executive 1 scored',a.item,'Score '+a.score1+'/5 · '+opotScorePercent(a.score1)+'% · moved to Executive 2'); toast('Scored and moved to Executive 2');}
+  else if(ok&&EXECUTIVE_LEVEL===2){if(t){const today=new Date().toISOString().slice(0,10);t.status='Closed';t.closed=t.closedOnTimePendingReview&&t.closed?t.closed:today;t.overdue=!!(t.due&&t.closed>t.due);t.daysLate=t.overdue?_daysBetween(t.due,t.closed):0;} sheetWrite('score_exec2_approved_close',{sheet:'Score_approvals',taskId:a.ref,score:a.score2,scorePercent:opotScorePercent(a.score2),exec1Score:a.score1,exec1ScorePercent:a.exec1Pct||opotScorePercent(a.score1),nextStage:'Closed',closedDate:t?t.closed:'',closedOnTime:t&&t.due&&t.closed<=t.due?'Yes':'No'}); logAudit('Executive 2 scored & closed',a.item,'Score '+a.score2+'/5'); toast('Approved, scored and closed');}
+  else {if(t){t.status='Open';t.closed='';} sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason,nextStage:'Returned / Reopened'}); logAudit('Scoring returned',a.item,reason||''); toast('Returned and ticket reopened','warn');}
+  recomputeData(); renderScoring(); renderTiles(); headlines(); if(state.tab==='activity')renderActivity();};
+
+/* Keep submitted/completed proof workflow visible in ticket drawer and send users to assigned tickets. */
+const _opotRequestedOriginalSubmitTaskUpdate = submitTaskUpdate;
+submitTaskUpdate=async function(ref){ await _opotRequestedOriginalSubmitTaskUpdate(ref); routePanel('assigned',{person:currentUserName()}); };
 
 onpointEnhancedBoot().then(init).catch(function(e){console.warn(e);init();});
 </script>
