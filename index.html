@@ -2294,8 +2294,8 @@ const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycbxDnoJgijtRbvT29nq7FuxzmpzCCMICgH8XZi2w3raaIH1b3Qps2CSxZpZorhTou8H-/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycbxDnoJgijtRbvT29nq7FuxzmpzCCMICgH8XZi2w3raaIH1b3Qps2CSxZpZorhTou8H-/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycbzd9XOIOUyznbhr7GPxFzfjpH2vwPeBJzTgy1s8cTFk0dcjazrjQUjrAeCxuFgh7Pa_/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbzd9XOIOUyznbhr7GPxFzfjpH2vwPeBJzTgy1s8cTFk0dcjazrjQUjrAeCxuFgh7Pa_/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -3565,33 +3565,14 @@ function opotFinalizeExec2ClosedTicket(ref,a){
 }
 const _opotClosedStatusOriginalDoScoreDecision=doScoreDecision;
 doScoreDecision=function(id,ok,reason){
-  const i=(scoringQueue||[]).findIndex(x=>x.id===id); if(i<0)return;
-  const a=scoringQueue.splice(i,1)[0];
-  const t=opotFindTaskByRef(a.ref)||T.find(x=>x.ref===a.ref);
-  if(ok&&EXECUTIVE_LEVEL===1){
-    if(!opotNormalizeScore(a.score1)){toast('Choose a score from 1 to 5 first.','warn');return;}
-    const p=t?opotTaskScoreParts(t,a):{systemPct:0};
-    sheetWrite('score_exec1_approved',{sheet:'Score_approvals',taskId:a.ref,score:a.score1,scorePercent:opotScorePercent(a.score1),systemSubmissionPercent:p.systemPct,nextStage:'Scoring Executive 2'});
-    opotSetLocalScoringStage(a.ref,'Scoring Executive 2',a.score1,1);
-    logAudit('Executive 1 scored',a.item,'Score '+a.score1+'/5 · moved to Executive 2');
-    toast('Scored and moved to Executive 2');
-  }else if(ok&&EXECUTIVE_LEVEL===2){
-    if(!opotNormalizeScore(a.score2)){toast('Choose a score from 1 to 5 first.','warn');return;}
-    if(t)opotApplyClosedFromSubmission(t,a);
-    const p=t?opotPersistTaskScore(t,a):{systemPct:0,exec1Pct:opotScorePercent(a.score1),exec2Pct:opotScorePercent(a.score2),finalPct:null};
-    sheetWrite('score_exec2_approved_close',{sheet:'Score_approvals',taskId:a.ref,score:a.score2,scorePercent:opotScorePercent(a.score2),exec1Score:a.score1,exec1ScorePercent:a.exec1Pct||opotScorePercent(a.score1),systemSubmissionPercent:p.systemPct,finalScorePercent:p.finalPct,nextStage:'Closed',closedDate:t?t.closed:'',closedOnTime:opotClosedOnTimeValue(t)});
-    opotSetLocalScoringStage(a.ref,'Closed',a.score2,2);
-    logAudit('Executive 2 scored & closed',a.item,'Final '+(p.finalPct==null?'—':p.finalPct+'%'));
-    toast('Approved, scored and closed');
+  const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id);
+  if(ok&&a&&EXECUTIVE_LEVEL===2){
+    _opotClosedStatusOriginalDoScoreDecision(id,ok,reason);
     opotFinalizeExec2ClosedTicket(a.ref,a);
-  }else{
-    if(t){t.status='Open';t.closed='';t.closedOnTimePendingReview=false;}
-    sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason,nextStage:'Returned / Reopened'});
-    opotSetLocalScoringStage(a.ref,'Returned / Reopened',0,EXECUTIVE_LEVEL);
-    logAudit('Scoring returned',a.item,reason||'');
-    toast('Returned and ticket reopened','warn');
+    renderTiles();headlines();renderScoring();if(state.tab==='closed')renderClosed();if(state.tab==='reports')renderReport();if(state.tab==='perf')renderPerf();if(state.tab==='activity')renderActivity();
+    return;
   }
-  renderTiles();headlines();renderScoring();if(state.tab==='reports')renderReport();if(state.tab==='perf')renderPerf();if(state.tab==='activity')renderActivity();
+  _opotClosedStatusOriginalDoScoreDecision(id,ok,reason);
 };
 const _opotClosedStatusOriginalRenderClosed=renderClosed;
 renderClosed=function(){
@@ -3604,6 +3585,76 @@ renderClosed=function(){
     <tbody>${closed.sort((a,b)=>(a.closed<b.closed?1:-1)).map(t=>{const ot=t.closed&&t.due&&t.closed<=t.due;
       return `<tr class="rowlink" data-ref="${esc(t.ref)}" data-ball="${ballOf(t)}" onclick="openTicket('${esc(t.ref)}')"><td class="t-ref">${esc(t.ref)}</td><td class="t-name">${esc(t.name)}</td><td>${esc(t.dept)}</td><td>${esc(t.owner)}</td>
       <td>${fmtD(t.due)}</td><td>${fmtD(t.closed)}</td><td><span class="st"><span class="dot ${ot?'closed':'late'}"></span>${ot?'Closed On Time':'Closed Late'}</span></td></tr>`;}).join('')}</tbody></table></div>`;
+};
+
+
+/* ---------- Generic Executive 1 closed-view / Executive 2 final-close lock ----------
+   Rules:
+   - Executive 1 approval/scoring removes the ticket from Executive 1 review/scoring baskets immediately.
+   - The same ticket remains routed to Executive 2 through Stage / Workflow Stage / Scoring Status.
+   - Executive 2 approval/scoring marks the ticket permanently Closed and it can never be rebuilt from stale update rows. */
+function opotQueueTextGeneric(x){
+  const r=(x&&x.raw)||x||{};
+  return [
+    (x&&x.stage),
+    _pick(r,['Scoring Status','Workflow Stage','Stage','Status','Approval Status','Executive 1 View Status','Closed To Executive 1','Permanent Closed','Final Approval By'],'')
+  ].filter(Boolean).join(' ');
+}
+function opotIsExec2PendingGeneric(x){return /scoring\s*executive\s*2|waiting\s*executive\s*2|executive\s*2\s*approval|exec\s*2/i.test(opotQueueTextGeneric(x));}
+function opotIsPermanentClosedGeneric(x){return /\bclosed\b|permanent\s*closed|final\s*approval\s*by\s*executive\s*2/i.test(opotQueueTextGeneric(x));}
+function opotIsClosedToExec1Generic(x){return opotIsExec2PendingGeneric(x)||/closed\s*to\s*executive\s*1|executive\s*1\s*view\s*status\s*closed/i.test(opotQueueTextGeneric(x));}
+function opotPruneExec1Review(ref){
+  ref=String(ref||'').trim(); if(!ref)return;
+  if(Array.isArray(reviewQueue)) reviewQueue=reviewQueue.filter(t=>String(t.ref||'').trim()!==ref);
+  if(state&&state.sel) delete state.sel[ref];
+  const t=opotFindTaskByRef(ref);
+  if(t){
+    t.exec1ViewStatus='Closed';
+    t.closedToExecutive1='Yes';
+    if(EXECUTIVE_LEVEL===1 && t.status==='Awaiting review') t.status='Scoring Executive 2';
+    t.workflowStage='Scoring Executive 2';
+    t.scoringStatus='Scoring Executive 2';
+  }
+}
+const _opotGenericLockOriginalRecount=opotRecountScoringQueues;
+opotRecountScoringQueues=function(){
+  const all=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>x&&x.ref&&!opotIsPermanentClosedGeneric(x));
+  window.OPOT_ALL_SCORING_QUEUE=all;
+  window.OPOT_SCORING_COUNTS={
+    exec1:all.filter(x=>!opotIsClosedToExec1Generic(x)).length,
+    exec2:all.filter(x=>opotIsExec2PendingGeneric(x)).length,
+    total:all.length
+  };
+  scoringQueue=all.filter(x=>EXECUTIVE_LEVEL===2?opotIsExec2PendingGeneric(x):!opotIsClosedToExec1Generic(x));
+};
+const _opotGenericLockOriginalBuild=buildWorkflowQueues;
+buildWorkflowQueues=function(rows){
+  _opotGenericLockOriginalBuild(rows||{});
+  (window.OPOT_ALL_SCORING_QUEUE||[]).forEach(x=>{ if(opotIsClosedToExec1Generic(x)) opotPruneExec1Review(x.ref); });
+  opotRecountScoringQueues();
+};
+const _opotGenericLockOriginalBoot=onpointEnhancedBoot;
+onpointEnhancedBoot=async function(){
+  await _opotGenericLockOriginalBoot();
+  (window.OPOT_ALL_SCORING_QUEUE||[]).forEach(x=>{ if(opotIsClosedToExec1Generic(x)) opotPruneExec1Review(x.ref); });
+  opotRecountScoringQueues();
+  recomputeData();
+};
+const _opotGenericLockOriginalDecision=doScoreDecision;
+doScoreDecision=function(id,ok,reason){
+  const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id);
+  const ref=a&&a.ref;
+  _opotGenericLockOriginalDecision(id,ok,reason);
+  if(ok&&ref&&EXECUTIVE_LEVEL===1){
+    opotPruneExec1Review(ref);
+    opotRecountScoringQueues();
+    renderReviewView();renderTiles();headlines();renderScoring();
+    toast('Executive 1 closed view · moved to Executive 2');
+  }
+  if(ok&&ref&&EXECUTIVE_LEVEL===2){
+    window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>String(x.ref||'').trim()!==String(ref).trim());
+    opotRecountScoringQueues();
+  }
 };
 
 onpointEnhancedBoot().then(init).catch(function(e){console.warn(e);init();});
