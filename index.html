@@ -639,7 +639,7 @@ body.login-locked main,body.login-locked header.top,body.login-locked .asst,body
     <button class="tab" data-tab="critical" type="button" onclick="setTab('critical')">Critical</button>
     <button class="tab" data-tab="assigned" type="button" onclick="setTab('assigned')">Assigned</button>
     <button class="tab" data-tab="late" type="button" onclick="setTab('late')">Open &amp; late</button>
-    <button class="tab" data-tab="closed" type="button" onclick="setTab('closed')">Closed on time</button>
+    <button class="tab" data-tab="closed" type="button" onclick="setTab('closed')">Closed tickets</button>
     <button class="tab" data-tab="reports" type="button" onclick="setTab('reports')">Scorecards</button>
     <button class="tab" data-tab="perf" type="button" onclick="setTab('perf')">Performance</button>
     <button class="tab" data-tab="explore" type="button" onclick="setTab('explore')">Explore</button>
@@ -761,9 +761,9 @@ body.login-locked main,body.login-locked header.top,body.login-locked .asst,body
 
   <!-- CLOSED ON TIME -->
   <section class="view" id="v-closed">
-    <div class="print-head"><h1>Tickets closed on time</h1><div class="m">OnpointBase · as at 5 June 2026</div></div>
+    <div class="print-head"><h1>Closed tickets</h1><div class="m">OnpointBase · as at 5 June 2026</div></div>
     <div class="headline" id="hl-closed"></div>
-    <div class="vhead"><h2>Closed on time</h2><span class="count" id="c-closed"></span>
+    <div class="vhead"><h2>Closed tickets</h2><span class="count" id="c-closed"></span>
       <div class="sp"></div>
       <div class="ctrl no-print"><label>Period</label><select class="mini" id="period-closed" onchange="setPeriod(this.value)"></select>
         <button class="btn sm" onclick="csvOf('closed')">⬇ CSV</button><button class="btn sm" onclick="printView()">⎙ Print</button></div>
@@ -1215,7 +1215,7 @@ function renderActive(){
   else if(v==='scoring')renderScoring();
   else {renderWeightPanel();renderReport();}
 }
-const TITLES={exec:'Executive overview',review:'Scoring tasks waiting for Executive 1',approvals:'Approvals basket',scoring:'Scoring basket',critical:'Critical basket',assigned:'Assigned to people',late:'Open but late',closed:'Closed on time',reports:'Employee scorecard',explore:'Explore — filter & pivot',mine:'My tickets — raised by me',activity:'Activity log',perf:'Performance report',create:'Create a ticket'};
+const TITLES={exec:'Executive overview',review:'Scoring tasks waiting for Executive 1',approvals:'Approvals basket',scoring:'Scoring basket',critical:'Critical basket',assigned:'Assigned to people',late:'Open but late',closed:'Closed tickets',reports:'Employee scorecard',explore:'Explore — filter & pivot',mine:'My tickets — raised by me',activity:'Activity log',perf:'Performance report',create:'Create a ticket'};
 const HEADMETA={exec:{eb:'Executive overview',sub:''},review:{eb:'Action required',sub:'Completed work waiting for Executive 1 scoring — approve to close, or return with a reason.'},approvals:{eb:'Action required',sub:'Extension and hiring requests awaiting your decision.'},scoring:{eb:'Action required',sub:'Two-executive task scoring basket.'},mine:{eb:'Your work',sub:'Tickets you raised, and who they are delegated to.'},critical:{eb:'Operations',sub:'High-priority tickets across the organisation.'},assigned:{eb:'Operations',sub:'Workload and performance by person.'},late:{eb:'Operations',sub:'Open tickets past their due date, by department.'},closed:{eb:'Operations',sub:'Completed tickets and on-time delivery.'},reports:{eb:'Performance',sub:'Criticality-weighted scorecards for people and departments.'},explore:{eb:'Analysis',sub:'Filter and pivot the full ticket set; save and recall views.'},activity:{eb:'Record',sub:'Session log of approvals, returns and bulk actions.'},perf:{eb:'Performance',sub:'High-level performance report across departments and people.'},create:{eb:'Create',sub:'Raise a new ticket — one-off or recurring. Drafts are held in this session and can be exported.'}};
 function setTab(t){state.tab=t;state.sel={};
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='v-'+t));
@@ -1872,7 +1872,7 @@ function closeTicket(){$('#scrim').classList.remove('open');$('#drawer').classLi
 let CMDS=[], palItems=[], palIdx=0, palPrevFocus=null;
 function buildCommands(){
   CMDS=[];
-  [['exec','Executive overview'],['review','Scoring tasks waiting for Executive 1'],['approvals','Approvals basket'],['mine','My tickets'],['critical','Critical basket'],['assigned','Assigned to people'],['late','Open but late'],['closed','Closed on time'],['reports','Scorecards'],['explore','Explore — filter & pivot'],['activity','Activity log'],['perf','Performance report'],['create','Create a ticket']]
+  [['exec','Executive overview'],['review','Scoring tasks waiting for Executive 1'],['approvals','Approvals basket'],['mine','My tickets'],['critical','Critical basket'],['assigned','Assigned to people'],['late','Open but late'],['closed','Closed tickets'],['reports','Scorecards'],['explore','Explore — filter & pivot'],['activity','Activity log'],['perf','Performance report'],['create','Create a ticket']]
     .forEach(pair=>CMDS.push({cat:'Go to',label:pair[1],hint:'tab',run:()=>setTab(pair[0])}));
   CMDS.push({cat:'Tools',label:'Open assistant',sub:'ask the operations assistant',hint:'ask',run:()=>openAsst()});
   DATA.people.forEach(p=>CMDS.push({cat:'Scorecard',label:p.name,sub:p.dept||'',hint:'person',run:()=>{state.repScope='person';populateRepSelect();state.repEmp=p.name;if($('#repEmp'))$('#repEmp').value=p.name;setTab('reports');renderWeightPanel();}}));
@@ -2294,8 +2294,8 @@ const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycbx_HBNzLR2Iw2S8zewmhLV92p3_pqW6J9Q0WXvc9FGahP1NM8SAvRz8kBPDd1nM-zPL/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycbx_HBNzLR2Iw2S8zewmhLV92p3_pqW6J9Q0WXvc9FGahP1NM8SAvRz8kBPDd1nM-zPL/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycby-Nh2-1cjM9PzMiZOYTuMLvG7utcRoVUep7bXfXlR1QLswL58fZFKK0hsZmlqtjXj2/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycby-Nh2-1cjM9PzMiZOYTuMLvG7utcRoVUep7bXfXlR1QLswL58fZFKK0hsZmlqtjXj2/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -3532,6 +3532,59 @@ doScoreDecision=function(id,ok,reason){
   _opotLockOriginalDoScoreDecision(id,ok,reason);
   opotFilterClosedScoringQueues();
   opotRecountScoringQueues();
+};
+
+
+/* ---------- Executive 2 close-status finalizer 2026-06-17 ----------
+   Scope: Executive 2 scoring close only. Keeps Executive 2-approved tickets out of
+   Executive 1 and shows Closed On Time / Closed Late in the closed tickets view. */
+function opotClosedStatusText(t){
+  const onTime=!!(t&&t.due&&t.closed&&t.closed<=t.due);
+  return onTime?'Closed On Time':'Closed Late';
+}
+function opotClosedLateFlag(t){return !!(t&&t.due&&t.closed&&t.closed>t.due);}
+function opotFinalizeExec2ClosedTicket(ref,a){
+  const t=opotFindTaskByRef(ref);
+  const d=(t&&t.closed)||new Date().toISOString().slice(0,10);
+  opotMarkTicketClosedLocal(ref,d);
+  const tt=opotFindTaskByRef(ref);
+  if(tt){
+    tt.closed=d;
+    tt.closedDate=d;
+    tt.closedStatus=opotClosedStatusText(tt);
+    tt.closedLate=opotClosedLateFlag(tt);
+    tt.closedOnTime=!tt.closedLate;
+    tt.overdue=false;
+    tt.daysLate=tt.closedLate?_daysBetween(tt.due,tt.closed):0;
+    tt.daysWaiting=0;
+  }
+  window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>String(x.ref||'').trim()!==String(ref||'').trim());
+  scoringQueue=(scoringQueue||[]).filter(x=>String(x.ref||'').trim()!==String(ref||'').trim());
+  opotFilterClosedScoringQueues();
+  opotRecountScoringQueues();
+}
+const _opotClosedStatusOriginalDoScoreDecision=doScoreDecision;
+doScoreDecision=function(id,ok,reason){
+  const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id);
+  if(ok&&a&&EXECUTIVE_LEVEL===2){
+    _opotClosedStatusOriginalDoScoreDecision(id,ok,reason);
+    opotFinalizeExec2ClosedTicket(a.ref,a);
+    renderTiles();headlines();renderScoring();if(state.tab==='closed')renderClosed();if(state.tab==='reports')renderReport();if(state.tab==='perf')renderPerf();if(state.tab==='activity')renderActivity();
+    return;
+  }
+  _opotClosedStatusOriginalDoScoreDecision(id,ok,reason);
+};
+const _opotClosedStatusOriginalRenderClosed=renderClosed;
+renderClosed=function(){
+  const closed=T.filter(t=>t.status==='Closed'&&inPeriod(t.closed));
+  if(!closed.length){_opotClosedStatusOriginalRenderClosed();return;}
+  const onT=closed.filter(t=>t.closed&&t.due&&t.closed<=t.due).length, late=closed.length-onT, rate=Math.round(onT/closed.length*100);
+  $('#c-closed').textContent=`${closed.length} closed · ${onT} on time · ${late} late · ${rate}% on time`;
+  $('#closedBody').innerHTML=`<div class="tablecard scroll"><table>
+    <thead><tr><th>Ref</th><th>Task</th><th>Department</th><th>Owner</th><th>Due</th><th>Closed</th><th>Closed status</th></tr></thead>
+    <tbody>${closed.sort((a,b)=>(a.closed<b.closed?1:-1)).map(t=>{const ot=t.closed&&t.due&&t.closed<=t.due;
+      return `<tr class="rowlink" data-ref="${esc(t.ref)}" data-ball="${ballOf(t)}" onclick="openTicket('${esc(t.ref)}')"><td class="t-ref">${esc(t.ref)}</td><td class="t-name">${esc(t.name)}</td><td>${esc(t.dept)}</td><td>${esc(t.owner)}</td>
+      <td>${fmtD(t.due)}</td><td>${fmtD(t.closed)}</td><td><span class="st"><span class="dot ${ot?'closed':'late'}"></span>${ot?'Closed On Time':'Closed Late'}</span></td></tr>`;}).join('')}</tbody></table></div>`;
 };
 
 onpointEnhancedBoot().then(init).catch(function(e){console.warn(e);init();});
