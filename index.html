@@ -2294,8 +2294,8 @@ const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycbw1bJket5AdCzkyCcLwj2broQ044n6KBTkdq_tgsxIimaHr6LDEzc0xt18Iks4QSCuL/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycbw1bJket5AdCzkyCcLwj2broQ044n6KBTkdq_tgsxIimaHr6LDEzc0xt18Iks4QSCuL/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycbx_HBNzLR2Iw2S8zewmhLV92p3_pqW6J9Q0WXvc9FGahP1NM8SAvRz8kBPDd1nM-zPL/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbx_HBNzLR2Iw2S8zewmhLV92p3_pqW6J9Q0WXvc9FGahP1NM8SAvRz8kBPDd1nM-zPL/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -3458,36 +3458,59 @@ const _opotFinalFlowOriginalRenderScoring=renderScoring;
 renderScoring=function(){opotRecountScoringQueues();_opotFinalFlowOriginalRenderScoring();};
 
 
-/* ---------- Executive 1 -> Executive 2 scoring lock 2026-06-17 ----------
-   Scope only: scoring workflow and the requested ticket.
+/* ---------- Executive 1 -> Executive 2 closed-ticket queue lock 2026-06-17 ----------
+   Scope: generic scoring workflow.
    Rules:
-   1) Executive 1 (Tafadzwa Magejo) approval/scoring always moves to Executive 2.
-   2) Executive 2 (Lameck Chindove) approval/scoring closes the ticket permanently.
-   3) Closed tickets are never rebuilt back into the Executive 1 queue from stale Tasks/Updates rows.
+   1) Executive 1 scoring moves a ticket to Executive 2 only.
+   2) Executive 2 scoring closes the ticket permanently at the local dashboard layer.
+   3) Any ticket that is already Closed in Tasks/Tickets or Score_approvals is filtered out
+      whenever queues are rebuilt from stale Tasks/Updates rows.
+   4) No ticket-specific force-close list is used; this applies to every closed ticket.
 */
-const OPOT_FORCE_CLOSED_TICKETS = {'TKT-20260603-103602': true};
-function opotIsForceClosedRef(ref){return !!OPOT_FORCE_CLOSED_TICKETS[String(ref||'').trim()];}
+function opotClosedTextFromTask(t){
+  if(!t)return '';
+  return [t.status,t.taskStatus,t.workflowStage,t.scoringStatus,t.approvalStatus,t.closed,t.closedDate,t['Status'],t['Task Status'],t['Workflow Stage'],t['Scoring Status'],t['Approval Status'],t['Closed'],t['Closed Date']].filter(Boolean).join(' ');
+}
+function opotIsClosedTask(t){return /\bclosed\b/i.test(opotClosedTextFromTask(t));}
 function opotMarkTicketClosedLocal(ref, closedDate){
   ref=String(ref||'').trim(); if(!ref)return;
   const t=opotFindTaskByRef(ref) || (Array.isArray(T)?T.find(x=>String(x.ref||'').trim()===ref):null);
-  if(t){t.status='Closed';t.workflowStage='Closed';t.scoringStatus='Closed';t.closed=closedDate||t.closed||new Date().toISOString().slice(0,10);t.overdue=false;t.daysLate=0;t.daysWaiting=0;}
+  const d=closedDate||new Date().toISOString().slice(0,10);
+  if(t){
+    t.status='Closed';
+    t.taskStatus='Closed';
+    t.workflowStage='Closed';
+    t.scoringStatus='Closed';
+    t.approvalStatus='Closed';
+    t.closed=t.closed||d;
+    t.closedDate=t.closedDate||d;
+    t.overdue=false;
+    t.daysLate=0;
+    t.daysWaiting=0;
+  }
 }
-function opotApplyForcedClosedTickets(){Object.keys(OPOT_FORCE_CLOSED_TICKETS).forEach(ref=>opotMarkTicketClosedLocal(ref,'2026-06-03'));}
 const _opotLockOriginalScoringIsClosed = opotScoringIsClosed;
 opotScoringIsClosed=function(x){
-  const ref=opotScoringRefFromRow((x&&x.raw)||x||{},x);
-  if(opotIsForceClosedRef(ref))return true;
+  const raw=(x&&x.raw)||x||{};
+  const ref=opotScoringRefFromRow(raw,x);
   const t=ref&&opotFindTaskByRef(ref);
-  if(t && /closed/i.test(String(t.status||'')))return true;
+  if(opotIsClosedTask(t))return true;
+  const rowText=[opotScoringStageText(x),_pick(raw,['Status','Task Status','Workflow Stage','Scoring Status','Approval Status','Closed','Closed Date'],'')].filter(Boolean).join(' ');
+  if(/\bclosed\b/i.test(rowText))return true;
   return _opotLockOriginalScoringIsClosed(x);
 };
+function opotFilterClosedScoringQueues(){
+  window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>!opotScoringIsClosed(x));
+}
 const _opotLockOriginalRecountScoringQueues = opotRecountScoringQueues;
-opotRecountScoringQueues=function(){opotApplyForcedClosedTickets();_opotLockOriginalRecountScoringQueues();};
+opotRecountScoringQueues=function(){
+  opotFilterClosedScoringQueues();
+  _opotLockOriginalRecountScoringQueues();
+};
 const _opotLockOriginalBuildWorkflowQueues = buildWorkflowQueues;
 buildWorkflowQueues=function(rows){
   _opotLockOriginalBuildWorkflowQueues(rows||{});
-  opotApplyForcedClosedTickets();
-  window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>!opotScoringIsClosed(x));
+  opotFilterClosedScoringQueues();
   opotRecountScoringQueues();
 };
 const _opotLockOriginalDoScoreDecision = doScoreDecision;
@@ -3501,10 +3524,14 @@ doScoreDecision=function(id,ok,reason){
     _opotLockOriginalDoScoreDecision(id,ok,reason);
     opotMarkTicketClosedLocal(a.ref,(t&&t.closed)||new Date().toISOString().slice(0,10));
     window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>String(x.ref||'').trim()!==String(a.ref||'').trim());
-    opotRecountScoringQueues();renderTiles();headlines();renderScoring();
+    opotFilterClosedScoringQueues();
+    opotRecountScoringQueues();
+    renderTiles();headlines();renderScoring();
     return;
   }
   _opotLockOriginalDoScoreDecision(id,ok,reason);
+  opotFilterClosedScoringQueues();
+  opotRecountScoringQueues();
 };
 
 onpointEnhancedBoot().then(init).catch(function(e){console.warn(e);init();});
