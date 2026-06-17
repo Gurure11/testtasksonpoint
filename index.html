@@ -2291,8 +2291,8 @@ const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycbzP1sA4hpajFBDd_-64srJ7WfN0NocGoJ0Wb_d8FeuKxMWUZxD5OOea_BH4bp_OTu76/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycbzP1sA4hpajFBDd_-64srJ7WfN0NocGoJ0Wb_d8FeuKxMWUZxD5OOea_BH4bp_OTu76/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycbwf6sQ-TCCmeR5SSGaDzMHSne_Hp_z7n5L946tAPBZeS2O8ei2m3fm5dKi2c0HCCEDx/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbwf6sQ-TCCmeR5SSGaDzMHSne_Hp_z7n5L946tAPBZeS2O8ei2m3fm5dKi2c0HCCEDx/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -3038,12 +3038,24 @@ populateRepSelect=function(){
 };
 
 /* Enrich scoring basket: Executive 1 % as Executive 2 guide, due date, update/submission date, clickable ticket/user. */
+function opotTaskForScoring(r,a){
+  const ref=String((a&&a.ref)||_pick(r,['Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
+  const title=String(_pick(r,['Task Name','Task','Title','taskName','title'],'')).trim();
+  return T.find(t=>String(t.ref||'').trim()===ref)
+    || T.find(t=>String(t.name||'').trim()===title)
+    || T.find(t=>String(t.rawTaskId||'').trim()===ref)
+    || {};
+}
 const _opotRequestedOriginalScoringFromRow = scoringFromRow;
 scoringFromRow=function(r,source){
   const a=_opotRequestedOriginalScoringFromRow(r,source);
-  const t=T.find(x=>x.ref===a.ref)||{};
-  a.due=_asDate(_pick(r,['Due','Due Date','Deadline'],t.due||''));
-  a.submittedAt=_asDate(_pick(r,['Submitted Date','Updated At','Update Date','Timestamp','Last Updated'],t.upTs||t.lastResp||t.created||''));
+  const t=opotTaskForScoring(r,a);
+  a.ref=String(a.ref||t.ref||_pick(r,['Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
+  a.item=String(t.name||_pick(r,['Task Name','Task','Title','taskName','title','Item'],a.item||'Task update')).trim();
+  a.by=String(t.owner||_pick(r,['Assigned To','Assignee','Owner','assignedTo','Submitted By','Updated By','User','Employee'],a.by||'')).trim();
+  a.dept=String(t.dept||_pick(r,['Department','Dept','department'],a.dept||'')).trim();
+  a.due=_asDate(t.due||_pick(r,['Due Date','Due','Deadline','dueDate'],''));
+  a.submittedAt=_asDate(_pick(r,['Submitted Date','Updated At','Update Date','Update Timestamp','Timestamp','Last Updated'],t.upTs||t.lastResp||t.compReq||t.created||''));
   a.exec1Pct=Number(_pick(r,['Executive 1 %','Exec 1 %','Executive 1 Percent','Executive 1 Score %','Score 1 %'],0))||opotScorePercent(a.score1);
   return a;
 };
@@ -3051,7 +3063,7 @@ renderScoring=function(){
   const q=scoringQueue||[]; const c=document.getElementById('c-scoring'); if(c)c.textContent=q.length+' pending'; const h=document.getElementById('hl-scoring'); if(h)h.innerHTML=q.length?`<span class="k">${q.length}</span> task${q.length===1?'':'s'} waiting for Executive ${EXECUTIVE_LEVEL} scoring.`:'Scoring basket is clear.';
   const host=document.getElementById('scoringBody'); if(!host)return;
   if(!q.length){host.innerHTML='<div class="tablecard"><div class="empty"><div class="ic">✓</div><h3>No scoring pending</h3><p>Submitted and updated tasks will appear here for Executive 1 first, then Executive 2.</p></div></div>';return;}
-  host.innerHTML=`<div class="tablecard scroll"><table><thead><tr><th>Ticket / Task</th><th>User</th><th>Dept</th><th>Due date</th><th>Submitted / updated</th><th>Exec 1 guide</th><th>Stage</th><th>Score</th><th class="no-print">Decision</th></tr></thead><tbody>${q.map(a=>{const cur=EXECUTIVE_LEVEL===1?a.score1:a.score2;const t=T.find(x=>x.ref===a.ref)||{};const due=a.due||t.due||'';const upd=a.submittedAt||opotDateTimeFromTask(t);return `<tr><td class="t-name"><span class="reflink" onclick="opotOpenScoringTicket('${esc(a.id)}')">${esc(a.ref||'')}</span> ${esc(a.item||'')}</td><td><span class="reflink" onclick="opotOpenScoringUser('${esc(a.id)}')">${esc(a.by||'')}</span></td><td>${esc(a.dept)}</td><td>${due?fmtD(due):'—'}</td><td>${upd?esc(upd):'—'}</td><td><span class="scoredot ${a.score1>=4?'s-strong':a.score1>=3?'s-ok':a.score1?'s-warn':'s-na'}">${a.score1?opotScoreLabel(a.score1):'—'}</span></td><td>${esc(a.stage)}</td><td><span class="rscore" onclick="event.stopPropagation()">${[1,2,3,4,5].map(n=>`<button class="rb${cur>=n?' on':''}" onclick="scoreSet('${esc(a.id)}',${n})">${n}</button>`).join('')}</span></td><td class="no-print"><button class="btn sm go" onclick="scoreDecision('${esc(a.id)}',true)">${EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2'}</button> <button class="btn sm ret" onclick="scoreDecision('${esc(a.id)}',false)">Return</button></td></tr>`}).join('')}</tbody></table></div>`;
+  host.innerHTML=`<div class="tablecard scroll"><table><thead><tr><th>Ticket / Task</th><th>User</th><th>Department</th><th>Due date</th><th>Submitted / updated</th><th>Exec 1 guide</th><th>Stage</th><th>Score</th><th class="no-print">Decision</th></tr></thead><tbody>${q.map(a=>{const cur=EXECUTIVE_LEVEL===1?a.score1:a.score2;const t=opotTaskForScoring(a.raw||{},a);const user=a.by||t.owner||'';const dept=a.dept||t.dept||'';const due=a.due||t.due||'';const upd=a.submittedAt||opotDateTimeFromTask(t);return `<tr><td class="t-name"><span class="reflink" onclick="opotOpenScoringTicket('${esc(a.id)}')">${esc(a.ref||'')}</span> ${esc(a.item||'')}</td><td><span class="reflink" onclick="opotOpenScoringUser('${esc(a.id)}')">${esc(user||'')}</span></td><td>${esc(dept||'')}</td><td>${due?fmtD(due):'—'}</td><td>${upd?esc(upd):'—'}</td><td><span class="scoredot ${a.score1>=4?'s-strong':a.score1>=3?'s-ok':a.score1?'s-warn':'s-na'}">${a.score1?opotScoreLabel(a.score1):'—'}</span></td><td>${esc(a.stage)}</td><td><span class="rscore" onclick="event.stopPropagation()">${[1,2,3,4,5].map(n=>`<button class="rb${cur>=n?' on':''}" onclick="scoreSet('${esc(a.id)}',${n})">${n}</button>`).join('')}</span></td><td class="no-print"><button class="btn sm go" onclick="scoreDecision('${esc(a.id)}',true)">${EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2'}</button> <button class="btn sm ret" onclick="scoreDecision('${esc(a.id)}',false)">Return</button></td></tr>`}).join('')}</tbody></table></div>`;
 };
 scoreSet=function(id,n){const a=scoringQueue.find(x=>x.id===id); if(!a)return; if(EXECUTIVE_LEVEL===1){a.score1=n;a.exec1Pct=opotScorePercent(n);} else a.score2=n; const t=T.find(x=>x.ref===a.ref); if(t)scores[t.ref]=Object.assign({},scores[t.ref],{score:n}); renderScoring(); if(state.tab==='reports')renderReport();};
 doScoreDecision=function(id,ok,reason){const i=scoringQueue.findIndex(x=>x.id===id); if(i<0)return; const a=scoringQueue.splice(i,1)[0]; const t=T.find(x=>x.ref===a.ref); if(ok&&EXECUTIVE_LEVEL===1){sheetWrite('score_exec1_approved',{sheet:'Score_approvals',taskId:a.ref,score:a.score1,scorePercent:opotScorePercent(a.score1),nextStage:'Scoring Executive 2'}); logAudit('Executive 1 scored',a.item,'Score '+a.score1+'/5 · '+opotScorePercent(a.score1)+'% · moved to Executive 2'); toast('Scored and moved to Executive 2');}
