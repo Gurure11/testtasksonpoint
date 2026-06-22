@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Distinct Infrastructure · Dashboard</title>
-  <!-- Font Awesome for icons (optional but adds visual polish) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
     :root {
@@ -88,7 +87,7 @@
     .header p { color:#eef6ff; font-size:14px; line-height:1.5; position:relative; z-index:1; }
     .header strong { color:var(--gold-light); }
 
-    /* ----- DASHBOARD CARDS ----- */
+    /* ----- DASHBOARD CARDS (clickable) ----- */
     .dashboard-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -102,14 +101,19 @@
       border: 1px solid var(--line);
       box-shadow: 0 8px 18px rgba(11,47,107,0.06);
       text-align: center;
-      transition: transform var(--transition), box-shadow var(--transition);
+      transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
       backdrop-filter: blur(2px);
       background: rgba(255,255,255,0.85);
+      cursor: pointer;
+      position: relative;
     }
     .stat-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 18px 30px rgba(11,47,107,0.12);
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 18px 30px rgba(11,47,107,0.18);
       border-color: var(--gold);
+    }
+    .stat-card:active {
+      transform: scale(0.96);
     }
     .stat-card i {
       font-size: 28px;
@@ -138,6 +142,17 @@
       font-size: 11px;
       color: var(--muted);
       margin-top: 2px;
+    }
+    .stat-card .filter-badge {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      font-size: 10px;
+      background: var(--gold);
+      color: #071f47;
+      padding: 2px 8px;
+      border-radius: 10px;
+      opacity: 0.7;
     }
 
     .action-row {
@@ -188,8 +203,26 @@
       background: var(--primary-blue);
       color: white;
     }
+    .btn-back {
+      background: linear-gradient(135deg, #6c7a8a, #4a5568);
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-back:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.1);
+    }
 
-    /* form section (hidden by default) */
+    /* form section */
     #entrySection {
       margin-top: 28px;
       border-top: 2px dashed var(--line);
@@ -199,9 +232,13 @@
       color: var(--primary-blue);
       margin-bottom: 16px;
       font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
     }
 
-    /* preserve original form-grid style */
     .form-grid {
       display:grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -250,6 +287,13 @@
       transform:translateY(-1px);
     }
     textarea { min-height:44px; resize:vertical; }
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 10px;
+    }
     button {
       background:linear-gradient(135deg, var(--gold), var(--gold-deep));
       color:#071f47;
@@ -259,7 +303,6 @@
       cursor:pointer;
       font-size:15px;
       font-weight:800;
-      margin-top:10px;
       box-shadow:0 12px 26px rgba(154,116,22,0.28);
       transition:transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
     }
@@ -318,20 +361,61 @@
     }
     tr:hover { background:#f4f8ff; }
     .hidden { display:none !important; }
+    
+    /* Actions column - moved to right */
+    .action-col {
+      min-width: 160px;
+      text-align: right;
+    }
+    .action-col .row-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .row-actions button {
+      padding: 6px 12px;
+      font-size: 12px;
+      margin: 0;
+      border-radius: 20px;
+    }
+    .row-actions .btn-sm-edit { background: var(--bright-blue); color: white; }
+    .row-actions .btn-sm-edit:hover { filter: brightness(1.1); }
+    .row-actions .btn-sm-upload { background: var(--gold); color: #071f47; }
+    .row-actions .btn-sm-upload:hover { filter: brightness(1.1); }
+    .row-actions .btn-sm-delete { background: #ef4444; color: white; }
+
+    .regbook-link {
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .regbook-link a {
+      color: var(--bright-blue);
+      text-decoration: none;
+      border-bottom: 1px dotted var(--bright-blue);
+    }
+    .regbook-link a:hover { color: var(--gold-deep); }
+
+    .filter-active {
+      border-color: var(--gold) !important;
+      box-shadow: 0 0 0 3px rgba(212,175,55,0.3) !important;
+    }
+
     @media (max-width: 768px) {
       body { padding:12px; }
       .container { padding:16px; border-radius:20px; }
       .dashboard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
       .action-row { flex-direction: column; align-items: stretch; }
       .btn-gold, .btn-outline { justify-content: center; }
+      .form-actions { flex-direction: column; }
+      .form-actions button { width: 100%; justify-content: center; }
+      .action-col .row-actions { justify-content: center; }
     }
     @media print {
       body { background:white; }
       .header, .action-row, #entrySection, .toolbar, .connection-panel, .status, .btn-gold, .btn-outline { display:none !important; }
       .container { box-shadow:none; border:none; max-width:none; padding:0; }
     }
-    /* small utility for action column removal */
-    .action-col { display: none; }
   </style>
 </head>
 <body>
@@ -342,24 +426,25 @@
     <p><strong>Google Storage:</strong> Asset Register O/a Distinct Infrastructure</p>
   </div>
 
-  <!-- DASHBOARD CARDS -->
+  <!-- DASHBOARD CARDS (clickable) -->
   <div class="dashboard-grid" id="dashboardCards">
-    <div class="stat-card"><i class="fas fa-truck"></i><div class="count" id="cntTrucks">0</div><div class="label">Trucks</div></div>
-    <div class="stat-card"><i class="fas fa-trailer"></i><div class="count" id="cntTrailers">0</div><div class="label">Trailers</div></div>
-    <div class="stat-card"><i class="fas fa-car"></i><div class="count" id="cntExecutive">0</div><div class="label">Executive Cars</div></div>
-    <div class="stat-card"><i class="fas fa-oil-can"></i><div class="count" id="cntDrilling">0</div><div class="label">Drilling Plant</div></div>
-    <div class="stat-card"><i class="fas fa-digging"></i><div class="count" id="cntYellow">0</div><div class="label">Yellow Plant</div></div>
-    <div class="stat-card"><i class="fas fa-gas-pump"></i><div class="count" id="cntBowser">0</div><div class="label">Bowsers</div></div>
-    <div class="stat-card"><i class="fas fa-building"></i><div class="count" id="cntAdmin">0</div><div class="label">Admin</div></div>
-    <div class="stat-card"><i class="fas fa-th-list"></i><div class="count" id="cntSmallPlant">0</div><div class="label">Small Plant</div></div>
-    <div class="stat-card"><i class="fas fa-briefcase"></i><div class="count" id="cntProjects">0</div><div class="label">Projects &amp; Tender</div></div>
+    <div class="stat-card" data-filter="Trucks"><i class="fas fa-truck"></i><div class="count" id="cntTrucks">0</div><div class="label">Trucks</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Trailers"><i class="fas fa-trailer"></i><div class="count" id="cntTrailers">0</div><div class="label">Trailers</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Executive"><i class="fas fa-car"></i><div class="count" id="cntExecutive">0</div><div class="label">Executive Cars</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Drilling"><i class="fas fa-oil-can"></i><div class="count" id="cntDrilling">0</div><div class="label">Drilling Plant</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Yellow Plant"><i class="fas fa-digging"></i><div class="count" id="cntYellow">0</div><div class="label">Yellow Plant</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Bowser"><i class="fas fa-gas-pump"></i><div class="count" id="cntBowser">0</div><div class="label">Bowsers</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Admin"><i class="fas fa-building"></i><div class="count" id="cntAdmin">0</div><div class="label">Admin</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Small Plant"><i class="fas fa-th-list"></i><div class="count" id="cntSmallPlant">0</div><div class="label">Small Plant</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Projects &amp; Tender"><i class="fas fa-briefcase"></i><div class="count" id="cntProjects">0</div><div class="label">Projects &amp; Tender</div><span class="filter-badge">click</span></div>
   </div>
 
-  <!-- ACTION ROW: New Entry + other controls -->
+  <!-- ACTION ROW -->
   <div class="action-row">
     <div class="btn-group">
       <button class="btn-gold" id="newEntryBtn"><i class="fas fa-plus-circle"></i> New Entry</button>
       <button class="btn-outline" id="refreshDashBtn"><i class="fas fa-sync-alt"></i> Refresh</button>
+      <button class="btn-outline" id="clearFilterBtn"><i class="fas fa-times-circle"></i> Clear Filter</button>
     </div>
     <div class="btn-group">
       <button class="btn-outline" id="printBtn"><i class="fas fa-print"></i> Print</button>
@@ -367,9 +452,12 @@
     </div>
   </div>
 
-  <!-- ENTRY SECTION (hidden by default) -->
+  <!-- ENTRY SECTION -->
   <div id="entrySection" class="hidden">
-    <h2><i class="fas fa-pen-alt" style="color:var(--gold);"></i> New Asset Entry</h2>
+    <h2>
+      <span><i class="fas fa-pen-alt" style="color:var(--gold);"></i> New Asset Entry</span>
+      <button class="btn-back" id="backToDashboardBtn"><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+    </h2>
     <form id="assetForm">
       <div class="form-grid">
         <div class="form-group"><label>Code</label><select id="code"><option value="">Select Code</option><option>73803</option><option>73802</option><option>73801</option><option>73800</option></select></div>
@@ -379,8 +467,8 @@
         <div class="form-group"><label>Financing</label><input type="text" id="financing"></div>
         <div class="form-group"><label>Description</label><input type="text" id="description"></div>
         <div class="form-group"><label>Model</label><select id="model"><option value="">Select Model Year</option><option value="2000">2000</option><option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option><option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option><option value="2007">2007</option><option value="2008">2008</option><option value="2009">2009</option><option value="2010">2010</option><option value="2011">2011</option><option value="2012">2012</option><option value="2013">2013</option><option value="2014">2014</option><option value="2015">2015</option><option value="2016">2016</option><option value="2017">2017</option><option value="2018">2018</option><option value="2019">2019</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option><option value="2031">2031</option><option value="2032">2032</option><option value="2033">2033</option><option value="2034">2034</option><option value="2035">2035</option><option value="2036">2036</option><option value="2037">2037</option><option value="2038">2038</option><option value="2039">2039</option><option value="2040">2040</option><option value="2041">2041</option><option value="2042">2042</option><option value="2043">2043</option><option value="2044">2044</option><option value="2045">2045</option></select></div>
-        <div class="form-group"><label>Make of Vehicle</label><select id="makeOfVehicle"><option value="">Select Make of Vehicle</option><option>Toyota</option><option>Faw</option><option>Ford</option><option>Foton</option><option>Mahindra</option><option>Issuzu</option><option>Mercedes Benz</option><option>VW</option><option>Nissan</option></select></div>
-        <div class="form-group"><label>Body Type</label><select id="bodyType"><option value="">Select Body Type</option><option>Sedan</option><option>Hatchback</option><option>Truck</option><option>Minibus</option><option>SUV</option><option>Bukkie</option><option>Lorry</option></select></div>
+        <div class="form-group"><label>Make of Vehicle</label><select id="makeOfVehicle"><option value="">Select Make</option><option>Toyota</option><option>Faw</option><option>Ford</option><option>Foton</option><option>Mahindra</option><option>Isuzu</option><option>Mercedes Benz</option><option>VW</option><option>Nissan</option></select></div>
+        <div class="form-group"><label>Body Type</label><select id="bodyType"><option value="">Select Body Type</option><option>Sedan</option><option>Hatchback</option><option>Truck</option><option>Minibus</option><option>SUV</option><option>Bakkie</option><option>Lorry</option></select></div>
         <div class="form-group"><label>Registration no</label><input type="text" id="registrationNo"></div>
         <div class="form-group"><label>Engine no</label><input type="text" id="engineNo"></div>
         <div class="form-group"><label>Vin no</label><input type="text" id="vinNo"></div>
@@ -389,16 +477,13 @@
         <div class="form-group"><label>ZOHO</label><select id="zoho"><option value="">Select ZOHO</option><option>Yes</option><option>No</option></select></div>
         <div class="form-group"><label>Location</label><input type="text" id="location"></div>
         <div class="form-group"><label>Driver/Operator</label><input type="text" id="driverOperator"></div>
-        <div class="form-group"><label>Licenced</label><select id="licenced"><option value="">Select Licenced</option><option>Yes</option><option>No</option></select></div>
-        <div class="form-group"><label>Type of Licence</label><input type="text" id="typeOfLicence"></div>
-        <div class="form-group"><label>Validity of Licence</label><input type="date" id="validityOfLicence"></div>
         <div class="form-group"><label>Allocation/Dept</label><input type="text" id="allocationDept"></div>
         <div class="form-group"><label>Registered Entity</label><input type="text" id="registeredEntity"></div>
         <div class="form-group"><label>Covered by</label><select id="coveredBy"><option value="">Select Insurance</option><option>Outsurance</option><option>Auto General</option><option>Standard Bank</option><option>Other</option></select></div>
-        <div class="form-group"><label>TRACKING COMPANY</label><select id="trackingCompany"><option value="">Select Tracking Company</option><option>Netstar</option><option>Car Tracker</option><option>The Both(Car Tracker & Netstar)</option></select></div>
+        <div class="form-group"><label>TRACKING COMPANY</label><select id="trackingCompany"><option value="">Select Tracking</option><option>Netstar</option><option>Car Tracker</option><option>The Both(Car Tracker & Netstar)</option></select></div>
         <div class="form-group"><label>Installment Amount</label><input type="number" id="installmentAmount"></div>
         <div class="form-group"><label>Last Installment date</label><input type="date" id="lastInstallmentDate"></div>
-        <div class="form-group"><label>eTag Toll</label><select id="eTagToll"><option value="">Select eTag Toll</option><option>Yes</option><option>No</option></select></div>
+        <div class="form-group"><label>eTag Toll</label><select id="eTagToll"><option value="">Select eTag</option><option>Yes</option><option>No</option></select></div>
         <div class="form-group"><label>NOTES</label><textarea id="notes"></textarea></div>
         <div class="form-group"><label>Reg. Boo</label><input type="text" id="regBoo"></div>
         <div class="form-group"><label>Useful life</label><input type="number" id="usefulLife"></div>
@@ -408,25 +493,31 @@
         <div class="form-group"><label>Months Dpn</label><input type="number" id="monthsDpn"></div>
         <div class="form-group"><label>Accum dpn</label><input type="number" id="accumDpn"></div>
         <div class="form-group"><label>NBV</label><input type="number" id="nbv"></div>
-        <div class="form-group"><label>Oustanding VAF</label><input type="number" id="oustandingVaf"></div>
+        <div class="form-group"><label>Outstanding VAF</label><input type="number" id="oustandingVaf"></div>
         <div class="form-group"><label>Value</label><input type="number" id="value"></div>
+        <input type="hidden" id="rowNumber">
+        <input type="hidden" id="regBookLink">
       </div>
-      <input type="hidden" id="rowNumber">
-      <button type="submit" id="saveBtn">Save Asset</button>
-      <button type="button" class="btn-blue" id="clearBtn">Clear Form</button>
-      <button type="button" class="btn-outline" id="cancelEntryBtn" style="margin-left:12px;">Cancel</button>
+      <div class="form-actions">
+        <button type="submit" id="saveBtn">Save Asset</button>
+        <button type="button" class="btn-blue" id="clearBtn">Clear Form</button>
+        <button type="button" class="btn-outline" id="cancelEntryBtn">Cancel</button>
+      </div>
     </form>
     <div class="status" id="status"></div>
   </div>
 
-  <!-- transaction journal (preserved) -->
+  <!-- transaction journal -->
   <div class="table-wrap">
-    <h2 style="color:var(--primary-blue);margin-top:28px;margin-bottom:10px;">Transaction Journal</h2>
+    <h2 style="color:var(--primary-blue);margin-top:28px;margin-bottom:10px;">
+      Transaction Journal
+      <span id="filterIndicator" style="font-size:14px;font-weight:normal;color:var(--muted);margin-left:12px;"></span>
+    </h2>
     <table id="assetTable">
       <thead><tr>
-        <!-- action column removed via CSS display:none on .action-col -->
+        <th>Code</th><th>Asset Class</th><th>Purchase Date</th><th>Purchased by</th><th>Financing</th><th>Description</th><th>Model</th><th>Make of Vehicle</th><th>Body Type</th><th>Registration no</th><th>Engine no</th><th>Vin no</th><th>Cost</th><th>Market Value</th><th>ZOHO</th><th>Location</th><th>Driver/Operator</th>
+        <th>Allocation/Dept</th><th>Registered Entity</th><th>Covered by</th><th>TRACKING COMPANY</th><th>Installment Amount</th><th>Last Installment date</th><th>eTag Toll</th><th>NOTES</th><th>Reg. Boo</th><th>Useful life</th><th>Recharge</th><th>Monthly dpn</th><th>Year</th><th>Months Dpn</th><th>Accum dpn</th><th>NBV</th><th>Outstanding VAF</th><th>Value</th><th>Reg Book</th>
         <th class="action-col">Actions</th>
-        <th>Code</th><th>Asset Class</th><th>Purchase Date</th><th>Purchased by</th><th>Financing</th><th>Description</th><th>Model</th><th>Make of Vehicle</th><th>Body Type</th><th>Registration no</th><th>Engine no</th><th>Vin no</th><th>Cost</th><th>Market Value</th><th>ZOHO</th><th>Location</th><th>Driver/Operator</th><th>Licenced</th><th>Type of Licence</th><th>Validity of Licence</th><th>Allocation/Dept</th><th>Registered Entity</th><th>Covered by</th><th>TRACKING COMPANY</th><th>Installment Amount</th><th>Last Installment date</th><th>eTag Toll</th><th>NOTES</th><th>Reg. Boo</th><th>Useful life</th><th>Recharge</th><th>Monthly dpn</th><th>Year</th><th>Months Dpn</th><th>Accum dpn</th><th>NBV</th><th>Oustanding VAF</th><th>Value</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -434,20 +525,31 @@
 </div>
 
 <script>
-  // ====  SCRIPT_URL (same as original) ====
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyT2nPsL4X2J1Yx6qO2yGGr4XINdltY1sH3s_lsUxvl4uM59bOucxZKv9XXZmGSjz8boQ/exec";
+  // ======================== CONFIG =========================
+  const SHEET_ID = "1eM_UPV9MRaEU9lDoNk-D2FHac9PXTpHzOUBBXvzEAfw";
+  // IMPORTANT: Replace this URL with your deployed Apps Script web app URL
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx3qxHYe9QbRtRKdPYjrhoZNxMrriNm_Fjy1jhy2FfMeVXuhe57C5Qjh-2BypL4Hd6bDg/exec";
+
   const FIELD_IDS = [
     "code","assetClass","purchaseDate","purchasedBy","financing","description",
     "model","makeOfVehicle","bodyType","registrationNo","engineNo","vinNo","cost","marketValue",
-    "zoho","location","driverOperator","licenced","typeOfLicence","validityOfLicence",
+    "zoho","location","driverOperator",
     "allocationDept","registeredEntity","coveredBy","trackingCompany","installmentAmount",
     "lastInstallmentDate","eTagToll","notes","regBoo","usefulLife","recharge",
     "monthlyDpn","year","monthsDpn","accumDpn","nbv","oustandingVaf","value"
   ];
-  let allAssets = [];
 
-  // ---- helpers ----
-  function valueOrBlank(v) { return (v === undefined || v === null) ? "" : v; }
+  let allAssets = [];
+  let currentFilter = null;
+
+  function valueOrBlank(v) {
+    if (v === undefined || v === null) return "";
+    if (typeof v === "string" && v.includes("T")) {
+      const d = new Date(v);
+      if (!isNaN(d)) return d.toISOString().split('T')[0];
+    }
+    return v;
+  }
 
   function apiPost(payload) {
     return fetch(SCRIPT_URL, {
@@ -461,9 +563,8 @@
     document.getElementById("status").innerHTML = msg;
   }
 
-  // ---- dashboard update ----
+  // ---- dashboard update with click handlers ----
   function updateDashboard(assets) {
-    // Define the asset classes we want to count with flexible matching
     const classMap = {
       'Trucks': ['truck', 'trucks'],
       'Trailers': ['trailer', 'trailers'],
@@ -475,16 +576,10 @@
       'Small Plant': ['small plant', 'smallplant', 'small'],
       'Projects & Tender': ['projects', 'projects & tender', 'projects and tender', 'project & tender', 'project and tender', 'tender']
     };
-
-    // Initialize counts
     const counts = {};
     Object.keys(classMap).forEach(key => counts[key] = 0);
-
-    // Count assets with flexible matching
     assets.forEach(a => {
       const cls = String(a.assetClass || "").trim().toLowerCase();
-      
-      // Check each category
       Object.keys(classMap).forEach(key => {
         const keywords = classMap[key];
         if (keywords.some(kw => cls.includes(kw) || cls === kw)) {
@@ -492,8 +587,6 @@
         }
       });
     });
-
-    // Update the dashboard cards
     document.getElementById("cntTrucks").textContent = counts['Trucks'];
     document.getElementById("cntTrailers").textContent = counts['Trailers'];
     document.getElementById("cntExecutive").textContent = counts['Executive'];
@@ -503,35 +596,192 @@
     document.getElementById("cntAdmin").textContent = counts['Admin'];
     document.getElementById("cntSmallPlant").textContent = counts['Small Plant'];
     document.getElementById("cntProjects").textContent = counts['Projects & Tender'];
+
+    // Update click handlers for cards
+    document.querySelectorAll('.stat-card').forEach(card => {
+      const filter = card.dataset.filter;
+      card.onclick = function() {
+        applyFilter(filter);
+      };
+    });
   }
 
-  // ---- render table (edit/delete removed) ----
-  function renderTable(assets) {
+  // ---- filtering ----
+  function applyFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('filter-active'));
+    document.querySelectorAll('.stat-card').forEach(c => {
+      if (c.dataset.filter === filter) c.classList.add('filter-active');
+    });
+    document.getElementById('filterIndicator').textContent = `Filter: ${filter}`;
+    renderTable(allAssets, filter);
+  }
+
+  function clearFilter() {
+    currentFilter = null;
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('filter-active'));
+    document.getElementById('filterIndicator').textContent = '';
+    renderTable(allAssets);
+  }
+
+  // ---- render table with filter ----
+  function renderTable(assets, filter) {
     const tbody = document.querySelector("#assetTable tbody");
-    const rows = assets || allAssets;
+    let rows = assets || allAssets;
+    if (filter) {
+      const filterLower = filter.toLowerCase();
+      rows = rows.filter(a => {
+        const cls = String(a.assetClass || "").trim().toLowerCase();
+        return cls.includes(filterLower);
+      });
+    }
     tbody.innerHTML = "";
     if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="39">No transaction journal entries found.</td></tr>`;
+      const colCount = document.querySelector("#assetTable thead tr").children.length;
+      tbody.innerHTML = `<tr><td colspan="${colCount}">No entries found${filter ? ' for filter: '+filter : ''}.</td></tr>`;
       return;
     }
-    rows.forEach(function(data){
+    rows.forEach(function(data, index){
       const row = document.createElement("tr");
-      // action column is hidden via CSS, but we still keep an empty cell for structure
-      row.innerHTML = `
-        <td class="action-col"></td>
-        ${FIELD_IDS.map(field => `<td>${valueOrBlank(data[field])}</td>`).join("")}
-      `;
+
+      // Data cells (all except actions)
+      const displayFields = FIELD_IDS.filter(id => id !== "licenced" && id !== "typeOfLicence" && id !== "validityOfLicence");
+      displayFields.forEach(field => {
+        const td = document.createElement("td");
+        let val = valueOrBlank(data[field]);
+        if (field === "purchaseDate" || field === "lastInstallmentDate") {
+          if (val && val.includes("T")) {
+            const d = new Date(val);
+            if (!isNaN(d)) val = d.toISOString().split('T')[0];
+          }
+        }
+        td.textContent = val;
+        row.appendChild(td);
+      });
+
+      // Reg Book link
+      const regTd = document.createElement("td");
+      const link = data.regBookLink || "";
+      if (link) {
+        regTd.innerHTML = `<div class="regbook-link"><a href="${link}" target="_blank"><i class="fas fa-file-alt"></i> View</a></div>`;
+      } else {
+        regTd.innerHTML = `<span style="color:#aaa;">—</span>`;
+      }
+      row.appendChild(regTd);
+
+      // Action cell (right side)
+      const actionCell = document.createElement("td");
+      actionCell.className = "action-col";
+      const actionDiv = document.createElement("div");
+      actionDiv.className = "row-actions";
+
+      // Edit
+      const editBtn = document.createElement("button");
+      editBtn.className = "btn-sm-edit";
+      editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+      editBtn.title = "Edit row";
+      editBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        FIELD_IDS.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = valueOrBlank(data[id]);
+        });
+        document.getElementById("rowNumber").value = data.rowNumber || "";
+        document.getElementById("regBookLink").value = data.regBookLink || "";
+        document.getElementById("saveBtn").textContent = "Update Asset";
+        document.getElementById("entrySection").classList.remove("hidden");
+        window.scrollTo({ top: document.getElementById("entrySection").offsetTop - 20, behavior: "smooth" });
+      });
+
+      // Upload Reg Book
+      const uploadBtn = document.createElement("button");
+      uploadBtn.className = "btn-sm-upload";
+      uploadBtn.innerHTML = '<i class="fas fa-upload"></i>';
+      uploadBtn.title = "Upload Reg Book";
+      uploadBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = "image/*,application/pdf";
+        fileInput.onchange = function(ev) {
+          const file = ev.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = function(ev2) {
+            const base64 = ev2.target.result.split(',')[1];
+            const payload = {
+              action: "uploadRegBook",
+              rowNumber: data.rowNumber,
+              fileName: file.name,
+              fileData: base64,
+              sheetId: SHEET_ID
+            };
+            apiPost(payload)
+              .then(res => {
+                if (res.status === "success") {
+                  showStatus("Reg book uploaded: " + res.fileLink);
+                  data.regBookLink = res.fileLink;
+                  renderTable(allAssets, currentFilter);
+                } else {
+                  showStatus("Upload failed: " + (res.message || "unknown error"));
+                }
+              })
+              .catch(err => {
+                console.error(err);
+                showStatus("Upload error: " + err.message);
+              });
+          };
+          reader.readAsDataURL(file);
+        };
+        fileInput.click();
+      });
+
+      // Delete
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn-sm-delete";
+      delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      delBtn.title = "Delete row";
+      delBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        if (!confirm("Delete this asset entry?")) return;
+        const payload = { action: "deleteAsset", rowNumber: data.rowNumber, sheetId: SHEET_ID };
+        apiPost(payload)
+          .then(res => {
+            if (res.status === "success") {
+              showStatus("Deleted successfully");
+              loadAssets();
+            } else {
+              showStatus("Delete failed: " + res.message);
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            showStatus("Delete error: " + err.message);
+          });
+      });
+
+      actionDiv.appendChild(editBtn);
+      actionDiv.appendChild(uploadBtn);
+      actionDiv.appendChild(delBtn);
+      actionCell.appendChild(actionDiv);
+      row.appendChild(actionCell);
+
       tbody.appendChild(row);
     });
   }
 
   // ---- load assets ----
   function loadAssets() {
-    return fetch(`${SCRIPT_URL}?action=list`)
+    const url = `${SCRIPT_URL}?action=list&sheetId=${SHEET_ID}`;
+    return fetch(url)
       .then(res => res.json())
       .then(rows => {
         allAssets = Array.isArray(rows) ? rows : [];
-        renderTable(allAssets);
+        if (currentFilter) {
+          renderTable(allAssets, currentFilter);
+        } else {
+          renderTable(allAssets);
+        }
         updateDashboard(allAssets);
       })
       .catch(err => {
@@ -548,6 +798,7 @@
     const rowNum = document.getElementById("rowNumber").value;
     if (rowNum) data.rowNumber = rowNum;
     data.action = "saveAsset";
+    data.sheetId = SHEET_ID;
 
     apiPost(data)
       .then(response => {
@@ -555,6 +806,7 @@
         showStatus(rowNum ? "Asset Updated Successfully" : "Asset Saved Successfully");
         document.getElementById("assetForm").reset();
         document.getElementById("rowNumber").value = "";
+        document.getElementById("regBookLink").value = "";
         document.getElementById("saveBtn").textContent = "Save Asset";
         return loadAssets();
       })
@@ -568,45 +820,80 @@
   document.getElementById("clearBtn").addEventListener("click", function(){
     document.getElementById("assetForm").reset();
     document.getElementById("rowNumber").value = "";
+    document.getElementById("regBookLink").value = "";
     document.getElementById("saveBtn").textContent = "Save Asset";
     showStatus("Form cleared.");
   });
 
-  // ---- new entry button ----
+  // ---- new entry ----
   document.getElementById("newEntryBtn").addEventListener("click", function(){
-    document.getElementById("entrySection").classList.toggle("hidden");
-    if (!document.getElementById("entrySection").classList.contains("hidden")) {
-      document.getElementById("assetForm").reset();
-      document.getElementById("rowNumber").value = "";
-      document.getElementById("saveBtn").textContent = "Save Asset";
-      window.scrollTo({ top: document.getElementById("entrySection").offsetTop - 20, behavior: "smooth" });
+    document.getElementById("entrySection").classList.remove("hidden");
+    document.getElementById("assetForm").reset();
+    document.getElementById("rowNumber").value = "";
+    document.getElementById("regBookLink").value = "";
+    document.getElementById("saveBtn").textContent = "Save Asset";
+    window.scrollTo({ top: document.getElementById("entrySection").offsetTop - 20, behavior: "smooth" });
+  });
+
+  // ---- back to dashboard ----
+  document.getElementById("backToDashboardBtn").addEventListener("click", function(){
+    document.getElementById("entrySection").classList.add("hidden");
+    document.getElementById("assetForm").reset();
+    document.getElementById("rowNumber").value = "";
+    document.getElementById("regBookLink").value = "";
+    document.getElementById("saveBtn").textContent = "Save Asset";
+    showStatus("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (currentFilter) {
+      renderTable(allAssets, currentFilter);
+    } else {
+      renderTable(allAssets);
     }
   });
 
-  // ---- cancel entry ----
+  // ---- cancel ----
   document.getElementById("cancelEntryBtn").addEventListener("click", function(){
     document.getElementById("entrySection").classList.add("hidden");
     document.getElementById("assetForm").reset();
     document.getElementById("rowNumber").value = "";
+    document.getElementById("regBookLink").value = "";
     document.getElementById("saveBtn").textContent = "Save Asset";
     showStatus("");
+    if (currentFilter) {
+      renderTable(allAssets, currentFilter);
+    } else {
+      renderTable(allAssets);
+    }
   });
 
-  // ---- refresh dashboard ----
+  // ---- refresh ----
   document.getElementById("refreshDashBtn").addEventListener("click", function(){
     loadAssets();
   });
 
-  // ---- print & csv (stubs from original) ----
+  // ---- clear filter ----
+  document.getElementById("clearFilterBtn").addEventListener("click", function(){
+    clearFilter();
+  });
+
+  // ---- print ----
   document.getElementById("printBtn").addEventListener("click", function(){
-    renderTable(allAssets);
     window.print();
   });
 
+  // ---- CSV ----
   document.getElementById("excelBtn").addEventListener("click", function(){
-    const rows = allAssets;
-    const headers = FIELD_IDS.map(id => id);
-    const csvRows = [headers, ...rows.map(row => FIELD_IDS.map(id => valueOrBlank(row[id])))];
+    const rows = currentFilter ? allAssets.filter(a => {
+      const cls = String(a.assetClass || "").trim().toLowerCase();
+      return cls.includes(currentFilter.toLowerCase());
+    }) : allAssets;
+    const displayFields = FIELD_IDS.filter(id => id !== "licenced" && id !== "typeOfLicence" && id !== "validityOfLicence");
+    const headers = [...displayFields, "regBookLink"];
+    const csvRows = [headers, ...rows.map(row => {
+      const vals = displayFields.map(id => valueOrBlank(row[id]));
+      vals.push(row.regBookLink || "");
+      return vals;
+    })];
     const csv = csvRows.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -621,6 +908,187 @@
   document.addEventListener("DOMContentLoaded", function(){
     loadAssets();
   });
+
+  /* ============================================================
+     COMPLETE APPS SCRIPT - Copy this into your Google Apps Script
+     ============================================================ */
+  /*
+  // Google Apps Script (Code.gs)
+
+  function doPost(e) {
+    const data = JSON.parse(e.postData.contents);
+    const action = data.action;
+    const sheetId = data.sheetId || "1eM_UPV9MRaEU9lDoNk-D2FHac9PXTpHzOUBBXvzEAfw";
+    
+    if (action === "list") {
+      return listAssets(sheetId);
+    } else if (action === "saveAsset") {
+      return saveAsset(data, sheetId);
+    } else if (action === "deleteAsset") {
+      return deleteAsset(data, sheetId);
+    } else if (action === "uploadRegBook") {
+      return uploadRegBook(data);
+    }
+    return ContentService.createTextOutput(JSON.stringify({status:"error", message:"Invalid action"}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  function doGet(e) {
+    const sheetId = e.parameter.sheetId || "1eM_UPV9MRaEU9lDoNk-D2FHac9PXTpHzOUBBXvzEAfw";
+    return listAssets(sheetId);
+  }
+
+  function getSheet(sheetId) {
+    const ss = SpreadsheetApp.openById(sheetId);
+    let sheet = ss.getSheetByName("Drilling_Equipment");
+    if (!sheet) {
+      // Create the sheet if it doesn't exist
+      sheet = ss.insertSheet("Drilling_Equipment");
+      // Add headers
+      const headers = [
+        "code","assetClass","purchaseDate","purchasedBy","financing","description",
+        "model","makeOfVehicle","bodyType","registrationNo","engineNo","vinNo","cost","marketValue",
+        "zoho","location","driverOperator",
+        "allocationDept","registeredEntity","coveredBy","trackingCompany","installmentAmount",
+        "lastInstallmentDate","eTagToll","notes","regBoo","usefulLife","recharge",
+        "monthlyDpn","year","monthsDpn","accumDpn","nbv","oustandingVaf","value","regBookLink"
+      ];
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    }
+    return sheet;
+  }
+
+  function listAssets(sheetId) {
+    try {
+      const sheet = getSheet(sheetId);
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 2) {
+        return ContentService.createTextOutput(JSON.stringify([]))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      const headers = data[0];
+      const rows = [];
+      for (let i = 1; i < data.length; i++) {
+        const row = {};
+        for (let j = 0; j < headers.length; j++) {
+          row[headers[j]] = data[i][j];
+        }
+        row.rowNumber = i + 1;
+        rows.push(row);
+      }
+      return ContentService.createTextOutput(JSON.stringify(rows))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (e) {
+      return ContentService.createTextOutput(JSON.stringify({status:"error", message:e.toString()}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  function saveAsset(data, sheetId) {
+    try {
+      const sheet = getSheet(sheetId);
+      const headers = sheet.getDataRange().getValues()[0];
+      
+      // Build row data matching headers
+      const rowData = [];
+      for (let i = 0; i < headers.length; i++) {
+        const key = headers[i];
+        if (key === "rowNumber") {
+          rowData.push(data.rowNumber || "");
+        } else if (key === "regBookLink") {
+          rowData.push(data.regBookLink || "");
+        } else {
+          rowData.push(data[key] || "");
+        }
+      }
+      
+      if (data.rowNumber) {
+        // Update existing row
+        const rowNum = parseInt(data.rowNumber);
+        if (rowNum > 1 && rowNum <= sheet.getLastRow()) {
+          sheet.getRange(rowNum, 1, 1, rowData.length).setValues([rowData]);
+        } else {
+          // If row doesn't exist, append
+          sheet.appendRow(rowData);
+        }
+      } else {
+        // Append new row
+        sheet.appendRow(rowData);
+      }
+      return ContentService.createTextOutput(JSON.stringify({status:"success"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (e) {
+      return ContentService.createTextOutput(JSON.stringify({status:"error", message:e.toString()}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  function deleteAsset(data, sheetId) {
+    try {
+      const sheet = getSheet(sheetId);
+      const rowNum = parseInt(data.rowNumber);
+      if (rowNum && rowNum > 1 && rowNum <= sheet.getLastRow()) {
+        sheet.deleteRow(rowNum);
+      }
+      return ContentService.createTextOutput(JSON.stringify({status:"success"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (e) {
+      return ContentService.createTextOutput(JSON.stringify({status:"error", message:e.toString()}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  function uploadRegBook(data) {
+    try {
+      // Create or get the folder for reg books
+      const folderName = "Reg_Books_Distinct_Infrastructure";
+      let folder;
+      const folders = DriveApp.getFoldersByName(folderName);
+      if (folders.hasNext()) {
+        folder = folders.next();
+      } else {
+        folder = DriveApp.createFolder(folderName);
+      }
+      
+      // Create file
+      const fileName = data.fileName || "regbook_" + Date.now() + ".jpg";
+      const fileData = Utilities.base64Decode(data.fileData);
+      const blob = Utilities.newBlob(fileData, "image/jpeg", fileName);
+      const file = folder.createFile(blob);
+      
+      // Update the sheet with the link
+      const sheetId = data.sheetId || "1eM_UPV9MRaEU9lDoNk-D2FHac9PXTpHzOUBBXvzEAfw";
+      const sheet = getSheet(sheetId);
+      const headers = sheet.getDataRange().getValues()[0];
+      const colIndex = headers.indexOf("regBookLink");
+      
+      if (colIndex === -1) {
+        // Add column if it doesn't exist
+        const lastCol = headers.length + 1;
+        sheet.getRange(1, lastCol).setValue("regBookLink");
+        const newHeaders = sheet.getDataRange().getValues()[0];
+        const newColIndex = newHeaders.indexOf("regBookLink");
+        if (data.rowNumber) {
+          sheet.getRange(parseInt(data.rowNumber), newColIndex + 1).setValue(file.getUrl());
+        }
+      } else {
+        if (data.rowNumber) {
+          sheet.getRange(parseInt(data.rowNumber), colIndex + 1).setValue(file.getUrl());
+        }
+      }
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        fileLink: file.getUrl()
+      })).setMimeType(ContentService.MimeType.JSON);
+    } catch (e) {
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "error",
+        message: e.toString()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  */
 </script>
 </body>
 </html>
