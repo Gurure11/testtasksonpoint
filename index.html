@@ -527,8 +527,8 @@
 <script>
   // ======================== CONFIG =========================
   const SHEET_ID = "1eM_UPV9MRaEU9lDoNk-D2FHac9PXTpHzOUBBXvzEAfw";
-  // IMPORTANT: Replace this URL with your deployed Apps Script web app URL
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyT2nPsL4X2J1Yx6qO2yGGr4XINdltY1sH3s_lsUxvl4uM59bOucxZKv9XXZmGSjz8boQ/exec";
+  // REPLACE THIS URL WITH YOUR DEPLOYED APPS SCRIPT URL
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzpU8xJqVor9hGm7XV-vyHDkyaBqj8QBoR33r5D0P8oU9VTsPBH1tCEjyeOiOvTA3CMbA/exec";
 
   const FIELD_IDS = [
     "code","assetClass","purchaseDate","purchasedBy","financing","description",
@@ -559,8 +559,11 @@
     }).then(res => res.json());
   }
 
-  function showStatus(msg) {
-    document.getElementById("status").innerHTML = msg;
+  function showStatus(msg, isError = false) {
+    const statusEl = document.getElementById("status");
+    statusEl.innerHTML = msg;
+    statusEl.style.borderLeftColor = isError ? "#ef4444" : "var(--gold)";
+    statusEl.style.background = isError ? "rgba(239,68,68,0.1)" : "rgba(212,175,55,0.16)";
   }
 
   // ---- dashboard update with click handlers ----
@@ -705,31 +708,48 @@
         fileInput.accept = "image/*,application/pdf";
         fileInput.onchange = function(ev) {
           const file = ev.target.files[0];
-          if (!file) return;
+          if (!file) {
+            showStatus("No file selected", true);
+            return;
+          }
+          
+          showStatus("Uploading " + file.name + "...");
+          
           const reader = new FileReader();
           reader.onload = function(ev2) {
-            const base64 = ev2.target.result.split(',')[1];
-            const payload = {
-              action: "uploadRegBook",
-              rowNumber: data.rowNumber,
-              fileName: file.name,
-              fileData: base64,
-              sheetId: SHEET_ID
-            };
-            apiPost(payload)
-              .then(res => {
-                if (res.status === "success") {
-                  showStatus("Reg book uploaded: " + res.fileLink);
-                  data.regBookLink = res.fileLink;
-                  renderTable(allAssets, currentFilter);
-                } else {
-                  showStatus("Upload failed: " + (res.message || "unknown error"));
-                }
-              })
-              .catch(err => {
-                console.error(err);
-                showStatus("Upload error: " + err.message);
-              });
+            try {
+              // Remove the data URL prefix
+              const base64 = ev2.target.result.split(',')[1];
+              
+              const payload = {
+                action: "uploadRegBook",
+                rowNumber: data.rowNumber,
+                fileName: file.name,
+                fileData: base64,
+                sheetId: SHEET_ID
+              };
+              
+              apiPost(payload)
+                .then(res => {
+                  if (res.status === "success") {
+                    showStatus("✅ Reg book uploaded successfully!");
+                    data.regBookLink = res.fileLink;
+                    renderTable(allAssets, currentFilter);
+                  } else {
+                    showStatus("❌ Upload failed: " + (res.message || "unknown error"), true);
+                  }
+                })
+                .catch(err => {
+                  console.error(err);
+                  showStatus("❌ Upload error: " + err.message, true);
+                });
+            } catch (error) {
+              console.error(error);
+              showStatus("❌ Error processing file: " + error.message, true);
+            }
+          };
+          reader.onerror = function() {
+            showStatus("❌ Error reading file", true);
           };
           reader.readAsDataURL(file);
         };
@@ -748,15 +768,15 @@
         apiPost(payload)
           .then(res => {
             if (res.status === "success") {
-              showStatus("Deleted successfully");
+              showStatus("✅ Deleted successfully");
               loadAssets();
             } else {
-              showStatus("Delete failed: " + res.message);
+              showStatus("❌ Delete failed: " + res.message, true);
             }
           })
           .catch(err => {
             console.error(err);
-            showStatus("Delete error: " + err.message);
+            showStatus("❌ Delete error: " + err.message, true);
           });
       });
 
@@ -772,9 +792,13 @@
 
   // ---- load assets ----
   function loadAssets() {
+    showStatus("Loading data...");
     const url = `${SCRIPT_URL}?action=list&sheetId=${SHEET_ID}`;
     return fetch(url)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("Network response was not ok");
+        return res.json();
+      })
       .then(rows => {
         allAssets = Array.isArray(rows) ? rows : [];
         if (currentFilter) {
@@ -783,10 +807,11 @@
           renderTable(allAssets);
         }
         updateDashboard(allAssets);
+        showStatus("✅ Loaded " + allAssets.length + " entries");
       })
       .catch(err => {
         console.error(err);
-        showStatus("Could not load transaction journal from Google Sheet");
+        showStatus("❌ Could not load data: " + err.message, true);
       });
   }
 
@@ -800,10 +825,11 @@
     data.action = "saveAsset";
     data.sheetId = SHEET_ID;
 
+    showStatus("Saving...");
     apiPost(data)
       .then(response => {
         if (response.status !== "success") throw new Error(response.message || "Save failed");
-        showStatus(rowNum ? "Asset Updated Successfully" : "Asset Saved Successfully");
+        showStatus(rowNum ? "✅ Asset Updated Successfully" : "✅ Asset Saved Successfully");
         document.getElementById("assetForm").reset();
         document.getElementById("rowNumber").value = "";
         document.getElementById("regBookLink").value = "";
@@ -812,7 +838,7 @@
       })
       .catch(err => {
         console.error(err);
-        showStatus("Error Saving Asset: " + err.message);
+        showStatus("❌ Error Saving Asset: " + err.message, true);
       });
   });
 
@@ -908,187 +934,6 @@
   document.addEventListener("DOMContentLoaded", function(){
     loadAssets();
   });
-
-  /* ============================================================
-     COMPLETE APPS SCRIPT - Copy this into your Google Apps Script
-     ============================================================ */
-  /*
-  // Google Apps Script (Code.gs)
-
-  function doPost(e) {
-    const data = JSON.parse(e.postData.contents);
-    const action = data.action;
-    const sheetId = data.sheetId || "1eM_UPV9MRaEU9lDoNk-D2FHac9PXTpHzOUBBXvzEAfw";
-    
-    if (action === "list") {
-      return listAssets(sheetId);
-    } else if (action === "saveAsset") {
-      return saveAsset(data, sheetId);
-    } else if (action === "deleteAsset") {
-      return deleteAsset(data, sheetId);
-    } else if (action === "uploadRegBook") {
-      return uploadRegBook(data);
-    }
-    return ContentService.createTextOutput(JSON.stringify({status:"error", message:"Invalid action"}))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  function doGet(e) {
-    const sheetId = e.parameter.sheetId || "1eM_UPV9MRaEU9lDoNk-D2FHac9PXTpHzOUBBXvzEAfw";
-    return listAssets(sheetId);
-  }
-
-  function getSheet(sheetId) {
-    const ss = SpreadsheetApp.openById(sheetId);
-    let sheet = ss.getSheetByName("Drilling_Equipment");
-    if (!sheet) {
-      // Create the sheet if it doesn't exist
-      sheet = ss.insertSheet("Drilling_Equipment");
-      // Add headers
-      const headers = [
-        "code","assetClass","purchaseDate","purchasedBy","financing","description",
-        "model","makeOfVehicle","bodyType","registrationNo","engineNo","vinNo","cost","marketValue",
-        "zoho","location","driverOperator",
-        "allocationDept","registeredEntity","coveredBy","trackingCompany","installmentAmount",
-        "lastInstallmentDate","eTagToll","notes","regBoo","usefulLife","recharge",
-        "monthlyDpn","year","monthsDpn","accumDpn","nbv","oustandingVaf","value","regBookLink"
-      ];
-      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    }
-    return sheet;
-  }
-
-  function listAssets(sheetId) {
-    try {
-      const sheet = getSheet(sheetId);
-      const data = sheet.getDataRange().getValues();
-      if (data.length < 2) {
-        return ContentService.createTextOutput(JSON.stringify([]))
-          .setMimeType(ContentService.MimeType.JSON);
-      }
-      const headers = data[0];
-      const rows = [];
-      for (let i = 1; i < data.length; i++) {
-        const row = {};
-        for (let j = 0; j < headers.length; j++) {
-          row[headers[j]] = data[i][j];
-        }
-        row.rowNumber = i + 1;
-        rows.push(row);
-      }
-      return ContentService.createTextOutput(JSON.stringify(rows))
-        .setMimeType(ContentService.MimeType.JSON);
-    } catch (e) {
-      return ContentService.createTextOutput(JSON.stringify({status:"error", message:e.toString()}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-  }
-
-  function saveAsset(data, sheetId) {
-    try {
-      const sheet = getSheet(sheetId);
-      const headers = sheet.getDataRange().getValues()[0];
-      
-      // Build row data matching headers
-      const rowData = [];
-      for (let i = 0; i < headers.length; i++) {
-        const key = headers[i];
-        if (key === "rowNumber") {
-          rowData.push(data.rowNumber || "");
-        } else if (key === "regBookLink") {
-          rowData.push(data.regBookLink || "");
-        } else {
-          rowData.push(data[key] || "");
-        }
-      }
-      
-      if (data.rowNumber) {
-        // Update existing row
-        const rowNum = parseInt(data.rowNumber);
-        if (rowNum > 1 && rowNum <= sheet.getLastRow()) {
-          sheet.getRange(rowNum, 1, 1, rowData.length).setValues([rowData]);
-        } else {
-          // If row doesn't exist, append
-          sheet.appendRow(rowData);
-        }
-      } else {
-        // Append new row
-        sheet.appendRow(rowData);
-      }
-      return ContentService.createTextOutput(JSON.stringify({status:"success"}))
-        .setMimeType(ContentService.MimeType.JSON);
-    } catch (e) {
-      return ContentService.createTextOutput(JSON.stringify({status:"error", message:e.toString()}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-  }
-
-  function deleteAsset(data, sheetId) {
-    try {
-      const sheet = getSheet(sheetId);
-      const rowNum = parseInt(data.rowNumber);
-      if (rowNum && rowNum > 1 && rowNum <= sheet.getLastRow()) {
-        sheet.deleteRow(rowNum);
-      }
-      return ContentService.createTextOutput(JSON.stringify({status:"success"}))
-        .setMimeType(ContentService.MimeType.JSON);
-    } catch (e) {
-      return ContentService.createTextOutput(JSON.stringify({status:"error", message:e.toString()}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-  }
-
-  function uploadRegBook(data) {
-    try {
-      // Create or get the folder for reg books
-      const folderName = "Reg_Books_Distinct_Infrastructure";
-      let folder;
-      const folders = DriveApp.getFoldersByName(folderName);
-      if (folders.hasNext()) {
-        folder = folders.next();
-      } else {
-        folder = DriveApp.createFolder(folderName);
-      }
-      
-      // Create file
-      const fileName = data.fileName || "regbook_" + Date.now() + ".jpg";
-      const fileData = Utilities.base64Decode(data.fileData);
-      const blob = Utilities.newBlob(fileData, "image/jpeg", fileName);
-      const file = folder.createFile(blob);
-      
-      // Update the sheet with the link
-      const sheetId = data.sheetId || "1eM_UPV9MRaEU9lDoNk-D2FHac9PXTpHzOUBBXvzEAfw";
-      const sheet = getSheet(sheetId);
-      const headers = sheet.getDataRange().getValues()[0];
-      const colIndex = headers.indexOf("regBookLink");
-      
-      if (colIndex === -1) {
-        // Add column if it doesn't exist
-        const lastCol = headers.length + 1;
-        sheet.getRange(1, lastCol).setValue("regBookLink");
-        const newHeaders = sheet.getDataRange().getValues()[0];
-        const newColIndex = newHeaders.indexOf("regBookLink");
-        if (data.rowNumber) {
-          sheet.getRange(parseInt(data.rowNumber), newColIndex + 1).setValue(file.getUrl());
-        }
-      } else {
-        if (data.rowNumber) {
-          sheet.getRange(parseInt(data.rowNumber), colIndex + 1).setValue(file.getUrl());
-        }
-      }
-      
-      return ContentService.createTextOutput(JSON.stringify({
-        status: "success",
-        fileLink: file.getUrl()
-      })).setMimeType(ContentService.MimeType.JSON);
-    } catch (e) {
-      return ContentService.createTextOutput(JSON.stringify({
-        status: "error",
-        message: e.toString()
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-  }
-  */
 </script>
 </body>
 </html>
