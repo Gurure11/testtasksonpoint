@@ -2021,54 +2021,147 @@ function renderDeptPeople(){
 }
 function drillLatePerson(p){state.latePerson=(state.latePerson===p?'all':p);renderDeptPeople();renderTable('late');renderCrumbs();const el=document.querySelector('#v-late .tablecard');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});}
 
-/* ---------- scoring + employee report ---------- */
-function setScore(ref,n){scores[ref]=Object.assign({},scores[ref],{score:n});
-  const w=document.querySelector('#dw-score'); if(w){[...w.querySelectorAll('.sb')].forEach((b,i)=>b.classList.toggle('on',n>=i+1));}
-  if(state.tab==='reports')renderReport();
-  toast(n?('Scored '+n+'/5'):'Score cleared');}
-function setScoreComment(ref,v){scores[ref]=Object.assign({},scores[ref],{comment:v}); if(state.tab==='reports')renderReport();}
-function periodLabel(p){return {weekly:'This week',monthly:'This month',quarterly:'This quarter',half:'This half-year',yearly:'This year'}[p]||p;}
-function inPeriod2(ds,p){if(!ds)return false;const d=new Date(ds);
-  if(p==='yearly')return d.getFullYear()===ASAT.getFullYear();
-  if(p==='half')return d.getFullYear()===ASAT.getFullYear()&&((d.getMonth()<6)===(ASAT.getMonth()<6));
-  if(p==='quarterly')return d.getFullYear()===ASAT.getFullYear()&&((d.getMonth()/3)|0)===((ASAT.getMonth()/3)|0);
-  if(p==='monthly')return d.getFullYear()===ASAT.getFullYear()&&d.getMonth()===ASAT.getMonth();
-  if(p==='weekly'){const diff=(ASAT-d)/86400000;return diff>=-1&&diff<=6;}
-  return true;}
-const BANDS={excel:82,ok:68,pip:50};
-function band(v,prov){if(v==null)return['s-na','Not yet scoreable'];if(v>=BANDS.excel)return prov?['s-ok','On track']:['s-strong','Excellence'];if(v>=BANDS.ok)return['s-ok','On track'];if(v>=BANDS.pip)return['s-warn','Watch'];return['s-bad','PIP review'];}
-function flagFor(r){if(r.composite==null)return '';if(r.composite>=BANDS.excel&&!r.prov&&r.rated>0)return '<span class="flag good">Excellence candidate</span>';if(r.composite<BANDS.pip)return '<span class="flag bad">PIP review — indicative</span>';return '';}
-/* ---------- rating engine v2 ---------- */
-const REWORK_PER=8, REWORK_CAP=30, LATE_CAP=7;
-const PW=t=>({Critical:4,High:3,Medium:2,Low:1}[t.prio]||2);
-function getWeights(dept){return (state.weights.byDept&&state.weights.byDept[dept])||state.weights.default;}
-function metricsFor(rows){
-  const active=rows.filter(t=>t.status!=='Closed');
-  const overdue=rows.filter(t=>t.overdue);
-  const comp=rows.filter(t=>t.status==='Awaiting review'||t.status==='Closed');
-  const closedArr=rows.filter(t=>t.status==='Closed');
-  const onTime=closedArr.filter(t=>t.closed&&t.due&&t.closed<=t.due).length;
-  const critical=rows.filter(t=>t.prio==='Critical').length;
-  const rated=rows.filter(t=>scores[t.ref]&&scores[t.ref].score>0);
-  const avg=rated.length?rated.reduce((s,t)=>s+scores[t.ref].score,0)/rated.length:null;
-  let Q=null; if(rated.length){let a=0,w=0;rated.forEach(t=>{a+=PW(t)*scores[t.ref].score;w+=PW(t);});Q=Math.round((a/w)/5*100);}
-  const dueReached=overdue.length+closedArr.length;
-  let D=null;
-  if(active.length&&dueReached>0){let a=0,w=0;active.forEach(t=>{const cr=t.overdue?Math.max(-1,-t.daysLate/LATE_CAP):1;a+=PW(t)*cr;w+=PW(t);});D=Math.max(0,Math.round(a/w*100));}
-  else if(closedArr.length){D=Math.round(onTime/closedArr.length*100);}
-  const responded=comp.filter(t=>t.upStatus||t.upComment||t.comment).length;
-  const R=comp.length?Math.round(responded/comp.length*100):null;
-  const reworkCount=rows.reduce((s,t)=>s+((state.returns[t.ref])||0),0);
-  const ageAvg=overdue.length?Math.round(overdue.reduce((s,t)=>s+t.daysLate,0)/overdue.length):0;
-  const ageMax=overdue.length?Math.max(...overdue.map(t=>t.daysLate)):0;
-  return {n:rows.length,active:active.length,overdue:overdue.length,completed:comp.length,closed:closedArr.length,onTime,critical,rated:rated.length,avg,Q,D,R,reworkCount,ageAvg,ageMax};
+function jsonp(url, params, timeoutMs) {
+  timeoutMs = timeoutMs || 30000; // Increased from 20s to 30s
+  return new Promise((resolve, reject) => {
+    const cb = 'opot_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const s = document.createElement('script');
+    const u = new URL(url);
+    Object.keys(params || {}).forEach(k => u.searchParams.set(k, params[k]));
+    u.searchParams.set('callback', cb);
+    u.searchParams.set('_', Date.now());
+    
+    let resolved = false;
+    const timer = setTimeout(() => {
+      cleanup();
+      if (!resolved) reject(new Error('Apps Script JSONP connection timed out after ' + timeoutMs + 'ms'));
+    }, timeoutMs);
+    
+    function cleanup() {
+      clearTimeout(timer);
+      try { delete window[cb]; } catch(e) { window[cb] = undefined; }
+      if (s.parentNode) s.parentNode.removeChild(s);
+    }
+    
+    window[cb] = (data) => {
+      resolved = true;
+      cleanup();
+      if (data && data.ok) {
+        resolve(data);
+      } else {
+        reject(new Error((data && data.error) || 'Apps Script returned an error'));
+      }
+    };
+    
+    s.onerror = () => {
+      resolved = true;
+      cleanup();
+      reject(new Error('Apps Script JSONP connection failed - network error'));
+    };
+    
+    s.src = u.toString();
+    document.head.appendChild(s);
+  });
 }
-function unitsList(isDept){return isDept?[...new Set(T.map(t=>t.dept))]:DATA.people.map(p=>p.name);}
-function unitRows(name,p,isDept){return T.filter(t=>(isDept?t.dept===name:t.owner===name)&&inPeriod2(t.created,p));}
-function medianCompleted(p,isDept){const arr=unitsList(isDept).map(u=>metricsFor(unitRows(u,p,isDept)).completed).sort((a,b)=>a-b);if(!arr.length)return 0;const m=Math.floor(arr.length/2);return arr.length%2?arr[m]:(arr[m-1]+arr[m])/2;}
-function throughput(completed,med){return med>0?Math.max(0,Math.min(100,Math.round(50*completed/med))):null;}
-function compose(m,T,dept){
-  const w=getWeights(dept);
+
+// Retry wrapper with exponential backoff
+async function jsonpWithRetry(url, params, maxRetries) {
+  maxRetries = maxRetries || 2;
+  let lastError = null;
+  let delay = 1000;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        setConnectionStatus('connecting', 'Retrying connection... (' + attempt + '/' + maxRetries + ')');
+        await new Promise(r => setTimeout(r, delay));
+        delay = Math.min(delay * 2, 8000);
+      }
+      return await jsonp(url, params);
+    } catch (e) {
+      lastError = e;
+      if (attempt < maxRetries) {
+        console.warn('JSONP attempt ' + (attempt + 1) + ' failed, retrying...', e.message);
+      }
+    }
+  }
+  throw lastError || new Error('All JSONP connection attempts failed');
+}
+
+async function loadAllFromWebApp() {
+  const url = OPOT_SHEETS.readUrl || OPOT_SHEETS.writeUrl;
+  if (!url) {
+    setConnectionStatus('error', 'Sheet URL not configured');
+    return null;
+  }
+  
+  try {
+    setConnectionStatus('connecting', 'Loading data from Sheet...');
+    const data = await jsonpWithRetry(url, { mode: 'readAll', spreadsheetId: OPOT_SHEETS.spreadsheetId });
+    liveRows = data.sheets || {};
+    setConnectionStatus('connected', 'Sheet loaded successfully');
+    return data;
+  } catch (e) {
+    console.warn('Apps Script JSONP failed:', e.message);
+    setConnectionStatus('error', 'Sheet connection failed - using local data');
+    
+    // Try direct gviz fetch as fallback
+    try {
+      setConnectionStatus('connecting', 'Trying direct sheet fetch...');
+      // This will try gviz directly on the fallback path
+      const fallbackData = await loadFromGvizFallback();
+      if (fallbackData) {
+        setConnectionStatus('connected', 'Sheet loaded via fallback');
+        return fallbackData;
+      }
+    } catch (fallbackError) {
+      console.warn('Fallback also failed:', fallbackError.message);
+    }
+    
+    // If all fails, return null - will use bundled data
+    setConnectionStatus('error', 'Sheet not available');
+    return null;
+  }
+}
+
+// Gviz fallback loader (direct fetch without Apps Script)
+async function loadFromGvizFallback() {
+  const sheetTabs = ['Tasks', 'Task Updates', 'Approval Requests', 'Hiring Requests', 'Score_approvals', 'Time Extension Requests'];
+  const result = { sheets: {} };
+  let anySuccess = false;
+  
+  for (const tab of sheetTabs) {
+    try {
+      const rows = await gsheetFetch(tab);
+      if (rows && rows.length) {
+        result.sheets[tab] = rows;
+        anySuccess = true;
+      }
+    } catch (e) {
+      console.warn('Fallback fetch failed for ' + tab + ':', e.message);
+    }
+  }
+  
+  if (anySuccess) {
+    // Map to expected sheet names
+    const mapping = {
+      'Tasks': 'tasks',
+      'Task Updates': 'updates',
+      'Approval Requests': 'approvals',
+      'Hiring Requests': 'hiring',
+      'Score_approvals': 'scoring',
+      'Time Extension Requests': 'extensions'
+    };
+    const mapped = { sheets: {} };
+    for (const [orig, mappedName] of Object.entries(mapping)) {
+      if (result.sheets[orig]) {
+        mapped.sheets[mappedName] = result.sheets[orig];
+      }
+    }
+    return mapped;
+  }
+  return null;
+}  const w=getWeights(dept);
   const comps=[['q',m.Q,w.q],['d',m.D,w.d],['r',m.R,w.r],['t',T,w.t]].filter(c=>c[1]!=null);
   const assessable=(m.overdue>0||m.completed>0||m.rated>0);
   if(!comps.length||!assessable)return {composite:null,prov:false,parts:[],penalty:0};
