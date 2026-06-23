@@ -2461,13 +2461,55 @@ function scoringFromRow(r,source){
   const due=_asDate(_pick(r,['Due Date','Due','Deadline','Target Date'],t.due||''));
   return {id:ref||('SCORE-'+Math.random().toString(36).slice(2,8).toUpperCase()),ref:ref||t.ref,item:t.name||String(_pick(r,['Task','Task Name','Title','Item'],'Task update')).trim(),by:assignee,assignee:assignee,due:due,dept:String(_pick(r,['Department','Dept'],t.dept||'')).trim(),detail:String(_pick(r,['Update','Update Comment','Comment','Details','Description'],'Submitted / updated for scoring')).trim(),stage:_stage(r)||'Scoring Executive 1',score1:Number(_pick(r,['Executive 1 Score','Exec 1 Score','Score 1'],0))||0,score2:Number(_pick(r,['Executive 2 Score','Exec 2 Score','Score 2'],0))||0,source,raw:r};
 }
-function buildWorkflowQueues(rows){
+buildWorkflowQueues=function(rows){
   const approvalRows=(rows.approvals||[]).map(r=>approvalFromRow(r,'Approval')).concat((rows.extensions||[]).map(r=>approvalFromRow(r,'Extension')),(rows.hiring||[]).map(r=>approvalFromRow(r,'Hiring')));
   approvalsQueue=approvalRows.filter(_statusForExec);
-  const allExisting=(rows.scoring||[]).map(r=>scoringFromRow(r,'Score_approvals'));
-  const allFromUpdates=(rows.updates||[]).filter(r=>/_submitted|submitted|updated|complete|completed/i.test(Object.values(r).join(' '))).map(r=>scoringFromRow(r,'Task Updates'));
-  const seenAll=new Set();
-  const allScoring=allExisting.concat(allFromUpdates).filter(x=>{const k=x.id+'|'+x.stage;if(seenAll.has(k))return false;seenAll.add(k);return !_isClosedStage(x.raw);});
+  
+  // Get existing scoring rows
+  const existing=(rows.scoring||[]).map(r=>scoringFromRow(r,'Score_approvals'));
+  const taskReview=(rows.tasks||[]).filter(r=>{
+    const status = String(_pick(r,['Status','Update Status','Workflow Stage','Scoring Status'],'')).trim().toLowerCase();
+    // CRITICAL FIX: Exclude any ticket that is already Closed
+    const isClosed = /closed|permanent closed|cannot reopen/i.test(status) || 
+                     /closed/i.test(String(_pick(r,['Status','Task Status'],'')).trim().toLowerCase());
+    return /awaiting\s*review|completed\s*-\s*awaiting|scoring\s*executive/i.test(status) && !isClosed;
+  }).map(r=>scoringFromRow(r,'Tasks'));
+  
+  const updates=(rows.updates||[]).filter(r=>{
+    // CRITICAL FIX: Check if this update belongs to a closed ticket
+    const ref = String(_pick(r,['Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
+    const task = T.find(t => String(t.ref||'').trim() === ref);
+    if (task && (task.permanentlyClosed || task.status === 'Closed')) {
+      return false; // Skip updates for closed tickets
+    }
+    // Also check if the update itself says it's closed
+    const updateText = Object.values(r).join(' ').toLowerCase();
+    if (/closed|permanent closed|cannot reopen/i.test(updateText)) {
+      return false;
+    }
+    return /submitted|updated|complete|completed|awaiting/i.test(Object.values(r).join(' '));
+  }).map(r=>scoringFromRow(r,'Task Updates'));
+  
+  const seen=new Set();
+  const allScoring=existing.concat(taskReview,updates).filter(x=>{
+    const k=(x.ref||x.id)+'|'+(x.stage||'');
+    if(!x.ref||seen.has(k))return false;
+    seen.add(k);
+    // CRITICAL FIX: Check if this scoring entry itself is closed
+    const stageText = String(x.stage || '').toLowerCase();
+    if (/closed|permanent closed|cannot reopen|completed|done|approved$/i.test(stageText)) {
+      return false;
+    }
+    // Check if the raw row has closed status
+    if (x.raw) {
+      const rawText = Object.values(x.raw).join(' ').toLowerCase();
+      if (/closed|permanent closed|cannot reopen/i.test(rawText)) {
+        return false;
+      }
+    }
+    return !_isClosedStage(x.raw||x);
+  });
+  
   window.OPOT_ALL_SCORING_QUEUE=allScoring;
   window.OPOT_SCORING_COUNTS={
     exec1:allScoring.filter(x=>!_isExec2(x)&&!_isExec2(x.raw)).length,
@@ -2475,6 +2517,7 @@ function buildWorkflowQueues(rows){
     total:allScoring.length
   };
   scoringQueue=allScoring.filter(x=>EXECUTIVE_LEVEL===2?(_isExec2(x)||_isExec2(x.raw)):(!_isExec2(x)&&!_isExec2(x.raw)));
+};
 }
 async function sheetWrite(action,payload){
   payload=Object.assign({action,spreadsheetId:OPOT_SHEETS.spreadsheetId,workbookName:OPOT_SHEETS.workbookName,executiveLevel:EXECUTIVE_LEVEL,at:new Date().toISOString()},payload||{});
@@ -3546,6 +3589,8 @@ function opotClosedLateFlag(t){return !!(t&&t.due&&t.closed&&t.closed>t.due);}
 function opotFinalizeExec2ClosedTicket(ref,a){
   const t=opotFindTaskByRef(ref);
   const d=(t&&t.closed)||new Date().toISOString().slice(0,10);
+  
+  // Mark ticket as permanently closed locally
   opotMarkTicketClosedLocal(ref,d);
   const tt=opotFindTaskByRef(ref);
   if(tt){
@@ -3557,19 +3602,32 @@ function opotFinalizeExec2ClosedTicket(ref,a){
     tt.overdue=false;
     tt.daysLate=tt.closedLate?_daysBetween(tt.due,tt.closed):0;
     tt.daysWaiting=0;
+    // CRITICAL: Mark as permanently closed - cannot be reopened
+    tt.permanentlyClosed = true;
+    tt.canReopen = false;
+    tt.status = 'Closed';
+    tt.taskStatus = 'Closed';
+    tt.workflowStage = 'Closed';
+    tt.scoringStatus = 'Closed';
+    tt.approvalStatus = 'Closed';
   }
+  
   // CRITICAL FIX: Remove from ALL scoring queues permanently
+  // 1. Remove from OPOT_ALL_SCORING_QUEUE
   window.OPOT_ALL_SCORING_QUEUE = (window.OPOT_ALL_SCORING_QUEUE || []).filter(x => {
     const xRef = String(x.ref || x.id || '').trim();
     const targetRef = String(ref || '').trim();
     return xRef !== targetRef;
   });
+  
+  // 2. Remove from scoringQueue
   scoringQueue = (scoringQueue || []).filter(x => {
     const xRef = String(x.ref || x.id || '').trim();
     const targetRef = String(ref || '').trim();
     return xRef !== targetRef;
   });
-  // Also remove from reviewQueue if present
+  
+  // 3. Remove from reviewQueue if present
   if (typeof reviewQueue !== 'undefined' && reviewQueue) {
     reviewQueue = reviewQueue.filter(x => {
       const xRef = String(x.ref || '').trim();
@@ -3577,39 +3635,36 @@ function opotFinalizeExec2ClosedTicket(ref,a){
       return xRef !== targetRef;
     });
   }
-  // Also remove from DATA.tickets if it's a draft or to ensure clean state
-  if (Array.isArray(T)) {
-    const idx = T.findIndex(x => String(x.ref || '').trim() === String(ref || '').trim());
-    if (idx >= 0 && T[idx] && T[idx].draft) {
-      T.splice(idx, 1);
-    }
+  
+  // 4. Also remove from any other queue references
+  if (window.OPOT_TASK_UPDATES_QUEUE) {
+    window.OPOT_TASK_UPDATES_QUEUE = window.OPOT_TASK_UPDATES_QUEUE.filter(x => {
+      const xRef = String(x.ref || x.id || '').trim();
+      const targetRef = String(ref || '').trim();
+      return xRef !== targetRef;
+    });
   }
+  
+  // 5. Mark the ticket in the DATA array as permanently closed
+  const dataIdx = T.findIndex(x => String(x.ref||'').trim() === String(ref||'').trim());
+  if (dataIdx >= 0) {
+    T[dataIdx].permanentlyClosed = true;
+    T[dataIdx].canReopen = false;
+    T[dataIdx].status = 'Closed';
+    T[dataIdx].taskStatus = 'Closed';
+    T[dataIdx].workflowStage = 'Closed';
+    T[dataIdx].scoringStatus = 'Closed';
+  }
+  
   opotFilterClosedScoringQueues();
   opotRecountScoringQueues();
-}
-const _opotClosedStatusOriginalDoScoreDecision=doScoreDecision;
-doScoreDecision=function(id,ok,reason){
-  const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id);
-  if(ok&&a&&EXECUTIVE_LEVEL===2){
-    _opotClosedStatusOriginalDoScoreDecision(id,ok,reason);
-    opotFinalizeExec2ClosedTicket(a.ref,a);
-    renderTiles();headlines();renderScoring();if(state.tab==='closed')renderClosed();if(state.tab==='reports')renderReport();if(state.tab==='perf')renderPerf();if(state.tab==='activity')renderActivity();
-    return;
+  
+  // Force a complete queue rebuild from the current state
+  if (typeof buildWorkflowQueues === 'function') {
+    // Pass empty rows to force a clean rebuild
+    buildWorkflowQueues({});
   }
-  _opotClosedStatusOriginalDoScoreDecision(id,ok,reason);
-};
-const _opotClosedStatusOriginalRenderClosed=renderClosed;
-renderClosed=function(){
-  const closed=T.filter(t=>t.status==='Closed'&&inPeriod(t.closed));
-  if(!closed.length){_opotClosedStatusOriginalRenderClosed();return;}
-  const onT=closed.filter(t=>t.closed&&t.due&&t.closed<=t.due).length, late=closed.length-onT, rate=Math.round(onT/closed.length*100);
-  $('#c-closed').textContent=`${closed.length} closed · ${onT} on time · ${late} late · ${rate}% on time`;
-  $('#closedBody').innerHTML=`<div class="tablecard scroll"><table>
-    <thead><tr><th>Ref</th><th>Task</th><th>Department</th><th>Owner</th><th>Due</th><th>Closed</th><th>Closed status</th></tr></thead>
-    <tbody>${closed.sort((a,b)=>(a.closed<b.closed?1:-1)).map(t=>{const ot=t.closed&&t.due&&t.closed<=t.due;
-      return `<tr class="rowlink" data-ref="${esc(t.ref)}" data-ball="${ballOf(t)}" onclick="openTicket('${esc(t.ref)}')"><td class="t-ref">${esc(t.ref)}</td><td class="t-name">${esc(t.name)}</td><td>${esc(t.dept)}</td><td>${esc(t.owner)}</td>
-      <td>${fmtD(t.due)}</td><td>${fmtD(t.closed)}</td><td><span class="st"><span class="dot ${ot?'closed':'late'}"></span>${ot?'Closed On Time':'Closed Late'}</span></td></tr>`;}).join('')}</tbody></table></div>`;
-};
+}
 onpointEnhancedBoot().then(init).catch(function(e){console.warn(e);init();});
 </script>
 </body>
