@@ -586,12 +586,32 @@
     return fetch(SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    }).then(res => res.json());
+      body: JSON.stringify(payload),
+      mode: 'cors'
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .catch(error => {
+      console.error('API Post Error:', error);
+      // Return a structured error for consistent handling
+      return { status: 'error', message: error.message || 'Network error - please check your connection' };
+    });
   }
 
-  function showStatus(msg) {
-    document.getElementById("status").innerHTML = msg;
+  function showStatus(msg, isError = false) {
+    const statusEl = document.getElementById("status");
+    statusEl.innerHTML = msg;
+    if (isError) {
+      statusEl.style.borderLeftColor = '#ef4444';
+      statusEl.style.background = 'rgba(239, 68, 68, 0.1)';
+    } else {
+      statusEl.style.borderLeftColor = 'var(--gold)';
+      statusEl.style.background = 'rgba(212,175,55,0.16)';
+    }
   }
 
   // ---- dashboard update ----
@@ -609,13 +629,15 @@
     };
     const counts = {};
     Object.keys(classMap).forEach(key => counts[key] = 0);
-    assets.forEach(a => {
-      const cls = String(a.assetClass || "").trim().toLowerCase();
-      Object.keys(classMap).forEach(key => {
-        const keywords = classMap[key];
-        if (keywords.some(kw => cls.includes(kw) || cls === kw)) counts[key]++;
+    if (assets && assets.length) {
+      assets.forEach(a => {
+        const cls = String(a.assetClass || "").trim().toLowerCase();
+        Object.keys(classMap).forEach(key => {
+          const keywords = classMap[key];
+          if (keywords.some(kw => cls.includes(kw) || cls === kw)) counts[key]++;
+        });
       });
-    });
+    }
     document.getElementById("cntTrucks").textContent = counts['Trucks'];
     document.getElementById("cntTrailers").textContent = counts['Trailers'];
     document.getElementById("cntExecutive").textContent = counts['Executive'];
@@ -632,8 +654,8 @@
     const tbody = document.querySelector("#assetTable tbody");
     const rows = assets || allAssets;
     tbody.innerHTML = "";
-    if (!rows.length) {
-      tbody.innerHTML = `<tr><td colspan="41">No transaction journal entries found.</td></tr>`;
+    if (!rows || !rows.length) {
+      tbody.innerHTML = `<tr><td colspan="41">No transaction journal entries found. Please check your connection or try refreshing.</td></tr>`;
       return;
     }
     rows.forEach(function(data, index){
@@ -693,13 +715,13 @@
     apiPost({ action: "deleteAsset", rowNumber: rowNum })
       .then(res => {
         if (res.status === "success") {
-          showStatus("Asset deleted.");
+          showStatus("Asset deleted successfully.");
           loadAssets();
         } else {
-          showStatus("Error deleting: " + (res.message || ""));
+          showStatus("Error deleting: " + (res.message || "Unknown error"), true);
         }
       })
-      .catch(err => showStatus("Delete error: " + err.message));
+      .catch(err => showStatus("Delete error: " + err.message, true));
   }
 
   // ---- load assets with optional search filter ----
@@ -708,16 +730,35 @@
     if (searchTerm || classFilter) {
       url += `&search=${encodeURIComponent(searchTerm || '')}&class=${encodeURIComponent(classFilter || '')}`;
     }
-    return fetch(url)
-      .then(res => res.json())
+    
+    showStatus("Loading assets from Google Sheet...");
+    
+    return fetch(url, {
+      method: "GET",
+      mode: 'cors'
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(rows => {
         allAssets = Array.isArray(rows) ? rows : [];
         renderTable(allAssets);
         updateDashboard(allAssets);
+        if (allAssets.length === 0) {
+          showStatus("No assets found. The sheet might be empty or the connection might be blocked.", true);
+        } else {
+          showStatus(`Loaded ${allAssets.length} assets successfully.`);
+        }
       })
       .catch(err => {
-        console.error(err);
-        showStatus("Could not load transaction journal from Google Sheet");
+        console.error('Load error:', err);
+        const errorMsg = err.message || 'Could not load transaction journal from Google Sheet';
+        showStatus(`⚠️ ${errorMsg}. Please check: 1) Your internet connection 2) The Google Sheet is shared publicly 3) The Apps Script deployment is active`, true);
+        renderTable([]);
+        updateDashboard([]);
       });
   }
 
@@ -748,9 +789,15 @@
       
       fetch(`${SCRIPT_URL}?action=uploadImages`, {
         method: "POST",
-        body: formData
+        body: formData,
+        mode: 'cors'
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(uploadRes => {
         if (uploadRes.status === "success") {
           // combine existing links with new ones
@@ -770,7 +817,7 @@
         loadAssets();
       })
       .catch(err => {
-        showStatus("Error: " + err.message);
+        showStatus("Error: " + err.message, true);
       });
     } else {
       // No new images, just save
@@ -794,7 +841,7 @@
       })
       .catch(err => {
         console.error(err);
-        showStatus("Error Saving Asset: " + err.message);
+        showStatus("Error Saving Asset: " + err.message, true);
       });
   }
 
