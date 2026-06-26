@@ -935,6 +935,108 @@ let reviewQueue=T.filter(t=>t.status==='Awaiting review').map(t=>({...t}));
 let approvalsQueue=DATA.approvals.map(a=>({...a}));
 let scores={};  // {ticketRef:{score:1-5, comment}} — set by the approver, session-only in this preview
 
+// ============================================================
+// CRITICAL FIX: Function to check if a ticket is closed
+// This prevents closed tickets from appearing in ANY queue
+// ============================================================
+function isTicketClosed(t) {
+  if (!t) return true;
+  // Check status
+  if (/closed|archived/i.test(String(t.status || ''))) return true;
+  // Check workflow status
+  if (/closed|archived/i.test(String(t.workflowStatus || ''))) return true;
+  // Check workflow locked flag
+  if (/yes|true|1/i.test(String(t.workflowLocked || ''))) return true;
+  // Check permanent closed flag
+  if (/yes|true|1/i.test(String(t.permanentClosed || ''))) return true;
+  // Check if closed date exists
+  if (t.closed && t.closed !== '') return true;
+  return false;
+}
+
+// ============================================================
+// OVERRIDE: Filter closed tickets from ALL queues
+// ============================================================
+
+// Override CFG.critical.rows to filter out closed tickets
+CFG.critical.rows = function() {
+  return T.filter(function(t) {
+    if (isTicketClosed(t)) return false;
+    return t.prio === 'Critical' && 
+           t.status !== 'Closed' && 
+           !opotCriticalIsAwaitingReview(t) && 
+           opotIsGoLiveTicket(t) && 
+           (state.cflt === 'all' || t.overdue) && 
+           matchQ(t, state.qc);
+  });
+};
+
+// Override CFG.assigned.rows to filter out closed tickets
+CFG.assigned.rows = function() {
+  return T.filter(function(t) {
+    if (isTicketClosed(t)) return false;
+    return (state.person === 'all' || t.owner === state.person) && 
+           (state.status === 'all' || t.status === state.status) && 
+           matchQ(t, state.q);
+  });
+};
+
+// Override CFG.late.rows to filter out closed tickets
+CFG.late.rows = function() {
+  return T.filter(function(t) {
+    if (isTicketClosed(t)) return false;
+    return t.overdue && 
+           inPeriod(t.due) && 
+           (state.dept === 'all' || t.dept === state.dept) && 
+           (state.latePerson === 'all' || t.owner === state.latePerson) && 
+           matchQ(t, state.ql);
+  });
+};
+
+// Override CFG.mine.rows to filter out closed tickets
+CFG.mine.rows = function() {
+  return T.filter(function(t) {
+    if (isTicketClosed(t)) return false;
+    return t.raisedBy === DATA.me && 
+           (state.mine.owner === 'all' || t.owner === state.mine.owner) && 
+           matchQ(t, state.mine.q);
+  });
+};
+
+// Override CFG.explore.rows to filter out closed tickets
+CFG.explore.rows = function() {
+  return filteredEx().filter(function(t) {
+    return !isTicketClosed(t);
+  });
+};
+
+// Override CFG.review rows to filter out closed tickets
+CFG.review.rows = function() {
+  return reviewQueue.filter(function(t) {
+    return !isTicketClosed(t);
+  });
+};
+
+// Override filteredEx to exclude closed tickets
+var _origFilteredEx = filteredEx;
+filteredEx = function() {
+  var e = state.ex;
+  return T.filter(function(t) {
+    if (isTicketClosed(t)) return false;
+    return (e.dept === 'all' || t.dept === e.dept) &&
+           (e.prio === 'all' || t.prio === e.prio) &&
+           (e.status === 'all' || t.status === e.status) &&
+           (e.age === 'all' || ageBucket(t) === e.age) &&
+           (e.raiser === 'all' || t.raisedBy === e.raiser) &&
+           (e.ball === 'all' || ballOf(t) === e.ball) &&
+           matchQ(t, e.q);
+  });
+};
+
+// ============================================================
+// STANDARD FUNCTIONS
+// ============================================================
+
 const STDOT={'Open':'open','Awaiting review':'await','More time':'more','Closed':'closed'};
 function stCell(s,overdue){
   if(overdue && s!=='Closed') return `<span class="st"><span class="dot late"></span>${esc(s)} · late</span>`;
@@ -957,78 +1059,23 @@ function inPeriod(ds){
 }
 
 /* ---------- sortable framework ---------- */
-const CFG={
-  review:{table:'#t-review',sort:{key:'daysWaiting',dir:-1},rows:()=>reviewQueue.slice(),
-    cols:[
-      {k:'_sel',label:'<input type="checkbox" id="sel-all" onclick="event.stopPropagation();toggleSelAll(this.checked)" aria-label="Select all">',cls:'selcol no-print',get:t=>`<input type="checkbox" class="rowsel" ${state.sel[t.ref]?'checked':''} onclick="event.stopPropagation();toggleSel('${esc(t.ref)}',this.checked)" aria-label="Select">`},
-      {k:'ref',label:'Ref',get:refc,sort:t=>t.ref},
-      {k:'name',label:'Task',get:t=>`<span class="t-name">${esc(t.name)}</span>`,sort:t=>t.name.toLowerCase()},
-      {k:'submittedBy',label:'Submitted by',get:t=>esc(t.submittedBy),sort:t=>t.submittedBy.toLowerCase()},
-      {k:'dept',label:'Dept',get:t=>esc(t.dept),sort:t=>t.dept},
-      {k:'prio',label:'Priority',get:t=>prio(t.prio),sort:t=>PRANK[t.prio]},
-      {k:'daysWaiting',label:'Days waiting',num:1,get:t=>t.daysWaiting,sort:t=>t.daysWaiting},
-      {k:'_act',label:'Action',cls:'no-print',get:t=>`<button class="btn sm go" onclick="event.stopPropagation();act('${esc(t.ref)}',true)">Approve</button> <button class="btn sm ret" onclick="event.stopPropagation();act('${esc(t.ref)}',false)">Return</button>`},
-    ]},
-  critical:{table:'#t-critical',sort:{key:'daysLate',dir:-1},
-    rows:()=>T.filter(t=>t.prio==='Critical'&&t.status!=='Closed'&&(state.cflt==='all'||t.overdue)&&matchQ(t,state.qc)),
-    cols:[
-      {k:'_sel',label:'<input type="checkbox" id="crit-sel-all" onclick="event.stopPropagation();toggleCriticalSelAll(this.checked)" aria-label="Select all critical tasks">',cls:'selcol no-print',get:t=>`<input type="checkbox" class="critrowsel" ${state.critSel&&state.critSel[t.ref]?'checked':''} onclick="event.stopPropagation();toggleCriticalSel('${esc(t.ref)}',this.checked)" aria-label="Select critical task">`},
-      {k:'ref',label:'Ref',get:refc,sort:t=>t.ref},
-      {k:'name',label:'Task',get:t=>`<span class="t-name">${esc(t.name)}</span>`,sort:t=>t.name.toLowerCase()},
-      {k:'owner',label:'Assigned to',get:t=>esc(t.owner),sort:t=>t.owner.toLowerCase()},
-      {k:'dept',label:'Dept',get:t=>esc(t.dept),sort:t=>t.dept},
-      {k:'status',label:'Status',get:t=>stCell(t.status,t.overdue),sort:t=>SRANK[t.status]},
-      {k:'due',label:'Due',get:t=>fmtD(t.due),sort:t=>t.due||'9999'},
-      {k:'daysLate',label:'Late',num:1,get:t=>lateCell(t.daysLate),sort:t=>t.daysLate},
-    ]},
-  assigned:{table:'#t-assigned',sort:{key:'daysLate',dir:-1},
-    rows:()=>T.filter(t=>(state.person==='all'||t.owner===state.person)&&(state.status==='all'||t.status===state.status)&&matchQ(t,state.q)),
-    cols:[
-      {k:'ref',label:'Ref',get:refc,sort:t=>t.ref},
-      {k:'name',label:'Task',get:t=>`<span class="t-name">${esc(t.name)}</span>`,sort:t=>t.name.toLowerCase()},
-      {k:'owner',label:'Assigned to',get:t=>esc(t.owner),sort:t=>t.owner.toLowerCase()},
-      {k:'dept',label:'Dept',get:t=>esc(t.dept),sort:t=>t.dept},
-      {k:'prio',label:'Priority',get:t=>prio(t.prio),sort:t=>PRANK[t.prio]},
-      {k:'status',label:'Status',get:t=>stCell(t.status,t.overdue),sort:t=>SRANK[t.status]},
-      {k:'due',label:'Due',get:t=>fmtD(t.due),sort:t=>t.due||'9999'},
-      {k:'daysLate',label:'Late',num:1,get:t=>lateCell(t.daysLate),sort:t=>t.daysLate},
-    ]},
-  late:{table:'#t-late',sort:{key:'daysLate',dir:-1},
-    rows:()=>T.filter(t=>t.overdue&&inPeriod(t.due)&&(state.dept==='all'||t.dept===state.dept)&&(state.latePerson==='all'||t.owner===state.latePerson)&&matchQ(t,state.ql)),
-    cols:[
-      {k:'ref',label:'Ref',get:refc,sort:t=>t.ref},
-      {k:'name',label:'Task',get:t=>`<span class="t-name">${esc(t.name)}</span>`,sort:t=>t.name.toLowerCase()},
-      {k:'dept',label:'Department',get:t=>esc(t.dept),sort:t=>t.dept},
-      {k:'owner',label:'Owner',get:t=>esc(t.owner),sort:t=>t.owner.toLowerCase()},
-      {k:'prio',label:'Priority',get:t=>prio(t.prio),sort:t=>PRANK[t.prio]},
-      {k:'due',label:'Due',get:t=>fmtD(t.due),sort:t=>t.due||'9999'},
-      {k:'daysLate',label:'Days late',num:1,get:t=>lateCell(t.daysLate),sort:t=>t.daysLate},
-    ]},
-  explore:{table:'#t-explore',sort:{key:'daysLate',dir:-1},
-    rows:()=>filteredEx(),
-    cols:[
-      {k:'ref',label:'Ref',get:refc,sort:t=>t.ref},
-      {k:'name',label:'Task',get:t=>`<span class="t-name">${esc(t.name)}</span>`,sort:t=>t.name.toLowerCase()},
-      {k:'owner',label:'Assigned to',get:t=>esc(t.owner),sort:t=>t.owner.toLowerCase()},
-      {k:'dept',label:'Dept',get:t=>esc(t.dept),sort:t=>t.dept},
-      {k:'prio',label:'Priority',get:t=>prio(t.prio),sort:t=>PRANK[t.prio]},
-      {k:'status',label:'Status',get:t=>stCell(t.status,t.overdue),sort:t=>SRANK[t.status]},
-      {k:'due',label:'Due',get:t=>fmtD(t.due),sort:t=>t.due||'9999'},
-      {k:'daysLate',label:'Late',num:1,get:t=>lateCell(t.daysLate),sort:t=>t.daysLate},
-    ]},
-  mine:{table:'#t-mine',sort:{key:'daysLate',dir:-1},
-    rows:()=>T.filter(t=>t.raisedBy===DATA.me&&(state.mine.owner==='all'||t.owner===state.mine.owner)&&matchQ(t,state.mine.q)),
-    cols:[
-      {k:'ref',label:'Ref',get:refc,sort:t=>t.ref},
-      {k:'name',label:'Task',get:t=>`<span class="t-name">${esc(t.name)}</span>`,sort:t=>t.name.toLowerCase()},
-      {k:'owner',label:'Assigned to',get:t=>esc(t.owner),sort:t=>t.owner.toLowerCase()},
-      {k:'dept',label:'Dept',get:t=>esc(t.dept),sort:t=>t.dept},
-      {k:'prio',label:'Priority',get:t=>prio(t.prio),sort:t=>PRANK[t.prio]},
-      {k:'status',label:'Status',get:t=>stCell(t.status,t.overdue),sort:t=>SRANK[t.status]},
-      {k:'due',label:'Due',get:t=>fmtD(t.due),sort:t=>t.due||'9999'},
-      {k:'daysLate',label:'Late',num:1,get:t=>lateCell(t.daysLate),sort:t=>t.daysLate},
-    ]},
+// Update CFG.review to use the filtered rows
+CFG.review = {
+  table:'#t-review',
+  sort:{key:'daysWaiting',dir:-1},
+  rows:function(){ return reviewQueue.filter(function(t){ return !isTicketClosed(t); }).slice(); },
+  cols:[
+    {k:'_sel',label:'<input type="checkbox" id="sel-all" onclick="event.stopPropagation();toggleSelAll(this.checked)" aria-label="Select all">',cls:'selcol no-print',get:function(t){ return '<input type="checkbox" class="rowsel" ' + (state.sel[t.ref]?'checked':'') + ' onclick="event.stopPropagation();toggleSel(\'' + esc(t.ref) + '\',this.checked)" aria-label="Select">'; }},
+    {k:'ref',label:'Ref',get:refc,sort:function(t){return t.ref;}},
+    {k:'name',label:'Task',get:function(t){return '<span class="t-name">'+esc(t.name)+'</span>';},sort:function(t){return t.name.toLowerCase();}},
+    {k:'submittedBy',label:'Submitted by',get:function(t){return esc(t.submittedBy);},sort:function(t){return t.submittedBy.toLowerCase();}},
+    {k:'dept',label:'Dept',get:function(t){return esc(t.dept);},sort:function(t){return t.dept;}},
+    {k:'prio',label:'Priority',get:function(t){return prio(t.prio);},sort:function(t){return PRANK[t.prio];}},
+    {k:'daysWaiting',label:'Days waiting',num:1,get:function(t){return t.daysWaiting;},sort:function(t){return t.daysWaiting;}},
+    {k:'_act',label:'Action',cls:'no-print',get:function(t){return '<button class="btn sm go" onclick="event.stopPropagation();act(\'' + esc(t.ref) + '\',true)">Approve</button> <button class="btn sm ret" onclick="event.stopPropagation();act(\'' + esc(t.ref) + '\',false)">Return</button>';}},
+  ]
 };
+
 function thHTML(view,c){
   const s=CFG[view].sort, on=s.key===c.k, arrow=on?(s.dir<0?' ▾':' ▴'):'';
   const sortable=c.sort!==undefined;
@@ -1052,14 +1099,7 @@ function renderTable(view){
 /* ---------- explore: filter builder · pivot · ageing ---------- */
 function ageBucket(t){if(!t.overdue)return 'ontime';const d=t.daysLate;return d<=2?'1-2':d<=5?'3-5':'6+';}
 const AGELAB={all:'Any age',ontime:'On-time','1-2':'1–2 days','3-5':'3–5 days','6+':'6+ days'};
-function filteredEx(){const e=state.ex;return T.filter(t=>
-  (e.dept==='all'||t.dept===e.dept)&&
-  (e.prio==='all'||t.prio===e.prio)&&
-  (e.status==='all'||t.status===e.status)&&
-  (e.age==='all'||ageBucket(t)===e.age)&&
-  (e.raiser==='all'||t.raisedBy===e.raiser)&&
-  (e.ball==='all'||ballOf(t)===e.ball)&&
-  matchQ(t,e.q));}
+
 function setExF(key,v){state.ex[key]=v;const sel={dept:'#ex-dept',prio:'#ex-prio',status:'#ex-status',age:'#ex-age',raiser:'#ex-raiser',ball:'#ex-ball'}[key];if(sel&&$(sel))$(sel).value=v;renderExplore();}
 function setExPivot(v){state.ex.pivot=v;if($('#ex-pivot-sel'))$('#ex-pivot-sel').value=v;renderExplore();}
 function setExQ(v){state.ex.q=v;renderExplore();}
@@ -1133,7 +1173,7 @@ function doDecide(id,ok,reason){const i=approvalsQueue.findIndex(a=>a.id===id);i
 
 /* ---------- headlines ---------- */
 function headlines(){
-  const oldest=Math.max(0,...reviewQueue.map(t=>t.daysWaiting)), n=reviewQueue.length;
+  const oldest=Math.max(0,...reviewQueue.map(t=>t.daysWaiting)), n=reviewQueue.filter(t=>!isTicketClosed(t)).length;
   $('#hl-review').innerHTML = n? `<span class="k lnk" onclick="setTab('review')">${n}</span> scoring task${n===1?'':'s'} waiting for Executive 1 — oldest <span class="${oldest>=4?'r':'k'}">${oldest}</span> day${oldest===1?'':'s'} in the queue.` : `No scoring tasks waiting for Executive 1.`;
   const ap=approvalsQueue.length;
   $('#hl-approvals').innerHTML = ap? `<span class="k lnk" onclick="setTab('approvals')">${ap}</span> decision${ap===1?'':'s'} awaiting you${SUM.hirePending?` · ${SUM.hirePending} hiring`:''}.` : `No approvals pending — your basket is clear.`;
@@ -1148,7 +1188,7 @@ function headlines(){
 
 /* ---------- tiles ---------- */
 function renderTiles(){
-  const sc=window.OPOT_SCORING_COUNTS||{exec1:reviewQueue.length,exec2:0,total:reviewQueue.length};
+  const sc=window.OPOT_SCORING_COUNTS||{exec1:reviewQueue.filter(t=>!isTicketClosed(t)).length,exec2:0,total:reviewQueue.filter(t=>!isTicketClosed(t)).length};
   const curWait=EXECUTIVE_LEVEL===2?(sc.exec2||0):(sc.exec1||0);
   const tiles=[
     {k:'approvals',lab:'Approvals basket',num:approvalsQueue.length,cls:'',sub:'extensions / hiring',on:"setTab('approvals')"},
@@ -1268,7 +1308,7 @@ function rowsFor(tab){
   if(tab==='reviewsel'){const sel=reviewQueue.filter(t=>state.sel[t.ref]).sort((a,b)=>b.daysWaiting-a.daysWaiting);
     return {cols:['Ref','Task','Submitted by','Dept','Priority','Days waiting'],data:sel.map(t=>[t.ref,t.name,t.submittedBy,t.dept,t.prio,t.daysWaiting])};}
   if(tab==='review')return {cols:['Ref','Task','Submitted by','Dept','Priority','Days waiting'],
-    data:reviewQueue.slice().sort((a,b)=>b.daysWaiting-a.daysWaiting).map(t=>[t.ref,t.name,t.submittedBy,t.dept,t.prio,t.daysWaiting])};
+    data:reviewQueue.slice().filter(t=>!isTicketClosed(t)).sort((a,b)=>b.daysWaiting-a.daysWaiting).map(t=>[t.ref,t.name,t.submittedBy,t.dept,t.prio,t.daysWaiting])};
   if(tab==='approvals')return {cols:['Item','Type','Requested by','Dept','Detail','Due'],
     data:approvalsQueue.map(a=>[a.item,a.type,a.by,a.dept,a.detail,a.due])};
   if(tab==='critical'){const r=CFG.critical.rows();
@@ -2294,8 +2334,8 @@ const OPOT_SHEETS = {
   spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
   workbookName: 'Quick',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycbw_jtQrvYehIJE1e561V4wHNj6PDfym-yWJKkTf034GkglldAkjSdVTXA6daRBB6lw/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycbw_jtQrvYehIJE1e561V4wHNj6PDfym-yWJKkTf034GkglldAkjSdVTXA6daRBB6lw/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycbzyUMSCENRaLF94dYOGTvImp3FborBzodVHjKIkGRBz_hA4k2S1rJrMA0pJZslGtSxdww/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbzyUMSCENRaLF94dYOGTvImp3FborBzodVHjKIkGRBz_hA4k2S1rJrMA0pJZslGtSxdww/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -2311,34 +2351,44 @@ let EXECUTIVE_LEVEL = String(new URLSearchParams(location.search).get('exec') ||
 let scoringQueue = [];
 let liveRows = {};
 function _normKey(k){return String(k||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
-function _pick(row,names,def=''){for(const n of names){const nk=_normKey(n);for(const k in row){if(_normKey(k)===nk)return row[k]??def;}}return def;}
+function _pick(row,names,def){if(def===undefined)def='';for(var n=0;n<names.length;n++){var nk=_normKey(names[n]);for(var k in row){if(_normKey(k)===nk)return row[k]||def;}}return def;}
 function _truthy(v){return /^(yes|true|1|y|submitted|updated|complete|completed)$/i.test(String(v||'').trim());}
-function _asDate(v){if(!v)return ''; if(v instanceof Date)return v.toISOString().slice(0,10); const s=String(v).trim(); const d=new Date(s); return isNaN(d)?s:d.toISOString().slice(0,10);}
-function _daysBetween(a,b){const da=new Date(a),db=new Date(b); if(isNaN(da)||isNaN(db))return 0; return Math.max(0,Math.floor((db-da)/86400000));}
+function _asDate(v){if(!v)return ''; if(v instanceof Date)return v.toISOString().slice(0,10); var s=String(v).trim(); var d=new Date(s); return isNaN(d)?s:d.toISOString().slice(0,10);}
+function _daysBetween(a,b){var da=new Date(a),db=new Date(b); if(isNaN(da)||isNaN(db))return 0; return Math.max(0,Math.floor((db-da)/86400000));}
 
 function opotDateFromProofAttachmentName(v){
-  const s=String(v||'');
-  const dt=[...s.matchAll(/(20\d{2})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})/g)].map(m=>`${m[1]}-${m[2]}-${m[3]}`);
+  var s=String(v||'');
+  var dt=[];
+  var matches=s.matchAll(/(20\d{2})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})/g);
+  if(matches){for(var m of matches){dt.push(m[1]+'-'+m[2]+'-'+m[3]);}}
   if(dt.length)return dt[dt.length-1];
-  const dashed=[...s.matchAll(/(20\d{2})[-_](\d{2})[-_](\d{2})/g)].map(m=>`${m[1]}-${m[2]}-${m[3]}`);
+  var dashed=[];
+  var matches2=s.matchAll(/(20\d{2})[-_](\d{2})[-_](\d{2})/g);
+  if(matches2){for(var m of matches2){dashed.push(m[1]+'-'+m[2]+'-'+m[3]);}}
   if(dashed.length)return dashed[dashed.length-1];
-  const compact=[...s.matchAll(/(20\d{2})(\d{2})(\d{2})/g)].map(m=>`${m[1]}-${m[2]}-${m[3]}`);
+  var compact=[];
+  var matches3=s.matchAll(/(20\d{2})(\d{2})(\d{2})/g);
+  if(matches3){for(var m of matches3){compact.push(m[1]+'-'+m[2]+'-'+m[3]);}}
   if(compact.length)return compact[compact.length-1];
   return '';
 }
 function opotSubmissionDateForTicket(t,a){
   if(!t)t={};
-  const vals=[];
-  (t.proofNames||[]).forEach(v=>vals.push(v));
-  (t.proofs||[]).forEach(v=>vals.push(v));
-  if(a){vals.push(a.submittedAt); if(a.raw)Object.values(a.raw).forEach(v=>vals.push(v));}
-  const proofDates=vals.map(opotDateFromProofAttachmentName).filter(Boolean).sort();
-  return proofDates.length?proofDates[proofDates.length-1]:_asDate((a&&a.submittedAt)||t.upTs||t.lastResp||t.compReq||t.closed||'');
+  var vals=[];
+  if(t.proofNames){for(var i=0;i<t.proofNames.length;i++){vals.push(t.proofNames[i]);}}
+  if(t.proofs){for(var i=0;i<t.proofs.length;i++){vals.push(t.proofs[i]);}}
+  if(a){vals.push(a.submittedAt); if(a.raw){for(var k in a.raw){vals.push(a.raw[k]);}}}
+  var proofDates=[];
+  for(var i=0;i<vals.length;i++){var d=opotDateFromProofAttachmentName(vals[i]);if(d)proofDates.push(d);}
+  proofDates.sort();
+  if(proofDates.length)return proofDates[proofDates.length-1];
+  return _asDate((a&&a.submittedAt)||t.upTs||t.lastResp||t.compReq||t.closed||'');
 }
 function opotApplyClosedFromSubmission(t,a){
   if(!t)return '';
-  const submittedAt=opotSubmissionDateForTicket(t,a)||new Date().toISOString().slice(0,10);
+  var submittedAt=opotSubmissionDateForTicket(t,a)||new Date().toISOString().slice(0,10);
   t.status='Closed';
+  t.workflowStatus='Closed';
   t.closed=submittedAt;
   t.closedOnTimePendingReview=!!(t.due&&submittedAt<=t.due);
   t.overdue=!!(t.due&&submittedAt>t.due);
@@ -2351,184 +2401,190 @@ function _isExec2(row){return /exec(utive)?\s*2|executive two|waiting.*2|2nd/i.t
 function _isClosedStage(row){return /approved|closed|complete|done|declined|rejected|returned/i.test(_stage(row));}
 function _statusForExec(row){if(EXECUTIVE_LEVEL===2)return _isExec2(row); return !_isExec2(row)&&!_isClosedStage(row);}
 function setConnectionStatus(mode,msg){
-  const el=document.getElementById('connStatus'); if(!el)return;
+  var el=document.getElementById('connStatus'); if(!el)return;
   el.classList.remove('connecting','connected','error'); el.classList.add(mode||'connecting');
   el.textContent=msg||'Connecting Sheet'; el.title=(msg||'Connecting');
 }
 function jsonp(url,params){
-  return new Promise((resolve,reject)=>{
-    const cb='opot_cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-    const s=document.createElement('script'); const u=new URL(url);
-    Object.keys(params||{}).forEach(k=>u.searchParams.set(k,params[k]));
+  return new Promise(function(resolve,reject){
+    var cb='opot_cb_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    var s=document.createElement('script'); var u=new URL(url);
+    Object.keys(params||{}).forEach(function(k){u.searchParams.set(k,params[k]);});
     u.searchParams.set('callback',cb); u.searchParams.set('_',Date.now());
-    const timer=setTimeout(()=>{cleanup();reject(new Error('Apps Script read timed out'));},20000);
+    var timer=setTimeout(function(){cleanup();reject(new Error('Apps Script read timed out'));},20000);
     function cleanup(){clearTimeout(timer); try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode)s.parentNode.removeChild(s);}
-    window[cb]=(data)=>{cleanup(); data&&data.ok?resolve(data):reject(new Error((data&&data.error)||'Apps Script returned an error'));};
-    s.onerror=()=>{cleanup();reject(new Error('Apps Script JSONP connection failed'));};
+    window[cb]=function(data){cleanup(); data&&data.ok?resolve(data):reject(new Error((data&&data.error)||'Apps Script returned an error'));};
+    s.onerror=function(){cleanup();reject(new Error('Apps Script JSONP connection failed'));};
     s.src=u.toString(); document.head.appendChild(s);
   });
 }
 async function loadAllFromWebApp(){
-  const url=OPOT_SHEETS.readUrl||OPOT_SHEETS.writeUrl; if(!url)return null;
-  const data=await jsonp(url,{mode:'readAll',spreadsheetId:OPOT_SHEETS.spreadsheetId});
+  var url=OPOT_SHEETS.readUrl||OPOT_SHEETS.writeUrl; if(!url)return null;
+  var data=await jsonp(url,{mode:'readAll',spreadsheetId:OPOT_SHEETS.spreadsheetId});
   liveRows=data.sheets||{}; return data;
 }
 async function gsheetFetch(tab){
-  const url='https://docs.google.com/spreadsheets/d/'+OPOT_SHEETS.spreadsheetId+'/gviz/tq?tqx=out:json&sheet='+encodeURIComponent(tab)+'&t='+(Date.now());
-  const res=await fetch(url,{cache:'no-store'}); if(!res.ok)throw new Error('Sheet fetch failed: '+tab+' '+res.status);
-  const txt=await res.text(); const json=JSON.parse(txt.substring(txt.indexOf('{'),txt.lastIndexOf('}')+1));
-  const cols=(json.table.cols||[]).map((c,i)=>c.label||c.id||('Column '+(i+1)));
-  return (json.table.rows||[]).map(r=>{const o={}; (r.c||[]).forEach((c,i)=>o[cols[i]]=c?((c.f&&/^Date\(/.test(String(c.v)))?c.f:c.v):''); return o;}).filter(o=>Object.values(o).some(v=>String(v||'').trim()!==''));
+  var url='https://docs.google.com/spreadsheets/d/'+OPOT_SHEETS.spreadsheetId+'/gviz/tq?tqx=out:json&sheet='+encodeURIComponent(tab)+'&t='+(Date.now());
+  var res=await fetch(url,{cache:'no-store'}); if(!res.ok)throw new Error('Sheet fetch failed: '+tab+' '+res.status);
+  var txt=await res.text(); var json=JSON.parse(txt.substring(txt.indexOf('{'),txt.lastIndexOf('}')+1));
+  var cols=(json.table.cols||[]).map(function(c,i){return c.label||c.id||('Column '+(i+1));});
+  return (json.table.rows||[]).map(function(r){var o={}; (r.c||[]).forEach(function(c,i){o[cols[i]]=c?((c.f&&/^Date\(/.test(String(c.v)))?c.f:c.v):'';}); return o;}).filter(function(o){return Object.values(o).some(function(v){return String(v||'').trim()!=='';});});
 }
 async function firstSheet(names){
-  names=Array.isArray(names)?names:[names];
-  for(const n of names){if(Array.isArray(liveRows[n]))return liveRows[n];}
-  for(const n of names){try{const rows=await gsheetFetch(n); liveRows[n]=rows; return rows;}catch(e){console.warn(e.message);} }
+  if(!Array.isArray(names))names=[names];
+  for(var n=0;n<names.length;n++){if(Array.isArray(liveRows[names[n]]))return liveRows[names[n]];}
+  for(var n=0;n<names.length;n++){try{var rows=await gsheetFetch(names[n]); liveRows[names[n]]=rows; return rows;}catch(e){console.warn(e.message);} }
   return [];
 }
 
 function opotSplitLinks(v){
-  return String(v||'').split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
+  return String(v||'').split(/[\n,]+/).map(function(x){return x.trim();}).filter(Boolean);
 }
-const OPOT_GO_LIVE_DATE = '2026-06-17';
+var OPOT_GO_LIVE_DATE = '2026-06-17';
 function opotIsGoLiveTicket(t){
-  const c=String(t&&t.created||'').slice(0,10);
+  var c=String(t&&t.created||'').slice(0,10);
   return !c || c>=OPOT_GO_LIVE_DATE;
 }
 function taskFromRow(r){
-  const ref=String(_pick(r,['Ticket Number','Ticket ID','Task ID','Ref','Reference','ID'],'')).trim()||('GS-'+Math.random().toString(36).slice(2,8).toUpperCase());
-  const due=_asDate(_pick(r,['Due Date','Due','Deadline','Target Date','dueDate'],''));
-  const status=String(_pick(r,['Status','Task Status','Ticket Status','Update Status','status'],'Open')||'Open').trim();
-  const owner=String(_pick(r,['Assigned To','Assignee','Owner','Responsible Person','Employee','assignedTo'],'')).trim();
-  const created=_asDate(_pick(r,['Date Created','Created Date','Created','Raised Date','Timestamp','createdDate'],''));
-  const closed=_asDate(_pick(r,['Closed','Closed Date','Completed Date','Completion Date'],''));
-  const asat=new Date(DATA.asat||new Date()); const dl=due?_daysBetween(due,asat):0; const overdue=!!due && status!=='Closed' && dl>0;
-  const resp=String(_pick(r,['Task Response','Assignee Comment','Update Comment','Comments','Comment','Update Comments'],'')).trim();
-  const proofText=[
+  var ref=String(_pick(r,['Ticket Number','Ticket ID','Task ID','Ref','Reference','ID'],'')).trim()||('GS-'+Math.random().toString(36).slice(2,8).toUpperCase());
+  var due=_asDate(_pick(r,['Due Date','Due','Deadline','Target Date','dueDate'],''));
+  var status=String(_pick(r,['Status','Task Status','Ticket Status','Update Status','status'],'Open')||'Open').trim();
+  var owner=String(_pick(r,['Assigned To','Assignee','Owner','Responsible Person','Employee','assignedTo'],'')).trim();
+  var created=_asDate(_pick(r,['Date Created','Created Date','Created','Raised Date','Timestamp','createdDate'],''));
+  var closed=_asDate(_pick(r,['Closed','Closed Date','Completed Date','Completion Date'],''));
+  var asat=new Date(DATA.asat||new Date()); var dl=due?_daysBetween(due,asat):0; var overdue=!!due && status!=='Closed' && dl>0;
+  var resp=String(_pick(r,['Task Response','Assignee Comment','Update Comment','Comments','Comment','Update Comments'],'')).trim();
+  var proofText=[
     _pick(r,['Proof Links','Proof Link','Proof File Names','Update Proof Link','Update Proof File Names','Attachment Link','attachmentLink','Proof','Proofs','Attachment','Attachments','Evidence'],'')
   ].filter(Boolean).join('\n');
-  const updateTs=_asDate(_pick(r,['Update Timestamp','Last Response Date','Update Date','Updated At','Submitted Date','Timestamp'],''));
-  const compReq=_asDate(_pick(r,['Completion Request Date','Completion Requested','Completed Date','Submitted Date'],''));
+  var updateTs=_asDate(_pick(r,['Update Timestamp','Last Response Date','Update Date','Updated At','Submitted Date','Timestamp'],''));
+  var compReq=_asDate(_pick(r,['Completion Request Date','Completion Requested','Completed Date','Submitted Date'],''));
   return {
-    ref,
-    rawTaskId:String(_pick(r,['Task ID','Ticket ID','Ticket Number','Ref','Reference','ID'],ref)).trim(),
-    ticketNumber:String(_pick(r,['Ticket Number'],ref)).trim()||ref,
-    name:String(_pick(r,['Task Name','Task','Title','taskName','title','Item','Subject','Request'],'Untitled task')).trim(),
-    dept:String(_pick(r,['Department','Dept','Division','department'],'')).trim(),
-    prio:String(_pick(r,['Priority','Prio','priority'],'Medium')).trim(),
-    status,owner,created,due,closed,
-    submittedBy:String(_pick(r,['Submitted By','SubmittedBy','Submitted By Email','User','Owner','Assignee'],owner)).trim(),
-    submittedByEmail:String(_pick(r,['Submitted By Email','assignedEmail','Assignee Email','Email'],'')),
-    overdue,daysLate:overdue?dl:0,
-    daysWaiting:_daysBetween(compReq||updateTs||created,asat),
-    desc:String(_pick(r,['Description','Details','Task Description','Request Details','description'],'')).trim(),
-    comment:String(_pick(r,['Comments','Comment','Notes','Assignee Comment'],'')).trim(),
-    response:resp,
-    upStatus:String(_pick(r,['Update Status','Update','Progress Status'],'')).trim(),
-    upComment:resp,
-    upBy:String(_pick(r,['Update Submitted By','Updated By','Update By','Submitted By'],'')),
-    upByEmail:String(_pick(r,['Update Submitted By Email','Submitted By Email'],'')),
-    upTs:updateTs,
-    lastResp:_asDate(_pick(r,['Last Response Date','Last Response'],updateTs)),
-    compReq:compReq,
-    proofs:opotSplitLinks(proofText),
-    proofNames:opotSplitLinks(_pick(r,['Proof File Names','Update Proof File Names'],'')),
-    raisedBy:String(_pick(r,['Raised By','Created By','Requester','Requestor'],DATA.me)).trim(),
-    whatsapp:String(_pick(r,['whatsapp No.','Whatsapp No.','WhatsApp No','Whatsapp'],''))
+    ref: ref,
+    rawTaskId: String(_pick(r,['Task ID','Ticket ID','Ticket Number','Ref','Reference','ID'],ref)).trim(),
+    ticketNumber: String(_pick(r,['Ticket Number'],ref)).trim()||ref,
+    name: String(_pick(r,['Task Name','Task','Title','taskName','title','Item','Subject','Request'],'Untitled task')).trim(),
+    dept: String(_pick(r,['Department','Dept','Division','department'],'')).trim(),
+    prio: String(_pick(r,['Priority','Prio','priority'],'Medium')).trim(),
+    status: status,
+    workflowStatus: status,
+    owner: owner,
+    created: created,
+    due: due,
+    closed: closed,
+    submittedBy: String(_pick(r,['Submitted By','SubmittedBy','Submitted By Email','User','Owner','Assignee'],owner)).trim(),
+    submittedByEmail: String(_pick(r,['Submitted By Email','assignedEmail','Assignee Email','Email'],'')),
+    overdue: overdue,
+    daysLate: overdue?dl:0,
+    daysWaiting: _daysBetween(compReq||updateTs||created,asat),
+    desc: String(_pick(r,['Description','Details','Task Description','Request Details','description'],'')).trim(),
+    comment: String(_pick(r,['Comments','Comment','Notes','Assignee Comment'],'')).trim(),
+    response: resp,
+    upStatus: String(_pick(r,['Update Status','Update','Progress Status'],'')).trim(),
+    upComment: resp,
+    upBy: String(_pick(r,['Update Submitted By','Updated By','Update By','Submitted By'],'')),
+    upByEmail: String(_pick(r,['Update Submitted By Email','Submitted By Email'],'')),
+    upTs: updateTs,
+    lastResp: _asDate(_pick(r,['Last Response Date','Last Response'],updateTs)),
+    compReq: compReq,
+    proofs: opotSplitLinks(proofText),
+    proofNames: opotSplitLinks(_pick(r,['Proof File Names','Update Proof File Names'],'')),
+    raisedBy: String(_pick(r,['Raised By','Created By','Requester','Requestor'],DATA.me)).trim(),
+    whatsapp: String(_pick(r,['whatsapp No.','Whatsapp No.','WhatsApp No','Whatsapp'],''))
   };
 }
 function recomputeData(){
-  T.forEach(t=>{
-    if(String(t.status||'')==='Closed'){
-      const submittedAt=opotSubmissionDateForTicket(t);
+  T.forEach(function(t){
+    if(String(t.status||'')==='Closed' || String(t.workflowStatus||'')==='Closed'){
+      var submittedAt=opotSubmissionDateForTicket(t);
       if(submittedAt)t.closed=submittedAt;
       t.overdue=!!(t.due&&t.closed&&t.closed>t.due);
       t.daysLate=t.overdue?_daysBetween(t.due,t.closed):0;
     }
   });
-  const active=T.filter(t=>t.status!=='Closed');
-  const byDept={}; active.forEach(t=>{const d=t.dept||'Unassigned'; byDept[d]=byDept[d]||{dept:d,late:0,oldest:0,open:0,pct:0}; byDept[d].open++; if(t.overdue){byDept[d].late++; byDept[d].oldest=Math.max(byDept[d].oldest,t.daysLate||0);}});
-  DATA.deptLate=Object.values(byDept).map(x=>(x.pct=x.open?Math.round(x.late/x.open*100):0,x)).sort((a,b)=>b.late-a.late||b.pct-a.pct);
-  const byP={}; active.forEach(t=>{const o=t.owner||'Unassigned'; byP[o]=byP[o]||{name:o,total:0,open:0,awaiting:0,late:0}; byP[o].total++; if(t.status==='Awaiting review')byP[o].awaiting++; else byP[o].open++; if(t.overdue)byP[o].late++;});
-  DATA.people=Object.values(byP).sort((a,b)=>b.late-a.late||b.total-a.total||a.name.localeCompare(b.name));
-  Object.assign(DATA.summary,{awaiting:T.filter(t=>t.status==='Awaiting review').length,late:active.filter(t=>t.overdue).length,closedTotal:T.filter(t=>t.status==='Closed').length,activeAssigned:active.length,peopleLate:DATA.people.filter(p=>p.late).length,approvals:approvalsQueue.length,hirePending:approvalsQueue.filter(a=>a.type==='Hiring').length,critical:active.filter(t=>t.prio==='Critical'&&!opotCriticalIsAwaitingReview(t)&&opotIsGoLiveTicket(t)).length,total:T.length,mine:T.filter(t=>t.raisedBy===DATA.me).length,scoring:scoringQueue.length});
+  var active=T.filter(function(t){return !isTicketClosed(t);});
+  var byDept={}; active.forEach(function(t){var d=t.dept||'Unassigned'; byDept[d]=byDept[d]||{dept:d,late:0,oldest:0,open:0,pct:0}; byDept[d].open++; if(t.overdue){byDept[d].late++; byDept[d].oldest=Math.max(byDept[d].oldest,t.daysLate||0);}});
+  DATA.deptLate=Object.values(byDept).map(function(x){x.pct=x.open?Math.round(x.late/x.open*100):0; return x;}).sort(function(a,b){return b.late-a.late||b.pct-a.pct;});
+  var byP={}; active.forEach(function(t){var o=t.owner||'Unassigned'; byP[o]=byP[o]||{name:o,total:0,open:0,awaiting:0,late:0}; byP[o].total++; if(t.status==='Awaiting review')byP[o].awaiting++; else byP[o].open++; if(t.overdue)byP[o].late++;});
+  DATA.people=Object.values(byP).sort(function(a,b){return b.late-a.late||b.total-a.total||a.name.localeCompare(b.name);});
+  Object.assign(DATA.summary,{awaiting:T.filter(function(t){return t.status==='Awaiting review'&&!isTicketClosed(t);}).length,late:active.filter(function(t){return t.overdue;}).length,closedTotal:T.filter(function(t){return t.status==='Closed';}).length,activeAssigned:active.length,peopleLate:DATA.people.filter(function(p){return p.late;}).length,approvals:approvalsQueue.length,hirePending:approvalsQueue.filter(function(a){return a.type==='Hiring';}).length,critical:active.filter(function(t){return t.prio==='Critical'&&!opotCriticalIsAwaitingReview(t)&&opotIsGoLiveTicket(t);}).length,total:T.length,mine:T.filter(function(t){return t.raisedBy===DATA.me;}).length,scoring:scoringQueue.length});
 }
-function approvalFromRow(r,type){return {id:String(_pick(r,['ID','Request ID','Ticket ID','Task ID','Ref','Reference'],'')).trim()||('REQ-'+Math.random().toString(36).slice(2,8).toUpperCase()),item:String(_pick(r,['Item','Request','Title','Position','Task','Reason'],'Approval request')).trim(),type,by:String(_pick(r,['Requested By','Requestor','Requester','Raised By','User','Employee'],'')).trim(),dept:String(_pick(r,['Department','Dept','Division'],'')).trim(),detail:String(_pick(r,['Detail','Details','Reason','Description','Justification'],'')).trim(),due:_asDate(_pick(r,['Due','Due Date','Start Date','Requested Date'],'')),stage:_stage(r),raw:r};}
+function approvalFromRow(r,type){return {id:String(_pick(r,['ID','Request ID','Ticket ID','Task ID','Ref','Reference'],'')).trim()||('REQ-'+Math.random().toString(36).slice(2,8).toUpperCase()),item:String(_pick(r,['Item','Request','Title','Position','Task','Reason'],'Approval request')).trim(),type:type,by:String(_pick(r,['Requested By','Requestor','Requester','Raised By','User','Employee'],'')).trim(),dept:String(_pick(r,['Department','Dept','Division'],'')).trim(),detail:String(_pick(r,['Detail','Details','Reason','Description','Justification'],'')).trim(),due:_asDate(_pick(r,['Due','Due Date','Start Date','Requested Date'],'')),stage:_stage(r),raw:r};}
 function scoringFromRow(r,source){
-  const ref=String(_pick(r,['Task ID','Ticket ID','Ref','Reference','ID'],'')).trim()||String(_pick(r,['Task','Task Name','Title'],'')).trim();
-  const t=T.find(x=>x.ref===ref)||T.find(x=>x.name===ref)||{};
-  const assignee=String(_pick(r,['Assignee','Assigned To','Owner','User','Employee'],t.owner||'')).trim()||t.owner||'';
-  const due=_asDate(_pick(r,['Due Date','Due','Deadline','Target Date'],t.due||''));
-  return {id:ref||('SCORE-'+Math.random().toString(36).slice(2,8).toUpperCase()),ref:ref||t.ref,item:t.name||String(_pick(r,['Task','Task Name','Title','Item'],'Task update')).trim(),by:assignee,assignee:assignee,due:due,dept:String(_pick(r,['Department','Dept'],t.dept||'')).trim(),detail:String(_pick(r,['Update','Update Comment','Comment','Details','Description'],'Submitted / updated for scoring')).trim(),stage:_stage(r)||'Scoring Executive 1',score1:Number(_pick(r,['Executive 1 Score','Exec 1 Score','Score 1'],0))||0,score2:Number(_pick(r,['Executive 2 Score','Exec 2 Score','Score 2'],0))||0,source,raw:r};
+  var ref=String(_pick(r,['Task ID','Ticket ID','Ref','Reference','ID'],'')).trim()||String(_pick(r,['Task','Task Name','Title'],'')).trim();
+  var t=T.find(function(x){return x.ref===ref;})||T.find(function(x){return x.name===ref;})||{};
+  var assignee=String(_pick(r,['Assignee','Assigned To','Owner','User','Employee'],t.owner||'')).trim()||t.owner||'';
+  var due=_asDate(_pick(r,['Due Date','Due','Deadline','Target Date'],t.due||''));
+  return {id:ref||('SCORE-'+Math.random().toString(36).slice(2,8).toUpperCase()),ref:ref||t.ref,item:t.name||String(_pick(r,['Task','Task Name','Title','Item'],'Task update')).trim(),by:assignee,assignee:assignee,due:due,dept:String(_pick(r,['Department','Dept'],t.dept||'')).trim(),detail:String(_pick(r,['Update','Update Comment','Comment','Details','Description'],'Submitted / updated for scoring')).trim(),stage:_stage(r)||'Scoring Executive 1',score1:Number(_pick(r,['Executive 1 Score','Exec 1 Score','Score 1'],0))||0,score2:Number(_pick(r,['Executive 2 Score','Exec 2 Score','Score 2'],0))||0,source:source,raw:r};
 }
 function buildWorkflowQueues(rows){
-  const approvalRows=(rows.approvals||[]).map(r=>approvalFromRow(r,'Approval')).concat((rows.extensions||[]).map(r=>approvalFromRow(r,'Extension')),(rows.hiring||[]).map(r=>approvalFromRow(r,'Hiring')));
+  var approvalRows=(rows.approvals||[]).map(function(r){return approvalFromRow(r,'Approval');}).concat((rows.extensions||[]).map(function(r){return approvalFromRow(r,'Extension');}),(rows.hiring||[]).map(function(r){return approvalFromRow(r,'Hiring');}));
   approvalsQueue=approvalRows.filter(_statusForExec);
-  const allExisting=(rows.scoring||[]).map(r=>scoringFromRow(r,'Score_approvals'));
-  const allFromUpdates=(rows.updates||[]).filter(r=>/_submitted|submitted|updated|complete|completed/i.test(Object.values(r).join(' '))).map(r=>scoringFromRow(r,'Task Updates'));
-  const seenAll=new Set();
-  const allScoring=allExisting.concat(allFromUpdates).filter(x=>{const k=x.id+'|'+x.stage;if(seenAll.has(k))return false;seenAll.add(k);return !_isClosedStage(x.raw);});
+  var allExisting=(rows.scoring||[]).map(function(r){return scoringFromRow(r,'Score_approvals');});
+  var allFromUpdates=(rows.updates||[]).filter(function(r){return /_submitted|submitted|updated|complete|completed/i.test(Object.values(r).join(' '));}).map(function(r){return scoringFromRow(r,'Task Updates');});
+  var seenAll=new Set();
+  var allScoring=allExisting.concat(allFromUpdates).filter(function(x){var k=x.id+'|'+x.stage;if(seenAll.has(k))return false;seenAll.add(k);return !_isClosedStage(x.raw);});
   window.OPOT_ALL_SCORING_QUEUE=allScoring;
   window.OPOT_SCORING_COUNTS={
-    exec1:allScoring.filter(x=>!_isExec2(x)&&!_isExec2(x.raw)).length,
-    exec2:allScoring.filter(x=>_isExec2(x)||_isExec2(x.raw)).length,
+    exec1:allScoring.filter(function(x){return !_isExec2(x)&&!_isExec2(x.raw);}).length,
+    exec2:allScoring.filter(function(x){return _isExec2(x)||_isExec2(x.raw);}).length,
     total:allScoring.length
   };
-  scoringQueue=allScoring.filter(x=>EXECUTIVE_LEVEL===2?(_isExec2(x)||_isExec2(x.raw)):(!_isExec2(x)&&!_isExec2(x.raw)));
+  scoringQueue=allScoring.filter(function(x){return EXECUTIVE_LEVEL===2?(_isExec2(x)||_isExec2(x.raw)):(!_isExec2(x)&&!_isExec2(x.raw));});
 }
 async function sheetWrite(action,payload){
-  payload=Object.assign({action,spreadsheetId:OPOT_SHEETS.spreadsheetId,workbookName:OPOT_SHEETS.workbookName,executiveLevel:EXECUTIVE_LEVEL,at:new Date().toISOString()},payload||{});
+  payload=Object.assign({action:action,spreadsheetId:OPOT_SHEETS.spreadsheetId,workbookName:OPOT_SHEETS.workbookName,executiveLevel:EXECUTIVE_LEVEL,at:new Date().toISOString()},payload||{});
   try{localStorage.setItem('opotPendingWrites',JSON.stringify([...(JSON.parse(localStorage.getItem('opotPendingWrites')||'[]')),payload]));}catch(e){}
   if(!OPOT_SHEETS.writeUrl){console.info('Write queued locally; configure OPOT_SHEETS.writeUrl to persist to Google Sheets.',payload);setConnectionStatus('error','Write URL missing');return {queued:true};}
   try{
     setConnectionStatus('connecting','Posting to Sheet');
-    const res=await fetch(OPOT_SHEETS.writeUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    var res=await fetch(OPOT_SHEETS.writeUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
     setConnectionStatus('connected','Live Sheet Connected');
     return res;
   }catch(e){console.warn('Write failed/queued',e);setConnectionStatus('error','Sheet write failed');return {queued:true,error:String(e)};}
 }
 async function onpointEnhancedBoot(){
-  document.body.setAttribute('data-exec-level',EXECUTIVE_LEVEL); const rv=document.querySelector('.viewas .role'); if(rv)rv.textContent='EXECUTIVE '+EXECUTIVE_LEVEL;
-  const vn=document.querySelector('.viewas'); if(vn)vn.lastChild.textContent=' '+(EXECUTIVE_LEVEL===1?'Executive 1':'Executive 2');
+  document.body.setAttribute('data-exec-level',EXECUTIVE_LEVEL); var rv=document.querySelector('.viewas .role'); if(rv)rv.textContent='EXECUTIVE '+EXECUTIVE_LEVEL;
+  var vn=document.querySelector('.viewas'); if(vn)vn.lastChild.textContent=' '+(EXECUTIVE_LEVEL===1?'Executive 1':'Executive 2');
   try{
     setConnectionStatus('connecting','Connecting Sheet');
-    let source='Apps Script';
+    var source='Apps Script';
     try{await loadAllFromWebApp();}catch(appErr){console.warn('Apps Script live read failed; trying public gviz read.',appErr); source='Google gviz';}
-    const rows={tasks:await firstSheet(OPOT_SHEETS.tabs.tasks),updates:await firstSheet(OPOT_SHEETS.tabs.updates),approvals:await firstSheet(OPOT_SHEETS.tabs.approvals),hiring:await firstSheet(OPOT_SHEETS.tabs.hiring),scoring:await firstSheet(OPOT_SHEETS.tabs.scoring),extensions:await firstSheet(OPOT_SHEETS.tabs.extensions)};
-    if(rows.tasks.length){T.splice(0,T.length,...rows.tasks.map(taskFromRow));}
+    var rows={tasks:await firstSheet(OPOT_SHEETS.tabs.tasks),updates:await firstSheet(OPOT_SHEETS.tabs.updates),approvals:await firstSheet(OPOT_SHEETS.tabs.approvals),hiring:await firstSheet(OPOT_SHEETS.tabs.hiring),scoring:await firstSheet(OPOT_SHEETS.tabs.scoring),extensions:await firstSheet(OPOT_SHEETS.tabs.extensions)};
+    if(rows.tasks.length){T.splice(0,T.length); for(var i=0;i<rows.tasks.length;i++){T.push(taskFromRow(rows.tasks[i]));}}
     buildWorkflowQueues(rows); recomputeData();
-    reviewQueue=T.filter(t=>t.status==='Awaiting review').map(t=>({...t}));
-    const totalRows=Object.values(rows).reduce((a,b)=>a+(Array.isArray(b)?b.length:0),0);
+    reviewQueue=T.filter(function(t){return t.status==='Awaiting review'&&!isTicketClosed(t);}).map(function(t){return Object.assign({},t);});
+    var totalRows=Object.values(rows).reduce(function(a,b){return a+(Array.isArray(b)?b.length:0);},0);
     setConnectionStatus('connected','Live Sheet Connected');
-    const asat=document.querySelector('.asat'); if(asat)asat.textContent='Live data · '+source+' · '+totalRows+' rows';
+    var asat=document.querySelector('.asat'); if(asat)asat.textContent='Live data · '+source+' · '+totalRows+' rows';
   }catch(e){console.warn('Using bundled snapshot because Google Sheet could not be loaded.',e); setConnectionStatus('error','Sheet not connected'); buildWorkflowQueues({}); recomputeData();}
 }
 function renderScoring(){
-  const q=scoringQueue||[]; const c=document.getElementById('c-scoring'); if(c)c.textContent=q.length+' pending'; const h=document.getElementById('hl-scoring'); if(h)h.innerHTML=q.length?`<span class="k">${q.length}</span> task${q.length===1?'':'s'} waiting for Executive ${EXECUTIVE_LEVEL} scoring.`:'Scoring basket is clear.';
-  const host=document.getElementById('scoringBody'); if(!host)return;
+  var q=scoringQueue||[]; var c=document.getElementById('c-scoring'); if(c)c.textContent=q.length+' pending'; var h=document.getElementById('hl-scoring'); if(h)h.innerHTML=q.length?'<span class="k">'+q.length+'</span> task'+(q.length===1?'':'s')+' waiting for Executive '+EXECUTIVE_LEVEL+' scoring.':'Scoring basket is clear.';
+  var host=document.getElementById('scoringBody'); if(!host)return;
   if(!q.length){host.innerHTML='<div class="tablecard"><div class="empty"><div class="ic">✓</div><h3>No scoring pending</h3><p>Submitted and updated tasks will appear here for Executive 1 first, then Executive 2.</p></div></div>';return;}
-  host.innerHTML=`<div class="tablecard scroll"><table><thead><tr><th>Task</th><th>Submitted by</th><th>Dept</th><th>Stage</th><th>Score</th><th class="no-print">Decision</th></tr></thead><tbody>${q.map(a=>{const cur=EXECUTIVE_LEVEL===1?a.score1:a.score2;return `<tr><td class="t-name">${esc(a.item||a.ref)}</td><td>${esc(a.by)}</td><td>${esc(a.dept)}</td><td>${esc(a.stage)}</td><td><span class="rscore" onclick="event.stopPropagation()">${[1,2,3,4,5].map(n=>`<button class="rb${cur>=n?' on':''}" onclick="scoreSet('${esc(a.id)}',${n})">${n}</button>`).join('')}</span></td><td class="no-print"><button class="btn sm go" onclick="scoreDecision('${esc(a.id)}',true)">${EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2'}</button> <button class="btn sm ret" onclick="scoreDecision('${esc(a.id)}',false)">Return</button></td></tr>`}).join('')}</tbody></table></div>`;
+  host.innerHTML='<div class="tablecard scroll"><table><thead><tr><th>Task</th><th>Submitted by</th><th>Dept</th><th>Stage</th><th>Score</th><th class="no-print">Decision</th></tr></thead><tbody>'+q.map(function(a){var cur=EXECUTIVE_LEVEL===1?a.score1:a.score2;return '<tr><td class="t-name">'+esc(a.item||a.ref)+'</td><td>'+esc(a.by)+'</td><td>'+esc(a.dept)+'</td><td>'+esc(a.stage)+'</td><td><span class="rscore" onclick="event.stopPropagation()">'+[1,2,3,4,5].map(function(n){return '<button class="rb'+(cur>=n?' on':'')+'" onclick="scoreSet(\''+esc(a.id)+'\','+n+')">'+n+'</button>';}).join('')+'</span></td><td class="no-print"><button class="btn sm go" onclick="scoreDecision(\''+esc(a.id)+'\',true)">'+(EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2')+'</button> <button class="btn sm ret" onclick="scoreDecision(\''+esc(a.id)+'\',false)">Return</button></td></tr>';}).join('')+'</tbody></table></div>';
 }
-function scoreSet(id,n){const a=scoringQueue.find(x=>x.id===id); if(!a)return; if(EXECUTIVE_LEVEL===1)a.score1=n; else a.score2=n; const t=T.find(x=>x.ref===a.ref); if(t)scores[t.ref]=Object.assign({},scores[t.ref],{score:n}); renderScoring(); if(state.tab==='reports')renderReport();}
-function scoreDecision(id,ok){const a=scoringQueue.find(x=>x.id===id); if(!a)return; const score=EXECUTIVE_LEVEL===1?a.score1:a.score2; if(ok&&!score){toast('Choose a score from 1 to 5 first.','warn');return;} if(!ok){askModal({title:'Return scored task',label:'Reason for return (required)',placeholder:'Explain why the ticket must reopen…',confirmText:'Return',danger:true,onConfirm:reason=>doScoreDecision(id,false,reason)});return;} doScoreDecision(id,true,'');}
-function doScoreDecision(id,ok,reason){const i=scoringQueue.findIndex(x=>x.id===id); if(i<0)return; const a=scoringQueue.splice(i,1)[0]; const t=T.find(x=>x.ref===a.ref); if(ok&&EXECUTIVE_LEVEL===1){sheetWrite('score_exec1_approved',{sheet:'Score_approvals',taskId:a.ref,score:a.score1,nextStage:'Scoring Executive 2'}); logAudit('Executive 1 scored',a.item,'Score '+a.score1+'/5 · moved to Executive 2'); toast('Scored and moved to Executive 2');}
+function scoreSet(id,n){var a=scoringQueue.find(function(x){return x.id===id;}); if(!a)return; if(EXECUTIVE_LEVEL===1)a.score1=n; else a.score2=n; var t=T.find(function(x){return x.ref===a.ref;}); if(t)scores[t.ref]=Object.assign({},scores[t.ref],{score:n}); renderScoring(); if(state.tab==='reports')renderReport();}
+function scoreDecision(id,ok){var a=scoringQueue.find(function(x){return x.id===id;}); if(!a)return; var score=EXECUTIVE_LEVEL===1?a.score1:a.score2; if(ok&&!score){toast('Choose a score from 1 to 5 first.','warn');return;} if(!ok){askModal({title:'Return scored task',label:'Reason for return (required)',placeholder:'Explain why the ticket must reopen…',confirmText:'Return',danger:true,onConfirm:function(reason){doScoreDecision(id,false,reason);}});return;} doScoreDecision(id,true,'');}
+function doScoreDecision(id,ok,reason){var i=scoringQueue.findIndex(function(x){return x.id===id;}); if(i<0)return; var a=scoringQueue.splice(i,1)[0]; var t=T.find(function(x){return x.ref===a.ref;}); if(ok&&EXECUTIVE_LEVEL===1){sheetWrite('score_exec1_approved',{sheet:'Score_approvals',taskId:a.ref,score:a.score1,nextStage:'Scoring Executive 2'}); logAudit('Executive 1 scored',a.item,'Score '+a.score1+'/5 · moved to Executive 2'); toast('Scored and moved to Executive 2');}
   else if(ok&&EXECUTIVE_LEVEL===2){if(t){opotApplyClosedFromSubmission(t,a);} sheetWrite('score_exec2_approved_close',{sheet:'Score_approvals',taskId:a.ref,score:a.score2,nextStage:'Closed',closedDate:t?t.closed:'',closedOnTime:opotClosedOnTimeValue(t)}); logAudit('Executive 2 scored & closed',a.item,'Score '+a.score2+'/5'); toast('Approved, scored and closed');}
-  else {if(t){t.status='Open';t.closed='';} sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason,nextStage:'Returned / Reopened'}); logAudit('Scoring returned',a.item,reason||''); toast('Returned and ticket reopened','warn');}
+  else {if(t){t.status='Open';t.closed='';} sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason:reason,nextStage:'Returned / Reopened'}); logAudit('Scoring returned',a.item,reason||''); toast('Returned and ticket reopened','warn');}
   recomputeData(); renderScoring(); renderTiles(); headlines(); if(state.tab==='activity')renderActivity();}
 
 /* ---------- init ---------- */
 function init(){
-  $('#personFilter').innerHTML='<option value="all">All people</option>'+DATA.people.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');
-  $('#deptFilter').innerHTML='<option value="all">All departments</option>'+DATA.deptLate.map(d=>`<option value="${esc(d.dept)}">${esc(d.dept)}</option>`).join('');
-  const per='<option value="week">This week</option><option value="month">This month</option><option value="quarter">This quarter</option><option value="all">All time</option>';
+  $('#personFilter').innerHTML='<option value="all">All people</option>'+DATA.people.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>';}).join('');
+  $('#deptFilter').innerHTML='<option value="all">All departments</option>'+DATA.deptLate.map(function(d){return '<option value="'+esc(d.dept)+'">'+esc(d.dept)+'</option>';}).join('');
+  var per='<option value="week">This week</option><option value="month">This month</option><option value="quarter">This quarter</option><option value="all">All time</option>';
   $('#period-late').innerHTML=per;$('#period-closed').innerHTML=per;$('#period-late').value=state.period;$('#period-closed').value=state.period;
   state.repScope='person';populateRepSelect();
   state.repEmp=DATA.people.length?DATA.people[0].name:'';
   if($('#repEmp'))$('#repEmp').value=state.repEmp;
   renderWeightPanel();
-  if($('#ex-dept'))$('#ex-dept').innerHTML='<option value="all">All departments</option>'+[...new Set(T.map(t=>t.dept))].sort().map(d=>`<option>${esc(d)}</option>`).join('');
-  if($('#ex-status'))$('#ex-status').innerHTML='<option value="all">Any status</option>'+[...new Set(T.map(t=>t.status))].sort((a,b)=>(SRANK[a]||9)-(SRANK[b]||9)).map(s=>`<option>${esc(s)}</option>`).join('');
-  if($('#ex-raiser'))$('#ex-raiser').innerHTML='<option value="all">Any raiser</option>'+[...new Set(T.map(t=>t.raisedBy))].sort().map(r=>`<option>${esc(r)}</option>`).join('');
+  if($('#ex-dept'))$('#ex-dept').innerHTML='<option value="all">All departments</option>'+[...new Set(T.map(function(t){return t.dept;}))].sort().map(function(d){return '<option>'+esc(d)+'</option>';}).join('');
+  if($('#ex-status'))$('#ex-status').innerHTML='<option value="all">Any status</option>'+[...new Set(T.map(function(t){return t.status;}))].sort(function(a,b){return (SRANK[a]||9)-(SRANK[b]||9);}).map(function(s){return '<option>'+esc(s)+'</option>';}).join('');
+  if($('#ex-raiser'))$('#ex-raiser').innerHTML='<option value="all">Any raiser</option>'+[...new Set(T.map(function(t){return t.raisedBy;}))].sort().map(function(r){return '<option>'+esc(r)+'</option>';}).join('');
   buildCommands();
   $('#repPeriod').innerHTML='<option value="weekly">Weekly</option><option value="monthly" selected>Monthly</option><option value="quarterly">Quarterly</option><option value="half">Half-yearly</option><option value="yearly">Yearly</option>';
   renderTiles();headlines();renderTable('review');renderCrumbs();renderExec();if($('#pghead'))$('#pghead').classList.add('head-hidden');
@@ -2537,30 +2593,30 @@ function init(){
 
 
 /* ---------- Login, Users sheet roles, uploads and access control patch ---------- */
-const OPOT_LOGIN = {user:null,isExecutive:false,ready:false};
+var OPOT_LOGIN = {user:null,isExecutive:false,ready:false};
 function currentUserName(){return (OPOT_LOGIN.user&&OPOT_LOGIN.user.fullName)||DATA.me||'';}
 function currentUserEmail(){return (OPOT_LOGIN.user&&OPOT_LOGIN.user.email)||'';}
 function currentUserRole(){return (OPOT_LOGIN.user&&OPOT_LOGIN.user.role)||'';}
 function isExecutiveUser(){return !!(OPOT_LOGIN.isExecutive || /executive/i.test(currentUserRole()));}
-function roleLabelForUser(u){const n=String((u&&u.fullName)||''); if(/tafadzwa\s+magejo/i.test(n))return 'Executive 1'; if(/lameck\s+chindove/i.test(n))return 'Executive 2'; return (u&&u.role)||'User';}
-function execLevelForUser(u){const n=String((u&&u.fullName)||''); if(/lameck\s+chindove/i.test(n))return 2; return 1;}
+function roleLabelForUser(u){var n=String((u&&u.fullName)||''); if(/tafadzwa\s+magejo/i.test(n))return 'Executive 1'; if(/lameck\s+chindove/i.test(n))return 'Executive 2'; return (u&&u.role)||'User';}
+function execLevelForUser(u){var n=String((u&&u.fullName)||''); if(/lameck\s+chindove/i.test(n))return 2; return 1;}
 function ensureLoginUi(){
   if(document.getElementById('loginScreen'))return;
   document.body.classList.add('login-locked');
-  const d=document.createElement('div'); d.id='loginScreen'; d.className='login-screen';
-  d.innerHTML=`<form class="login-card" onsubmit="event.preventDefault(); loginSubmit();">
-    <h1>OnpointBase Login</h1><p>Sign in using the <b>Users</b> sheet. Executives see all baskets and scorecards; other users only see tasks assigned to them.</p>
-    <label>Email</label><input id="loginEmail" type="email" autocomplete="username" required>
-    <label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" required>
-    <button class="btn" id="loginBtn" type="submit">Sign in</button><div class="login-error" id="loginError"></div>
-    <div class="login-foot">Secure login · Users tab</div></form>`;
-  document.body.appendChild(d); setTimeout(()=>{const e=document.getElementById('loginEmail'); if(e)e.focus();},50);
+  var d=document.createElement('div'); d.id='loginScreen'; d.className='login-screen';
+  d.innerHTML='<form class="login-card" onsubmit="event.preventDefault(); loginSubmit();">'+
+    '<h1>OnpointBase Login</h1><p>Sign in using the <b>Users</b> sheet. Executives see all baskets and scorecards; other users only see tasks assigned to them.</p>'+
+    '<label>Email</label><input id="loginEmail" type="email" autocomplete="username" required>'+
+    '<label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" required>'+
+    '<button class="btn" id="loginBtn" type="submit">Sign in</button><div class="login-error" id="loginError"></div>'+
+    '<div class="login-foot">Secure login · Users tab</div></form>';
+  document.body.appendChild(d); setTimeout(function(){var e=document.getElementById('loginEmail'); if(e)e.focus();},50);
 }
-function clearLoginUi(){const d=document.getElementById('loginScreen'); if(d)d.remove(); document.body.classList.remove('login-locked');}
+function clearLoginUi(){var d=document.getElementById('loginScreen'); if(d)d.remove(); document.body.classList.remove('login-locked');}
 async function loginSubmit(){
-  const email=(document.getElementById('loginEmail')||{}).value||''; const password=(document.getElementById('loginPassword')||{}).value||'';
-  const err=document.getElementById('loginError'), btn=document.getElementById('loginBtn'); if(err)err.textContent=''; if(btn){btn.disabled=true;btn.textContent='Signing in...';}
-  try{const data=await jsonp(OPOT_SHEETS.writeUrl,{mode:'auth',spreadsheetId:OPOT_SHEETS.spreadsheetId,email:email,password:password});
+  var email=(document.getElementById('loginEmail')||{}).value||''; var password=(document.getElementById('loginPassword')||{}).value||'';
+  var err=document.getElementById('loginError'), btn=document.getElementById('loginBtn'); if(err)err.textContent=''; if(btn){btn.disabled=true;btn.textContent='Signing in...';}
+  try{var data=await jsonp(OPOT_SHEETS.writeUrl,{mode:'auth',spreadsheetId:OPOT_SHEETS.spreadsheetId,email:email,password:password});
     if(!data.ok)throw new Error(data.error||'Login failed');
     OPOT_LOGIN.user=data.user; OPOT_LOGIN.isExecutive=!!data.user.isExecutive; OPOT_LOGIN.ready=true;
     sessionStorage.setItem('opotUser',JSON.stringify(data.user));
@@ -2571,82 +2627,81 @@ async function loginSubmit(){
   finally{if(btn){btn.disabled=false;btn.textContent='Sign in';}}
 }
 function waitForLogin(){
-  return new Promise(resolve=>{
-    try{const saved=JSON.parse(sessionStorage.getItem('opotUser')||'null'); if(saved&&saved.email){OPOT_LOGIN.user=saved;OPOT_LOGIN.isExecutive=!!saved.isExecutive;OPOT_LOGIN.ready=true;EXECUTIVE_LEVEL=execLevelForUser(saved);DATA.me=saved.fullName||DATA.me;setConnectionStatus('connected','Logged in · '+roleLabelForUser(saved));resolve(saved);return;}}catch(e){}
-    ensureLoginUi(); const old=afterLoginReady; window.afterLoginReady=function(){resolve(OPOT_LOGIN.user); return old?old.apply(this,arguments):undefined;};
+  return new Promise(function(resolve){
+    try{var saved=JSON.parse(sessionStorage.getItem('opotUser')||'null'); if(saved&&saved.email){OPOT_LOGIN.user=saved;OPOT_LOGIN.isExecutive=!!saved.isExecutive;OPOT_LOGIN.ready=true;EXECUTIVE_LEVEL=execLevelForUser(saved);DATA.me=saved.fullName||DATA.me;setConnectionStatus('connected','Logged in · '+roleLabelForUser(saved));resolve(saved);return;}}catch(e){}
+    ensureLoginUi(); var old=afterLoginReady; window.afterLoginReady=function(){resolve(OPOT_LOGIN.user); return old?old.apply(this,arguments):undefined;};
   });
 }
 async function afterLoginReady(){return true;}
 function applyUserHeader(){
-  const v=document.querySelector('.viewas'); if(!v||!OPOT_LOGIN.user)return;
-  const label=roleLabelForUser(OPOT_LOGIN.user); v.innerHTML=`<span class="role">${esc(label)}</span> ${esc(OPOT_LOGIN.user.fullName||OPOT_LOGIN.user.email||'User')} <button class="kbtn no-print" style="margin-left:8px" onclick="logoutUser()"><span class="kk">↩</span> Logout</button>`;
+  var v=document.querySelector('.viewas'); if(!v||!OPOT_LOGIN.user)return;
+  var label=roleLabelForUser(OPOT_LOGIN.user); v.innerHTML='<span class="role">'+esc(label)+'</span> '+esc(OPOT_LOGIN.user.fullName||OPOT_LOGIN.user.email||'User')+' <button class="kbtn no-print" style="margin-left:8px" onclick="logoutUser()"><span class="kk">↩</span> Logout</button>';
 }
 function logoutUser(){sessionStorage.removeItem('opotUser'); location.reload();}
-function matchesCurrentUserTask(t){const n=currentUserName().toLowerCase(), e=currentUserEmail().toLowerCase(); return String(t.owner||'').toLowerCase()===n || String(t.submittedBy||'').toLowerCase()===n || String(t.upBy||'').toLowerCase()===n || String(t.ownerEmail||'').toLowerCase()===e;}
+function matchesCurrentUserTask(t){var n=currentUserName().toLowerCase(), e=currentUserEmail().toLowerCase(); return String(t.owner||'').toLowerCase()===n || String(t.submittedBy||'').toLowerCase()===n || String(t.upBy||'').toLowerCase()===n || String(t.ownerEmail||'').toLowerCase()===e;}
 function applyUserPermissionsBeforeRender(){
   applyUserHeader();
   if(isExecutiveUser()){
-    document.querySelectorAll('[data-tab]').forEach(b=>b.style.display=''); return;
+    document.querySelectorAll('[data-tab]').forEach(function(b){b.style.display='';}); return;
   }
-  const rows=T.filter(matchesCurrentUserTask); T.splice(0,T.length,...rows); DATA.me=currentUserName();
-  if(CFG&&CFG.mine){CFG.mine.rows=()=>T.filter(t=>matchesCurrentUserTask(t)&&matchQ(t,state.mine.q));}
-  document.querySelectorAll('[data-tab]').forEach(b=>{const tab=b.getAttribute('data-tab'); b.style.display=(tab==='mine'||tab==='assigned'||tab==='activity')?'':'none';});
+  var rows=T.filter(matchesCurrentUserTask); T.splice(0,T.length); for(var i=0;i<rows.length;i++){T.push(rows[i]);} DATA.me=currentUserName();
+  if(CFG&&CFG.mine){CFG.mine.rows=function(){return T.filter(function(t){return matchesCurrentUserTask(t)&&matchQ(t,state.mine.q);});};}
+  document.querySelectorAll('[data-tab]').forEach(function(b){var tab=b.getAttribute('data-tab'); b.style.display=(tab==='mine'||tab==='assigned'||tab==='activity')?'':'none';});
   if(state)state.tab='mine';
 }
-const _opRenderMine=renderMine;
+var _opRenderMine=renderMine;
 renderMine=function(){
   if(isExecutiveUser())return _opRenderMine();
-  const mine=T.filter(matchesCurrentUserTask); const open=mine.filter(t=>t.status==='Open').length, awaiting=mine.filter(t=>t.status==='Awaiting review').length;
+  var mine=T.filter(matchesCurrentUserTask); var open=mine.filter(function(t){return t.status==='Open';}).length, awaiting=mine.filter(function(t){return t.status==='Awaiting review';}).length;
   if($('#mine-demo'))$('#mine-demo').innerHTML=''; if($('#mine-ppl'))$('#mine-ppl').innerHTML='';
-  if($('#hl-mine'))$('#hl-mine').innerHTML=mine.length?`Welcome <span class="k">${esc(currentUserName())}</span> — you have <span class="k">${mine.length}</span> assigned tasks · <span class="k">${open}</span> open · <span class="k">${awaiting}</span> submitted.`:'No tasks are currently assigned to you.';
+  if($('#hl-mine'))$('#hl-mine').innerHTML=mine.length?'Welcome <span class="k">'+esc(currentUserName())+'</span> — you have <span class="k">'+mine.length+'</span> assigned tasks · <span class="k">'+open+'</span> open · <span class="k">'+awaiting+'</span> submitted.':'No tasks are currently assigned to you.';
   renderTable('mine');
 };
-function fileToBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||'').split(',')[1]||'');r.onerror=()=>reject(r.error||new Error('File read failed'));r.readAsDataURL(file);});}
+function fileToBase64(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onload=function(){resolve(String(r.result||'').split(',')[1]||'');};r.onerror=function(){reject(r.error||new Error('File read failed'));};r.readAsDataURL(file);});}
 async function submitTaskUpdate(ref){
-  const t=T.find(x=>x.ref===ref); if(!t)return; const note=(document.getElementById('taskSubmitComment')||{}).value||''; const files=(document.getElementById('taskSubmitFiles')||{}).files||[];
-  const btn=document.getElementById('taskSubmitBtn'); if(btn){btn.disabled=true;btn.textContent='Submitting...';}
-  try{const uploads=[]; for(const file of files){uploads.push({name:file.name,type:file.type,data:await fileToBase64(file)});}
-    const submittedAt=new Date().toISOString().slice(0,10);
-    const onTime=!!(t.due && submittedAt<=t.due);
-    const payload={action:'submit_task_update',taskId:ref,comment:note,updatedBy:currentUserName(),email:currentUserEmail(),department:(OPOT_LOGIN.user&&OPOT_LOGIN.user.department)||t.dept,files:uploads,nextStatus:'Awaiting review',nextStage:'Scoring Executive 1',closedOnTime:onTime,closedDate:submittedAt};
+  var t=T.find(function(x){return x.ref===ref;}); if(!t)return; var note=(document.getElementById('taskSubmitComment')||{}).value||''; var files=(document.getElementById('taskSubmitFiles')||{}).files||[];
+  var btn=document.getElementById('taskSubmitBtn'); if(btn){btn.disabled=true;btn.textContent='Submitting...';}
+  try{var uploads=[]; for(var f=0;f<files.length;f++){uploads.push({name:files[f].name,type:files[f].type,data:await fileToBase64(files[f])});}
+    var submittedAt=new Date().toISOString().slice(0,10);
+    var onTime=!!(t.due && submittedAt<=t.due);
+    var payload={action:'submit_task_update',taskId:ref,comment:note,updatedBy:currentUserName(),email:currentUserEmail(),department:(OPOT_LOGIN.user&&OPOT_LOGIN.user.department)||t.dept,files:uploads,nextStatus:'Awaiting review',nextStage:'Scoring Executive 1',closedOnTime:onTime,closedDate:submittedAt};
     await sheetWrite('submit_task_update',payload);
-    t.status='Awaiting review'; t.upStatus='Completed - Awaiting Review'; t.upComment=note; t.comment=note||t.comment; t.upBy=currentUserName(); t.upTs=submittedAt; t.lastResp=t.upTs; t.compReq=t.upTs; t.closed=submittedAt; t.closedOnTimePendingReview=onTime; t.overdue=!!(t.due&&submittedAt>t.due); t.daysLate=t.overdue?_daysBetween(t.due,submittedAt):0; if(uploads.length){t.proofNames=(t.proofNames||[]).concat(uploads.map(u=>u.name)); t.proofs=(t.proofs||[]).concat(uploads.map(u=>'Uploaded to Google Drive - refresh for link'));}
-    if(!reviewQueue.some(x=>x.ref===t.ref))reviewQueue.unshift({...t});
-    buildWorkflowQueues({updates:[{'Task ID':ref,'Updated By':currentUserName(),'Update Comment':note,'Stage':'Scoring Executive 1','Closed On Time':onTime?'Yes':'No'}],scoring:scoringQueue.map(x=>x.raw||{})}); recomputeData(); renderTiles(); renderMine(); if(state.tab==='review')renderReviewView(); closeTicket(); toast('Task submitted · moved to Review and Executive 1 scoring');
+    t.status='Awaiting review'; t.workflowStatus='Awaiting review'; t.upStatus='Completed - Awaiting Review'; t.upComment=note; t.comment=note||t.comment; t.upBy=currentUserName(); t.upTs=submittedAt; t.lastResp=t.upTs; t.compReq=t.upTs; t.closed=submittedAt; t.closedOnTimePendingReview=onTime; t.overdue=!!(t.due&&submittedAt>t.due); t.daysLate=t.overdue?_daysBetween(t.due,submittedAt):0; if(uploads.length){t.proofNames=(t.proofNames||[]).concat(uploads.map(function(u){return u.name;})); t.proofs=(t.proofs||[]).concat(uploads.map(function(u){return 'Uploaded to Google Drive - refresh for link';}));}
+    if(!reviewQueue.some(function(x){return x.ref===t.ref;}))reviewQueue.unshift(Object.assign({},t));
+    buildWorkflowQueues({updates:[{'Task ID':ref,'Updated By':currentUserName(),'Update Comment':note,'Stage':'Scoring Executive 1','Closed On Time':onTime?'Yes':'No'}],scoring:scoringQueue.map(function(x){return x.raw||{};})}); recomputeData(); renderTiles(); renderMine(); if(state.tab==='review')renderReviewView(); closeTicket(); toast('Task submitted · moved to Review and Executive 1 scoring');
   }catch(e){alert('Submit failed: '+(e.message||e));}
   finally{if(btn){btn.disabled=false;btn.textContent='Submit update';}}
 }
-const _opOpenTicket=openTicket;
-openTicket=function(ref,keepList){_opOpenTicket(ref,keepList); const t=T.find(x=>x.ref===ref); if(!t)return;
-  if(!isExecutiveUser() && matchesCurrentUserTask(t) && t.status!=='Closed'){
-    const host=document.getElementById('dw-body'); if(host){host.insertAdjacentHTML('beforeend',`<div class="task-submit-box"><div class="t">Submit update / documents</div><textarea id="taskSubmitComment" placeholder="Update comment / completion note"></textarea><input id="taskSubmitFiles" type="file" multiple><button class="btn primary" id="taskSubmitBtn" onclick="submitTaskUpdate('${esc(ref)}')">Submit update</button><div class="hint">Files upload to Google Drive through Apps Script, then links are written to the task row and visible after refresh.</div></div>`);} }
+var _opOpenTicket=openTicket;
+openTicket=function(ref,keepList){_opOpenTicket(ref,keepList); var t=T.find(function(x){return x.ref===ref;}); if(!t)return;
+  if(!isExecutiveUser() && matchesCurrentUserTask(t) && !isTicketClosed(t)){
+    var host=document.getElementById('dw-body'); if(host){host.insertAdjacentHTML('beforeend','<div class="task-submit-box"><div class="t">Submit update / documents</div><textarea id="taskSubmitComment" placeholder="Update comment / completion note"></textarea><input id="taskSubmitFiles" type="file" multiple><button class="btn primary" id="taskSubmitBtn" onclick="submitTaskUpdate(\''+esc(ref)+'\')">Submit update</button><div class="hint">Files upload to Google Drive through Apps Script, then links are written to the task row and visible after refresh.</div></div>');} }
 };
-const _opOpenReportFor=openReportFor;
+var _opOpenReportFor=openReportFor;
 openReportFor=function(emp){if(!isExecutiveUser() && String(emp||'').toLowerCase()!==currentUserName().toLowerCase()){toast('Scorecards are restricted to executives','warn');return;} return _opOpenReportFor(emp);};
 function archivePastMonthClient(){return sheetWrite('archive_month_end',{month:new Date().toISOString().slice(0,7)});}
-const _origBoot=onpointEnhancedBoot;
+var _origBoot=onpointEnhancedBoot;
 onpointEnhancedBoot=async function(){
   await waitForLogin(); await _origBoot();
   applyUserPermissionsBeforeRender();
-  // Critical tickets are moved to Review only when the user clicks the Critical basket action button.
   window.moveCriticalBasketToReview=window.moveCriticalBasketToReview||function(){return moveCriticalBasketToReview();};
   recomputeData();
 };
-const _origInit=init;
+var _origInit=init;
 init=function(){_origInit(); applyUserHeader(); if(!isExecutiveUser())setTab('mine');};
 
 
 
 /* ---------- Task creation live Users autofill, Gmail notice, optional WhatsApp ---------- */
 function opotUserRows(){
-  const rows=[];
-  if(window.liveRows && Array.isArray(liveRows['Users'])) rows.push(...liveRows['Users']);
+  var rows=[];
+  if(window.liveRows && Array.isArray(liveRows['Users'])) rows.push.apply(rows,liveRows['Users']);
   return rows;
 }
 function opotEnsureUsersLoaded(){
   if(opotUserRows().length) return Promise.resolve(opotUserRows());
   if(typeof firstSheet==='function'){
-    return firstSheet('Users').then(rows=>{liveRows['Users']=rows||[]; return liveRows['Users'];}).catch(()=>[]);
+    return firstSheet('Users').then(function(rows){liveRows['Users']=rows||[]; return liveRows['Users'];}).catch(function(){return [];});
   }
   return Promise.resolve([]);
 }
@@ -2655,11 +2710,11 @@ function opotUserEmail(u){return String(_pick(u,['Email','Email Address'],'')).t
 function opotUserDept(u){return String(_pick(u,['Department','Dept'],'')).trim();}
 function opotUserWhatsapp(u){return String(_pick(u,['Whatsapp No.','WhatsApp No','Whatsapp','WhatsApp','Phone','Mobile'],'')).trim();}
 function opotUserCostCenter(u){return String(_pick(u,['CostCenter','Cost Center'],'')).trim();}
-function opotActiveUsers(){return opotUserRows().filter(u=>{const n=opotUserName(u); const status=String(_pick(u,['Status'],'Active')); return n && !/inactive|disabled|left|terminated/i.test(status);}).sort((a,b)=>opotUserName(a).localeCompare(opotUserName(b)));}
-function opotFindUserByName(name){const n=String(name||'').trim().toLowerCase(); if(!n)return null; return opotActiveUsers().find(u=>opotUserName(u).toLowerCase()===n) || opotActiveUsers().find(u=>opotUserName(u).toLowerCase().includes(n));}
+function opotActiveUsers(){return opotUserRows().filter(function(u){var n=opotUserName(u); var status=String(_pick(u,['Status'],'Active')); return n && !/inactive|disabled|left|terminated/i.test(status);}).sort(function(a,b){return opotUserName(a).localeCompare(opotUserName(b));});}
+function opotFindUserByName(name){var n=String(name||'').trim().toLowerCase(); if(!n)return null; var users=opotActiveUsers(); return users.find(function(u){return opotUserName(u).toLowerCase()===n;}) || users.find(function(u){return opotUserName(u).toLowerCase().includes(n);});}
 function cfAssigneeChanged(){
-  const owner=($('#cf-owner')||{}).value||''; const u=opotFindUserByName(owner);
-  const set=(id,val)=>{const el=$(id); if(el)el.value=val||'';};
+  var owner=($('#cf-owner')||{}).value||''; var u=opotFindUserByName(owner);
+  var set=function(id,val){var el=$(id); if(el)el.value=val||'';};
   set('#cf-owner-email', u?opotUserEmail(u):'');
   set('#cf-owner-dept', u?opotUserDept(u):'');
   set('#cf-owner-whatsapp', u?opotUserWhatsapp(u):'');
@@ -2668,30 +2723,31 @@ function cfAssigneeChanged(){
   cfPreview();
 }
 function cfWhatsappUrl(number, text){
-  const digits=String(number||'').replace(/[^0-9]/g,'');
+  var digits=String(number||'').replace(/[^0-9]/g,'');
   if(!digits)return '';
   return 'https://wa.me/'+digits+'?text='+encodeURIComponent(text||'');
 }
-const _taskCreateOriginalRenderCreate = renderCreate;
-let _taskCreateUsersLoading = false;
-let _taskCreateUsersLoadedOnce = false;
+var _taskCreateOriginalRenderCreate = renderCreate;
+var _taskCreateUsersLoading = false;
+var _taskCreateUsersLoadedOnce = false;
 renderCreate=function(){
-  const users=opotActiveUsers();
+  var users=opotActiveUsers();
   if(!users.length && !_taskCreateUsersLoading && !_taskCreateUsersLoadedOnce){
     _taskCreateUsersLoading = true;
-    opotEnsureUsersLoaded().then(()=>{
+    opotEnsureUsersLoaded().then(function(){
       _taskCreateUsersLoading = false;
       _taskCreateUsersLoadedOnce = true;
       if(state.tab==='create') renderCreate();
-    }).catch(()=>{ _taskCreateUsersLoading = false; _taskCreateUsersLoadedOnce = true; });
+    }).catch(function(){ _taskCreateUsersLoading = false; _taskCreateUsersLoadedOnce = true; });
   }
-  const DEPTS=[...new Set([].concat(T.map(t=>t.dept),users.map(opotUserDept)).filter(Boolean))].sort();
-  const OWN=users.length?users.map(opotUserName):[...new Set(T.map(t=>t.owner))].filter(Boolean).sort();
-  const today=_iso(ASAT);
-  const mode=state.cf&&state.cf.mode?state.cf.mode:'once';
-  const dopt=DEPTS.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
-  const own=OWN.map(o=>`<option value="${esc(o)}">`).join('');
-  $('#create-body').innerHTML=`
+  var DEPTS=[].concat(T.map(function(t){return t.dept;}),users.map(opotUserDept)).filter(Boolean);
+  DEPTS=[...new Set(DEPTS)].sort();
+  var OWN=users.length?users.map(opotUserName):[...new Set(T.map(function(t){return t.owner;}))].filter(Boolean).sort();
+  var today=_iso(ASAT);
+  var mode=state.cf&&state.cf.mode?state.cf.mode:'once';
+  var dopt=DEPTS.map(function(d){return '<option value="'+esc(d)+'">'+esc(d)+'</option>';}).join('');
+  var own=OWN.map(function(o){return '<option value="'+esc(o)+'">';}).join('');
+  $('#create-body').innerHTML=function(){/*
   <div id="cf-success"></div>
   <div class="cf-banner"><span>&#128279;</span><span><b>Live task creation.</b> Assignee details are pulled from the <b>Users</b> sheet and the ticket is posted to the <b>Tasks</b> tab. An email is sent automatically through Apps Script. WhatsApp opens only when selected.</span></div>
 
@@ -2760,54 +2816,55 @@ renderCreate=function(){
     <button class="btn ghost" onclick="cfReset(false)">Clear</button>
   </div>
   <div class="cf-err" id="cf-err"></div>`;
+  }().replace(/\${mode}/g,mode).replace(/\${today}/g,today).replace(/\${dopt}/g,dopt).replace(/\${own}/g,own).replace(/\${esc\(currentUserName\?currentUserName\(\):DATA.me\)}/g,esc(currentUserName?currentUserName():DATA.me));
   cfPreview();
 };
-const _taskCreateOriginalCfPreview = cfPreview;
+var _taskCreateOriginalCfPreview = cfPreview;
 cfPreview=function(){
   _taskCreateOriginalCfPreview();
-  const p=$('#cf-preview'); if(!p)return;
-  const email=($('#cf-owner-email')||{}).value||'';
-  const wa=($('#cf-owner-whatsapp')||{}).value||'';
-  const cc=($('#cf-owner-costcenter')||{}).value||'';
-  const od=($('#cf-owner-dept')||{}).value||'';
-  const add=`<div class="cf-kv"><span class="k">Assignee email</span><span class="v">${email?esc(email):'—'}</span></div>
-    <div class="cf-kv"><span class="k">Assignee department</span><span class="v">${od?esc(od):'—'}</span></div>
-    <div class="cf-kv"><span class="k">Assignee WhatsApp</span><span class="v">${wa?esc(wa):'—'}</span></div>
-    <div class="cf-kv"><span class="k">CostCenter</span><span class="v">${cc?esc(cc):'—'}</span></div>
-    <div class="cf-kv"><span class="k">Google Sheet</span><span class="v">Tasks</span></div>`;
+  var p=$('#cf-preview'); if(!p)return;
+  var email=($('#cf-owner-email')||{}).value||'';
+  var wa=($('#cf-owner-whatsapp')||{}).value||'';
+  var cc=($('#cf-owner-costcenter')||{}).value||'';
+  var od=($('#cf-owner-dept')||{}).value||'';
+  var add='<div class="cf-kv"><span class="k">Assignee email</span><span class="v">'+(email?esc(email):'—')+'</span></div>'+
+    '<div class="cf-kv"><span class="k">Assignee department</span><span class="v">'+(od?esc(od):'—')+'</span></div>'+
+    '<div class="cf-kv"><span class="k">Assignee WhatsApp</span><span class="v">'+(wa?esc(wa):'—')+'</span></div>'+
+    '<div class="cf-kv"><span class="k">CostCenter</span><span class="v">'+(cc?esc(cc):'—')+'</span></div>'+
+    '<div class="cf-kv"><span class="k">Google Sheet</span><span class="v">Tasks</span></div>';
   p.innerHTML=p.innerHTML.replace('<div class="cf-occ" style="color:var(--ink3);margin-top:10px">Held in this session \· exportable as JSON</div>', '<div class="cf-occ" style="color:var(--ink3);margin-top:10px">Writes live to Google Sheet tab: Tasks</div>');
   p.insertAdjacentHTML('beforeend',add);
 };
-const _taskCreateOriginalCfValidate = cfValidate;
+var _taskCreateOriginalCfValidate = cfValidate;
 cfValidate=function(){
-  const v=_taskCreateOriginalCfValidate(); if(!v.ok)return v;
+  var v=_taskCreateOriginalCfValidate(); if(!v.ok)return v;
   if(!($('#cf-owner-email')||{}).value) return {ok:false,msg:'Select an assignee from the Users sheet so email, department and WhatsApp can auto-fill.',focus:'#cf-owner'};
   return {ok:true};
 };
 cfSubmit=async function(){
-  const v=cfValidate(); const err=$('#cf-err');
-  if(!v.ok){if(err)err.textContent=v.msg; const el=$(v.focus); if(el)el.focus(); return;}
+  var v=cfValidate(); var err=$('#cf-err');
+  if(!v.ok){if(err)err.textContent=v.msg; var el=$(v.focus); if(el)el.focus(); return;}
   if(err)err.textContent='';
-  const mode=state.cf&&state.cf.mode?state.cf.mode:'once';
-  const ref=cfGenRef();
-  const title=$('#cf-title').value.trim();
-  const dept=$('#cf-dept').value || ($('#cf-owner-dept')||{}).value || '';
-  const prio=$('#cf-prio').value;
-  const owner=$('#cf-owner').value.trim();
-  const assigneeEmail=($('#cf-owner-email')||{}).value||'';
-  const assigneeWhatsapp=($('#cf-owner-whatsapp')||{}).value||'';
-  const assigneeCostCenter=($('#cf-owner-costcenter')||{}).value||'';
-  const raisedBy=(($('#cf-raisedby').value)||'').trim()||currentUserName();
-  const desc=(($('#cf-desc').value)||'').trim();
-  let created,due,compreq='',rec=null;
+  var mode=state.cf&&state.cf.mode?state.cf.mode:'once';
+  var ref=cfGenRef();
+  var title=$('#cf-title').value.trim();
+  var dept=$('#cf-dept').value || ($('#cf-owner-dept')||{}).value || '';
+  var prio=$('#cf-prio').value;
+  var owner=$('#cf-owner').value.trim();
+  var assigneeEmail=($('#cf-owner-email')||{}).value||'';
+  var assigneeWhatsapp=($('#cf-owner-whatsapp')||{}).value||'';
+  var assigneeCostCenter=($('#cf-owner-costcenter')||{}).value||'';
+  var raisedBy=(($('#cf-raisedby').value)||'').trim()||currentUserName();
+  var desc=(($('#cf-desc').value)||'').trim();
+  var created,due,compreq='',rec=null;
   if(mode==='once'){created=$('#cf-created').value||_iso(ASAT); due=$('#cf-due').value; compreq=$('#cf-compreq').value||'';}
-  else {const sch=cfSchedule(1); const first=sch.list[0]; created=_iso(ASAT); due=_iso(first.due); rec={freq:sch.freq,interval:sch.interval,start:$('#cf-start').value,offset:sch.offset,end:sch.endmode,count:sch.total,until:sch.until};}
-  const dueD=_parseD(due); const overdue=!!(dueD&&dueD<ASAT); const daysLate=overdue?Math.round((ASAT-dueD)/86400000):0;
-  const tk={ref,name:title,dept,prio,status:'Open',owner,ownerEmail:assigneeEmail,ownerWhatsapp:assigneeWhatsapp,costCenter:assigneeCostCenter,created,due,closed:'',submittedBy:owner,overdue,daysLate,daysWaiting:0,desc,comment:'',upStatus:'',upComment:'',upBy:'',upTs:'',lastResp:'',compReq:compreq,proofs:[],raisedBy,draft:false};
+  else {var sch=cfSchedule(1); var first=sch.list[0]; created=_iso(ASAT); due=_iso(first.due); rec={freq:sch.freq,interval:sch.interval,start:$('#cf-start').value,offset:sch.offset,end:sch.endmode,count:sch.total,until:sch.until};}
+  var dueD=_parseD(due); var overdue=!!(dueD&&dueD<ASAT); var daysLate=overdue?Math.round((ASAT-dueD)/86400000):0;
+  var tk={ref:ref,name:title,dept:dept,prio:prio,status:'Open',workflowStatus:'Open',owner:owner,ownerEmail:assigneeEmail,ownerWhatsapp:assigneeWhatsapp,costCenter:assigneeCostCenter,created:created,due:due,closed:'',submittedBy:owner,overdue:overdue,daysLate:daysLate,daysWaiting:0,desc:desc,comment:'',upStatus:'',upComment:'',upBy:'',upTs:'',lastResp:'',compReq:compreq,proofs:[],raisedBy:raisedBy,draft:false};
   if(rec){tk.recurring=true; tk.rec=rec;}
-  const btn=document.querySelector('#v-create .cf-actions .btn.primary'); if(btn){btn.disabled=true;btn.textContent='Creating ticket...';}
+  var btn=document.querySelector('#v-create .cf-actions .btn.primary'); if(btn){btn.disabled=true;btn.textContent='Creating ticket...';}
   try{
-    const notificationMessage=[
+    var notificationMessage=[
       'Hello '+owner,
       '',
       'A new OnpointBase task has been assigned to you.',
@@ -2826,9 +2883,9 @@ cfSubmit=async function(){
       '',
       'This is an automated OnpointBase notification.'
     ].join('\n');
-    await sheetWrite('create_task',{sheet:'Tasks',task:tk,ref,title,department:dept,priority:prio,assignee:owner,assigneeEmail,assigneeWhatsapp,costCenter:assigneeCostCenter,created,due,completionRequired:compreq,description:desc,raisedBy,raisedByEmail:currentUserEmail(),recurring:!!rec,recurrence:rec,sendGmail:true,gmailTo:assigneeEmail,gmailSubject:'New OnpointBase Task: '+ref+' - '+title,gmailBody:notificationMessage,sendWhatsApp:true,whatsappTo:assigneeWhatsapp,whatsappBody:notificationMessage});
+    await sheetWrite('create_task',{sheet:'Tasks',task:tk,ref:ref,title:title,department:dept,priority:prio,assignee:owner,assigneeEmail:assigneeEmail,assigneeWhatsapp:assigneeWhatsapp,costCenter:assigneeCostCenter,created:created,due:due,completionRequired:compreq,description:desc,raisedBy:raisedBy,raisedByEmail:currentUserEmail(),recurring:!!rec,recurrence:rec,sendGmail:true,gmailTo:assigneeEmail,gmailSubject:'New OnpointBase Task: '+ref+' - '+title,gmailBody:notificationMessage,sendWhatsApp:true,whatsappTo:assigneeWhatsapp,whatsappBody:notificationMessage});
     T.unshift(tk); recomputeSummary(); recomputeData(); renderTiles(); if(state.tab==='exec')renderExec(); logAudit('Created ticket',ref,'Posted to Google Sheet Tasks'); cfLastRef=ref;
-    const whatsappText=[
+    var whatsappText=[
       'Hello '+owner,
       '',
       'A new OnpointBase task has been assigned to you.',
@@ -2847,21 +2904,21 @@ cfSubmit=async function(){
       '',
       'This is an automated OnpointBase notification.'
     ].join('\n');
-    const waUrl=cfWhatsappUrl(assigneeWhatsapp, whatsappText);
-    $('#cf-success').innerHTML=`<div class="cf-ok"><h3>&#10003; Ticket created and posted &mdash; <span class="ref">${esc(ref)}</span></h3>
-      <div class="cf-hint">Saved to Google Sheet tab <b>Tasks</b>. Email notification sent automatically to ${esc(assigneeEmail)}.</div>
-      <div class="row">
-        <button class="btn primary sm" onclick="openTicket('${esc(ref)}')">Open ticket</button>
-        ${waUrl?`<button class="btn sm" onclick="window.open('${esc(waUrl)}','_blank')">Open WhatsApp</button>`:''}
-        <button class="btn ghost sm" onclick="cfReset(true)">Create another</button>
-      </div></div>`;
+    var waUrl=cfWhatsappUrl(assigneeWhatsapp, whatsappText);
+    $('#cf-success').innerHTML='<div class="cf-ok"><h3>&#10003; Ticket created and posted &mdash; <span class="ref">'+esc(ref)+'</span></h3>'+
+      '<div class="cf-hint">Saved to Google Sheet tab <b>Tasks</b>. Email notification sent automatically to '+esc(assigneeEmail)+'.</div>'+
+      '<div class="row">'+
+        '<button class="btn primary sm" onclick="openTicket(\''+esc(ref)+'\')">Open ticket</button>'+
+        (waUrl?'<button class="btn sm" onclick="window.open(\''+esc(waUrl)+'\',\'_blank\')">Open WhatsApp</button>':'')+
+        '<button class="btn ghost sm" onclick="cfReset(true)">Create another</button>'+
+      '</div></div>';
     if(waUrl){ if(confirm('Ticket created and email sent. Send the same message on WhatsApp to '+owner+' now?')) window.open(waUrl,'_blank'); }
-    cfClearInputs(); const o=$('#cf-owner'); if(o)o.value=''; ['#cf-owner-email','#cf-owner-whatsapp','#cf-owner-costcenter','#cf-owner-dept'].forEach(id=>{const el=$(id); if(el)el.value='';}); cfPreview(); toast('Ticket '+ref+' created · email sent'); window.scrollTo({top:0,behavior:'smooth'});
+    cfClearInputs(); var o=$('#cf-owner'); if(o)o.value=''; ['#cf-owner-email','#cf-owner-whatsapp','#cf-owner-costcenter','#cf-owner-dept'].forEach(function(id){var el=$(id); if(el)el.value='';}); cfPreview(); toast('Ticket '+ref+' created · email sent'); window.scrollTo({top:0,behavior:'smooth'});
   }catch(e){if(err)err.textContent='Create failed: '+(e.message||e); toast('Ticket create failed','warn');}
   finally{if(btn){btn.disabled=false;btn.textContent='Create ticket';}}
 };
-const _taskCreateOriginalTaskFromRow = taskFromRow;
-taskFromRow=function(r){const t=_taskCreateOriginalTaskFromRow(r); t.ownerEmail=String(_pick(r,['Assignee Email','Owner Email','Email'],'')).trim(); t.ownerWhatsapp=String(_pick(r,['Assignee Whatsapp','Assignee WhatsApp','Whatsapp No.','WhatsApp No'],'')).trim(); t.costCenter=String(_pick(r,['CostCenter','Cost Center'],'')).trim(); return t;};
+var _taskCreateOriginalTaskFromRow = taskFromRow;
+taskFromRow=function(r){var t=_taskCreateOriginalTaskFromRow(r); t.ownerEmail=String(_pick(r,['Assignee Email','Owner Email','Email'],'')).trim(); t.ownerWhatsapp=String(_pick(r,['Assignee Whatsapp','Assignee WhatsApp','Whatsapp No.','WhatsApp No'],'')).trim(); t.costCenter=String(_pick(r,['CostCenter','Cost Center'],'')).trim(); return t;};
 
 
 
@@ -2870,69 +2927,70 @@ function goCreate(mode){
   state.cf=state.cf||{}; state.cf.mode=mode||state.cf.mode||'once';
   if(typeof setTab==='function')setTab('create');
   else {
-    document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='v-create'));
-    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab==='create'));
+    document.querySelectorAll('.view').forEach(function(v){v.classList.toggle('active',v.id==='v-create');});
+    document.querySelectorAll('.tab').forEach(function(b){b.classList.toggle('active',b.dataset.tab==='create');});
   }
-  setTimeout(()=>{try{if(typeof cfMode==='function')cfMode(state.cf.mode);}catch(e){console.warn(e);}
-    const target=document.getElementById(state.cf.mode==='recurring'?'cf-rec':'cf-once')||document.getElementById('v-create');
+  setTimeout(function(){try{if(typeof cfMode==='function')cfMode(state.cf.mode);}catch(e){console.warn(e);}
+    var target=document.getElementById(state.cf.mode==='recurring'?'cf-rec':'cf-once')||document.getElementById('v-create');
     if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
   },50);
 }
 function routePanel(tab,opts){
   opts=opts||{}; setTab(tab);
-  setTimeout(()=>{
+  setTimeout(function(){
     if(tab==='late'&&opts.dept&&typeof setDept==='function')setDept(opts.dept);
     if(tab==='assigned'&&opts.person&&typeof setPerson==='function')setPerson(opts.person);
-    const el=document.querySelector('#v-'+tab+' .tablecard, #v-'+tab); if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+    var el=document.querySelector('#v-'+tab+' .tablecard, #v-'+tab); if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
   },50);
 }
 function criticalVisibleRows(){
-  const cfg=CFG.critical; let rows=cfg.rows();
-  const s=cfg.sort, col=cfg.cols.find(c=>c.k===s.key);
-  if(col&&col.sort)rows=rows.slice().sort((a,b)=>{const x=col.sort(a),y=col.sort(b);return (x<y?-1:x>y?1:0)*s.dir;});
+  var cfg=CFG.critical; var rows=cfg.rows();
+  var s=cfg.sort, col=cfg.cols.find(function(c){return c.k===s.key;});
+  if(col&&col.sort)rows=rows.slice().sort(function(a,b){var x=col.sort(a),y=col.sort(b);return (x<y?-1:x>y?1:0)*s.dir;});
   return rows;
 }
-function selectedCriticalRefs(){return criticalVisibleRows().filter(t=>state.critSel&&state.critSel[t.ref]).map(t=>t.ref);}
+function selectedCriticalRefs(){return criticalVisibleRows().filter(function(t){return state.critSel&&state.critSel[t.ref];}).map(function(t){return t.ref;});}
 function toggleCriticalSel(ref,on){state.critSel=state.critSel||{};if(on)state.critSel[ref]=true;else delete state.critSel[ref];updateCriticalBulkBar();}
-function toggleCriticalSelAll(on){criticalVisibleRows().forEach(t=>{state.critSel=state.critSel||{};if(on)state.critSel[t.ref]=true;else delete state.critSel[t.ref];});renderTable('critical');}
+function toggleCriticalSelAll(on){criticalVisibleRows().forEach(function(t){state.critSel=state.critSel||{};if(on)state.critSel[t.ref]=true;else delete state.critSel[t.ref];});renderTable('critical');}
 function criticalSelectAllVisible(on){toggleCriticalSelAll(on!==false);}
 function clearCriticalSel(){state.critSel={};renderTable('critical');}
 function updateCriticalBulkBar(){
-  const bar=document.getElementById('critical-bulkbar'); if(!bar)return;
-  const refs=selectedCriticalRefs(); const n=refs.length;
-  bar.hidden=!n; const lab=document.getElementById('critical-bulk-n'); if(lab)lab.textContent=n+' selected';
-  const all=document.getElementById('crit-sel-all'); if(all){const rows=criticalVisibleRows();all.checked=!!rows.length&&rows.every(t=>state.critSel&&state.critSel[t.ref]);all.indeterminate=rows.some(t=>state.critSel&&state.critSel[t.ref])&&!all.checked;}
+  var bar=document.getElementById('critical-bulkbar'); if(!bar)return;
+  var refs=selectedCriticalRefs(); var n=refs.length;
+  bar.hidden=!n; var lab=document.getElementById('critical-bulk-n'); if(lab)lab.textContent=n+' selected';
+  var all=document.getElementById('crit-sel-all'); if(all){var rows=criticalVisibleRows();all.checked=!!rows.length&&rows.every(function(t){return state.critSel&&state.critSel[t.ref];});all.indeterminate=rows.some(function(t){return state.critSel&&state.critSel[t.ref];})&&!all.checked;}
 }
 function applyCriticalLocal(refs,action){
-  const movedAt=new Date().toISOString().slice(0,10);
-  refs.forEach(r=>{
-    const t=T.find(x=>x.ref===r); if(!t)return;
+  var movedAt=new Date().toISOString().slice(0,10);
+  refs.forEach(function(r){
+    var t=T.find(function(x){return x.ref===r;}); if(!t)return;
+    if(isTicketClosed(t))return;
     if(action==='review'||action==='review_high'){
-      t.status='Awaiting review'; t.upStatus='Ready for Executive Review'; t.upTs=t.upTs||movedAt; t.lastResp=t.lastResp||movedAt; t.daysWaiting=t.daysWaiting||0;
-      if(!reviewQueue.some(x=>x.ref===t.ref))reviewQueue.unshift({...t});
+      t.status='Awaiting review'; t.workflowStatus='Awaiting review'; t.upStatus='Ready for Executive Review'; t.upTs=t.upTs||movedAt; t.lastResp=t.lastResp||movedAt; t.daysWaiting=t.daysWaiting||0;
+      if(!reviewQueue.some(function(x){return x.ref===t.ref;}))reviewQueue.unshift(Object.assign({},t));
     }
     if(action==='close'){opotApplyClosedFromSubmission(t);}
     if(action==='high'||action==='review_high'){t.prio='High';}
   });
 }
 async function runCriticalBulkAction(){
-  const refs=selectedCriticalRefs(); if(!refs.length){toast('Select one or more Critical tasks first.','warn');return;}
-  const action=(document.getElementById('critical-action')||{}).value||'review';
+  var refs=selectedCriticalRefs(); if(!refs.length){toast('Select one or more Critical tasks first.','warn');return;}
+  var action=(document.getElementById('critical-action')||{}).value||'review';
   applyCriticalLocal(refs,action);
-  const updates={};
+  var updates={};
   if(action==='review'||action==='review_high')Object.assign(updates,{Status:'Awaiting review','Task Status':'Awaiting review','Workflow Stage':'Scoring Executive 1','Scoring Status':'Scoring Executive 1','Update Status':'Ready for Executive 1 Review'});
   if(action==='close')Object.assign(updates,{Status:'Closed','Task Status':'Closed','Workflow Stage':'Closed','Scoring Status':'Closed','Closed Date':new Date().toISOString().slice(0,10)});
   if(action==='high'||action==='review_high')Object.assign(updates,{Priority:'High',Prio:'High'});
   try{await sheetWrite('bulk_update_tasks',{sheet:'Tasks',taskIds:refs,updates:updates,bulkAction:action});}catch(e){console.warn(e);}
-  refs.forEach(r=>logAudit('Critical bulk action',r,action));
+  refs.forEach(function(r){logAudit('Critical bulk action',r,action);});
   state.critSel={};
   recomputeData(); renderTiles(); headlines(); renderTable('critical'); renderReviewView(); if(state.tab==='exec')renderExec(); if(state.tab==='activity')renderActivity();
-  const label={review:'moved to Review',close:'closed',high:'downgraded to High',review_high:'moved to Review and downgraded to High'}[action]||'updated';
+  var label={review:'moved to Review',close:'closed',high:'downgraded to High',review_high:'moved to Review and downgraded to High'}[action]||'updated';
   toast(refs.length+' critical task'+(refs.length===1?'':'s')+' '+label);
 }
 async function moveCriticalBasketToReview(){
   criticalSelectAllVisible(true);
-  const actionEl=document.getElementById('critical-action'); if(actionEl)actionEl.value='review';
+  var actionEl=document.getElementById('critical-action'); if(actionEl)actionEl.value='review';
   return runCriticalBulkAction();
 }
 function refreshAfterWorkflowChange(){
@@ -2943,43 +3001,43 @@ function refreshAfterWorkflowChange(){
   if(state.tab==='exec')renderExec();
   if(state.tab==='scoring')renderScoring();
 }
-const _patchedDoReview=doReview;
+var _patchedDoReview=doReview;
 doReview=function(r,ok,reason){
-  const t=T.find(x=>x.ref===r);
-  if(t&&ok){opotApplyClosedFromSubmission(t);sheetWrite('review_approved_close',{sheet:'Tasks',taskId:r,nextStatus:'Closed',closedDate:t.closed,closedOnTime:opotClosedOnTimeValue(t)}).catch(()=>{});} 
-  if(t&&!ok){t.status='Open';t.closed='';t.closedOnTimePendingReview=false;sheetWrite('review_returned_reopen',{sheet:'Tasks',taskId:r,nextStatus:'Open',reason:reason||''}).catch(()=>{});} 
+  var t=T.find(function(x){return x.ref===r;});
+  if(t&&ok){opotApplyClosedFromSubmission(t);sheetWrite('review_approved_close',{sheet:'Tasks',taskId:r,nextStatus:'Closed',closedDate:t.closed,closedOnTime:opotClosedOnTimeValue(t)}).catch(function(){});} 
+  if(t&&!ok){t.status='Open';t.workflowStatus='Open';t.closed='';t.closedOnTimePendingReview=false;sheetWrite('review_returned_reopen',{sheet:'Tasks',taskId:r,nextStatus:'Open',reason:reason||''}).catch(function(){});} 
   _patchedDoReview(r,ok,reason); refreshAfterWorkflowChange();
 };
-const _patchedDoBulkReview=doBulkReview;
+var _patchedDoBulkReview=doBulkReview;
 doBulkReview=function(refs,ok,reason){
-  refs.forEach(r=>{const t=T.find(x=>x.ref===r); if(!t)return; if(ok){opotApplyClosedFromSubmission(t);}else{t.status='Open';t.closed='';t.closedOnTimePendingReview=false;}});
-  sheetWrite(ok?'review_bulk_approved_close':'review_bulk_returned_reopen',{sheet:'Tasks',taskIds:refs,nextStatus:ok?'Closed':'Open',reason:reason||'',closedDate:ok?refs.map(r=>{const t=T.find(x=>x.ref===r);return t&&t.closed?t.closed:'';}).filter(Boolean).join(', '):''}).catch(()=>{});
+  refs.forEach(function(r){var t=T.find(function(x){return x.ref===r;}); if(!t)return; if(isTicketClosed(t))return; if(ok){opotApplyClosedFromSubmission(t);}else{t.status='Open';t.workflowStatus='Open';t.closed='';t.closedOnTimePendingReview=false;}});
+  sheetWrite(ok?'review_bulk_approved_close':'review_bulk_returned_reopen',{sheet:'Tasks',taskIds:refs,nextStatus:ok?'Closed':'Open',reason:reason||'',closedDate:ok?refs.map(function(r){var t=T.find(function(x){return x.ref===r;});return t&&t.closed?t.closed:'';}).filter(Boolean).join(', '):''}).catch(function(){});
   _patchedDoBulkReview(refs,ok,reason); refreshAfterWorkflowChange();
 };
 
 
 
 /* ---------- Targeted patch only: Users-sheet assignee list/autofill + Critical to Review ---------- */
-const OPOT_USERS_SHEET_ID_TARGET = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
-let opotUsersSheetCache = null;
-let opotUsersSheetLoading = null;
+var OPOT_USERS_SHEET_ID_TARGET = '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8';
+var opotUsersSheetCache = null;
+var opotUsersSheetLoading = null;
 function opotUsersSheetUrl(){
   return 'https://docs.google.com/spreadsheets/d/'+OPOT_USERS_SHEET_ID_TARGET+'/gviz/tq?tqx=out:json&sheet=Users&t='+(Date.now());
 }
 async function opotFetchUsersSheetDirect(){
-  const res = await fetch(opotUsersSheetUrl(), {cache:'no-store'});
+  var res = await fetch(opotUsersSheetUrl(), {cache:'no-store'});
   if(!res.ok) throw new Error('Users sheet fetch failed: '+res.status);
-  const txt = await res.text();
-  const json = JSON.parse(txt.substring(txt.indexOf('{'), txt.lastIndexOf('}')+1));
-  const cols = (json.table.cols||[]).map((c,i)=>c.label||c.id||('Column '+(i+1)));
-  return (json.table.rows||[]).map(r=>{const o={}; (r.c||[]).forEach((c,i)=>o[cols[i]]=c?(c.f||c.v||''):'' ); return o;})
-    .filter(o=>String(_pick(o,['Full Name','Email','User ID'],'')).trim()!=='');
+  var txt = await res.text();
+  var json = JSON.parse(txt.substring(txt.indexOf('{'), txt.lastIndexOf('}')+1));
+  var cols = (json.table.cols||[]).map(function(c,i){return c.label||c.id||('Column '+(i+1));});
+  return (json.table.rows||[]).map(function(r){var o={}; (r.c||[]).forEach(function(c,i){o[cols[i]]=c?(c.f||c.v||''):'';}); return o;})
+    .filter(function(o){return String(_pick(o,['Full Name','Email','User ID'],'')).trim()!=='';});
 }
 async function opotFetchUsersSheet(){
   if(opotUsersSheetCache) return opotUsersSheetCache;
   if(opotUsersSheetLoading) return opotUsersSheetLoading;
   opotUsersSheetLoading = (async function(){
-    let rows=[];
+    var rows=[];
     try{ rows = await opotFetchUsersSheetDirect(); }
     catch(e){
       console.warn(e.message||e);
@@ -3005,86 +3063,88 @@ opotUserDept=function(u){return String(_pick(u,['Department'],'')).trim();};
 opotUserWhatsapp=function(u){return String(_pick(u,['Whatsapp No.','WhatsApp No.'],'')).trim();};
 opotUserCostCenter=function(u){return String(_pick(u,['CostCenter','Cost Center'],'')).trim();};
 opotActiveUsers=function(){
-  return opotUserRows().filter(u=>{
-    const n=opotUserName(u);
-    const status=String(_pick(u,['Status'],'Active')).trim();
+  return opotUserRows().filter(function(u){
+    var n=opotUserName(u);
+    var status=String(_pick(u,['Status'],'Active')).trim();
     return n && !/inactive|disabled|left|terminated/i.test(status);
-  }).sort((a,b)=>opotUserName(a).localeCompare(opotUserName(b)));
+  }).sort(function(a,b){return opotUserName(a).localeCompare(opotUserName(b));});
 };
 opotFindUserByName=function(name){
-  const n=String(name||'').trim().toLowerCase(); if(!n)return null;
-  const users=opotActiveUsers();
-  return users.find(u=>opotUserName(u).toLowerCase()===n)
-    || users.find(u=>String(_pick(u,['User ID'],'')).trim().toLowerCase()===n)
-    || users.find(u=>opotUserEmail(u).toLowerCase()===n)
-    || users.find(u=>opotUserName(u).toLowerCase().includes(n));
+  var n=String(name||'').trim().toLowerCase(); if(!n)return null;
+  var users=opotActiveUsers();
+  return users.find(function(u){return opotUserName(u).toLowerCase()===n;})
+    || users.find(function(u){return String(_pick(u,['User ID'],'')).trim().toLowerCase()===n;})
+    || users.find(function(u){return opotUserEmail(u).toLowerCase()===n;})
+    || users.find(function(u){return opotUserName(u).toLowerCase().includes(n);});
 };
 function opotRefreshCreateAssigneeOptions(){
-  const dl=document.getElementById('cf-owners');
-  const owner=document.getElementById('cf-owner');
+  var dl=document.getElementById('cf-owners');
+  var owner=document.getElementById('cf-owner');
   if(!dl)return;
-  const users=opotActiveUsers();
-  dl.innerHTML=users.map(u=>`<option value="${esc(opotUserName(u))}"></option>`).join('');
+  var users=opotActiveUsers();
+  dl.innerHTML=users.map(function(u){return '<option value="'+esc(opotUserName(u))+'"></option>';}).join('');
   if(owner) owner.placeholder = users.length ? 'Select assignee from Users sheet' : 'Loading assignees from Users sheet...';
 }
-const _opotUsersOnlyRenderCreate = renderCreate;
+var _opotUsersOnlyRenderCreate = renderCreate;
 renderCreate=function(){
   _opotUsersOnlyRenderCreate();
   opotRefreshCreateAssigneeOptions();
-  opotEnsureUsersLoaded().then(()=>{
+  opotEnsureUsersLoaded().then(function(){
     if(state.tab==='create'){
       opotRefreshCreateAssigneeOptions();
       if(document.getElementById('cf-owner')) cfAssigneeChanged();
     }
-  }).catch(e=>console.warn(e.message||e));
+  }).catch(function(e){console.warn(e.message||e);});
 };
 
 function opotCriticalIsAwaitingReview(t){return /awaiting\s*review|ready\s*for\s*executive/i.test(String(t&&t.status||'')+' '+String(t&&t.upStatus||''));}
 if(CFG && CFG.critical){
   CFG.critical.rows=function(){
-    return T.filter(t=>t.prio==='Critical' && t.status!=='Closed' && !opotCriticalIsAwaitingReview(t) && opotIsGoLiveTicket(t) && (state.cflt==='all'||t.overdue) && matchQ(t,state.qc));
+    return T.filter(function(t){return t.prio==='Critical' && !isTicketClosed(t) && !opotCriticalIsAwaitingReview(t) && opotIsGoLiveTicket(t) && (state.cflt==='all'||t.overdue) && matchQ(t,state.qc);});
   };
 }
 criticalVisibleRows=function(){
-  const cfg=CFG.critical; let rows=cfg.rows();
-  const s=cfg.sort, col=cfg.cols.find(c=>c.k===s.key);
-  if(col&&col.sort)rows=rows.slice().sort((a,b)=>{const x=col.sort(a),y=col.sort(b);return (x<y?-1:x>y?1:0)*s.dir;});
+  var cfg=CFG.critical; var rows=cfg.rows();
+  var s=cfg.sort, col=cfg.cols.find(function(c){return c.k===s.key;});
+  if(col&&col.sort)rows=rows.slice().sort(function(a,b){var x=col.sort(a),y=col.sort(b);return (x<y?-1:x>y?1:0)*s.dir;});
   return rows;
 };
 applyCriticalLocal=function(refs,action){
-  const movedAt=new Date().toISOString().slice(0,10);
-  refs.forEach(r=>{
-    const t=T.find(x=>x.ref===r); if(!t)return;
+  var movedAt=new Date().toISOString().slice(0,10);
+  refs.forEach(function(r){
+    var t=T.find(function(x){return x.ref===r;}); if(!t)return;
+    if(isTicketClosed(t))return;
     if(action==='review'||action==='review_high'){
       t.status='Awaiting review';
+      t.workflowStatus='Awaiting review';
       t.upStatus='Ready for Executive 1 Review';
       t.upTs=t.upTs||movedAt;
       t.lastResp=t.lastResp||movedAt;
       t.daysWaiting=t.daysWaiting||0;
-      if(!reviewQueue.some(x=>x.ref===t.ref)) reviewQueue.unshift({...t});
+      if(!reviewQueue.some(function(x){return x.ref===t.ref;})) reviewQueue.unshift(Object.assign({},t));
     }
     if(action==='close'){opotApplyClosedFromSubmission(t);}
     if(action==='high'||action==='review_high'){t.prio='High';}
   });
 };
 runCriticalBulkAction=async function(){
-  const refs=selectedCriticalRefs(); if(!refs.length){toast('Select one or more Critical tasks first.','warn');return;}
-  const action=(document.getElementById('critical-action')||{}).value||'review';
+  var refs=selectedCriticalRefs(); if(!refs.length){toast('Select one or more Critical tasks first.','warn');return;}
+  var action=(document.getElementById('critical-action')||{}).value||'review';
   applyCriticalLocal(refs,action);
-  const updates={};
+  var updates={};
   if(action==='review'||action==='review_high')Object.assign(updates,{Status:'Awaiting review','Task Status':'Awaiting review','Workflow Stage':'Scoring Executive 1','Scoring Status':'Scoring Executive 1','Update Status':'Ready for Executive 1 Review','Moved From':'Critical Basket','Moved To':'Scoring Executive 1','Moved To Review At':new Date().toISOString().slice(0,10),'Submitted Date':new Date().toISOString().slice(0,10),'Completion Requested':new Date().toISOString().slice(0,10)});
   if(action==='close')Object.assign(updates,{Status:'Closed','Task Status':'Closed','Workflow Stage':'Closed','Scoring Status':'Closed','Closed Date':new Date().toISOString().slice(0,10)});
   if(action==='high'||action==='review_high')Object.assign(updates,{Priority:'High',Prio:'High'});
   try{await sheetWrite((action==='review'||action==='review_high')?'move_critical_to_review':'bulk_update_tasks',{sheet:'Tasks',taskIds:refs,updates:updates,bulkAction:action,nextStatus:updates.Status||'',moveToReview:(action==='review'||action==='review_high')});}catch(e){console.warn(e);}
-  refs.forEach(r=>logAudit('Critical bulk action',r,action));
+  refs.forEach(function(r){logAudit('Critical bulk action',r,action);});
   state.critSel={};
   recomputeData(); renderTiles(); headlines(); renderTable('critical'); renderReviewView(); if(state.tab==='exec')renderExec(); if(state.tab==='activity')renderActivity();
-  const label={review:'moved to Review',close:'closed',high:'downgraded to High',review_high:'moved to Review and downgraded to High'}[action]||'updated';
+  var label={review:'moved to Review',close:'closed',high:'downgraded to High',review_high:'moved to Review and downgraded to High'}[action]||'updated';
   toast(refs.length+' critical task'+(refs.length===1?'':'s')+' '+label);
 };
 moveCriticalBasketToReview=async function(){
   criticalSelectAllVisible(true);
-  const actionEl=document.getElementById('critical-action'); if(actionEl)actionEl.value='review';
+  var actionEl=document.getElementById('critical-action'); if(actionEl)actionEl.value='review';
   return runCriticalBulkAction();
 };
 window.moveCriticalBasketToReview=moveCriticalBasketToReview;
@@ -3094,60 +3154,60 @@ window.moveCriticalBasketToReview=moveCriticalBasketToReview;
 /* ---------- Targeted requested changes 2026-06-17 ---------- */
 function opotNormalizeScore(n){n=Number(n)||0;if(n>5&&n<=100)n=n/20;return n?Math.max(1,Math.min(5,Math.round(n))):0;}
 function opotScorePercent(n){n=opotNormalizeScore(n);return n?Math.round((n/5)*100):0;}
-function opotScoreLabel(n){n=opotNormalizeScore(n);const pct=opotScorePercent(n);return n?`${n}/5 · ${pct}%`:'—';}
+function opotScoreLabel(n){n=opotNormalizeScore(n);var pct=opotScorePercent(n);return n?n+'/5 · '+pct+'%':'—';}
 function opotDateTimeFromTask(t){return t?(t.upTs||t.lastResp||t.compReq||t.created||''):'';}
 function opotTaskDueText(t){return t&&t.due?fmtD(t.due):'—';}
-function opotOpenScoringTicket(id){const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id); if(a&&a.ref)openTicket(a.ref);}
-function opotOpenScoringUser(id){const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id); if(!a)return; state.repScope='person'; populateRepSelect(); state.repEmp=a.by||''; const re=document.getElementById('repEmp'); if(re)re.value=state.repEmp; setTab('reports'); renderWeightPanel(); renderReport();}
-function opotNewTicketsForUser(){const u=currentUserName(); if(!u)return[]; return T.filter(t=>String(t.owner||'').trim().toLowerCase()===u.toLowerCase()&&!/closed|awaiting review/i.test(String(t.status||'')));}
+function opotOpenScoringTicket(id){var a=(scoringQueue||[]).find(function(x){return x.id===id||x.ref===id;}); if(a&&a.ref)openTicket(a.ref);}
+function opotOpenScoringUser(id){var a=(scoringQueue||[]).find(function(x){return x.id===id||x.ref===id;}); if(!a)return; state.repScope='person'; populateRepSelect(); state.repEmp=a.by||''; var re=document.getElementById('repEmp'); if(re)re.value=state.repEmp; setTab('reports'); renderWeightPanel(); renderReport();}
+function opotNewTicketsForUser(){var u=currentUserName(); if(!u)return[]; return T.filter(function(t){return String(t.owner||'').trim().toLowerCase()===u.toLowerCase()&&!/closed|awaiting review/i.test(String(t.status||''));});}
 function opotShowNewTicketAlert(){
   if(!OPOT_LOGIN||!OPOT_LOGIN.user||OPOT_LOGIN.isExecutive)return;
-  const rows=opotNewTicketsForUser(); if(!rows.length)return;
-  const key='opotAlertedTickets:'+currentUserEmail();
-  let old=[]; try{old=JSON.parse(sessionStorage.getItem(key)||'[]');}catch(e){}
-  const fresh=rows.filter(t=>old.indexOf(t.ref)===-1);
+  var rows=opotNewTicketsForUser(); if(!rows.length)return;
+  var key='opotAlertedTickets:'+currentUserEmail();
+  var old=[]; try{old=JSON.parse(sessionStorage.getItem(key)||'[]');}catch(e){}
+  var fresh=rows.filter(function(t){return old.indexOf(t.ref)===-1;});
   if(!fresh.length)return;
-  sessionStorage.setItem(key,JSON.stringify(Array.from(new Set(old.concat(fresh.map(t=>t.ref))))));
-  const msg='You have '+fresh.length+' new ticket'+(fresh.length===1?'':'s')+' assigned to you. Open your assigned tickets now?';
-  setTimeout(()=>{ if(confirm(msg)){ routePanel('assigned',{person:currentUserName()}); } },250);
+  sessionStorage.setItem(key,JSON.stringify(Array.from(new Set(old.concat(fresh.map(function(t){return t.ref;}))))));
+  var msg='You have '+fresh.length+' new ticket'+(fresh.length===1?'':'s')+' assigned to you. Open your assigned tickets now?';
+  setTimeout(function(){ if(confirm(msg)){ routePanel('assigned',{person:currentUserName()}); } },250);
 }
-const _opotRequestedOriginalClearLoginUi = clearLoginUi;
+var _opotRequestedOriginalClearLoginUi = clearLoginUi;
 clearLoginUi=function(){ _opotRequestedOriginalClearLoginUi(); setTimeout(opotShowNewTicketAlert,700); };
-const _opotRequestedOriginalOnpointBoot = onpointEnhancedBoot;
+var _opotRequestedOriginalOnpointBoot = onpointEnhancedBoot;
 onpointEnhancedBoot=async function(){ await _opotRequestedOriginalOnpointBoot(); try{await opotEnsureUsersLoaded();}catch(e){} populateRepSelect(); };
 
 /* Person scorecard selector must come from Users tab, while still showing score records. */
-const _opotRequestedOriginalUnitsList = unitsList;
+var _opotRequestedOriginalUnitsList = unitsList;
 unitsList=function(isDept){
   if(isDept) return _opotRequestedOriginalUnitsList(isDept);
-  const users=opotActiveUsers();
+  var users=opotActiveUsers();
   if(users&&users.length) return users.map(opotUserName).filter(Boolean).sort();
   return _opotRequestedOriginalUnitsList(isDept);
 };
 populateRepSelect=function(){
-  const el=document.getElementById('repEmp'); if(!el)return;
-  const isDept=state.repScope==='dept';
-  const list=unitsList(isDept);
-  el.innerHTML=list.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+  var el=document.getElementById('repEmp'); if(!el)return;
+  var isDept=state.repScope==='dept';
+  var list=unitsList(isDept);
+  el.innerHTML=list.map(function(o){return '<option value="'+esc(o)+'">'+esc(o)+'</option>';}).join('');
   if(list.length && (!state.repEmp || list.indexOf(state.repEmp)===-1)) state.repEmp=list[0];
   el.value=state.repEmp||'';
 };
 
 /* Enrich scoring basket: Executive 1 % as Executive 2 guide, due date, update/submission date, clickable ticket/user. */
 function opotTaskForScoring(r,a){
-  const ref=String((a&&a.ref)||_pick(r,['Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
-  const title=String(_pick(r,['Task Name','Task','Title','taskName','title'],'')).trim();
-  return T.find(t=>String(t.ref||'').trim()===ref)
-    || T.find(t=>String(t.name||'').trim()===title)
-    || T.find(t=>String(t.rawTaskId||'').trim()===ref)
+  var ref=String((a&&a.ref)||_pick(r,['Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
+  var title=String(_pick(r,['Task Name','Task','Title','taskName','title'],'')).trim();
+  return T.find(function(t){return String(t.ref||'').trim()===ref;})
+    || T.find(function(t){return String(t.name||'').trim()===title;})
+    || T.find(function(t){return String(t.rawTaskId||'').trim()===ref;})
     || {};
 }
-const _opotRequestedOriginalScoringFromRow = scoringFromRow;
+var _opotRequestedOriginalScoringFromRow = scoringFromRow;
 scoringFromRow=function(r,source){
-  const a=_opotRequestedOriginalScoringFromRow(r,source);
+  var a=_opotRequestedOriginalScoringFromRow(r,source);
   a.score1=opotNormalizeScore(a.score1);
   a.score2=opotNormalizeScore(a.score2);
-  const t=opotTaskForScoring(r,a);
+  var t=opotTaskForScoring(r,a);
   a.ref=String(a.ref||t.ref||_pick(r,['Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
   a.item=String(t.name||_pick(r,['Task Name','Task','Title','taskName','title','Item'],a.item||'Task update')).trim();
   a.by=String(t.owner||_pick(r,['Assigned To','Assignee','Owner','assignedTo','Submitted By','Updated By','User','Employee'],a.by||'')).trim();
@@ -3160,10 +3220,10 @@ scoringFromRow=function(r,source){
 function opotSetScoringExec(level){
   EXECUTIVE_LEVEL=Number(level)===2?2:1;
   document.body.setAttribute('data-exec-level',EXECUTIVE_LEVEL);
-  const rv=document.querySelector('.viewas .role'); if(rv)rv.textContent='EXECUTIVE '+EXECUTIVE_LEVEL;
-  const vn=document.querySelector('.viewas'); if(vn)vn.lastChild.textContent=' '+(EXECUTIVE_LEVEL===1?'Executive 1':'Executive 2');
+  var rv=document.querySelector('.viewas .role'); if(rv)rv.textContent='EXECUTIVE '+EXECUTIVE_LEVEL;
+  var vn=document.querySelector('.viewas'); if(vn)vn.lastChild.textContent=' '+(EXECUTIVE_LEVEL===1?'Executive 1':'Executive 2');
   if(window.OPOT_ALL_SCORING_QUEUE){
-    scoringQueue=window.OPOT_ALL_SCORING_QUEUE.filter(x=>EXECUTIVE_LEVEL===2?(_isExec2(x)||_isExec2(x.raw)):(!_isExec2(x)&&!_isExec2(x.raw)));
+    scoringQueue=window.OPOT_ALL_SCORING_QUEUE.filter(function(x){return EXECUTIVE_LEVEL===2?(_isExec2(x)||_isExec2(x.raw)):(!_isExec2(x)&&!_isExec2(x.raw));});
   }
 }
 function opotOpenScoringExec(level){
@@ -3172,68 +3232,68 @@ function opotOpenScoringExec(level){
 }
 
 renderScoring=function(){
-  const q=scoringQueue||[];
-  const counts=window.OPOT_SCORING_COUNTS||{exec1:(EXECUTIVE_LEVEL===1?q.length:0),exec2:(EXECUTIVE_LEVEL===2?q.length:0),total:q.length};
-  const c=document.getElementById('c-scoring'); if(c)c.textContent=`Executive 1: ${counts.exec1||0} pending · Executive 2: ${counts.exec2||0} pending`;
-  const h=document.getElementById('hl-scoring'); if(h)h.innerHTML=(counts.total||q.length)?`<span class="k">${counts.exec1||0}</span> task${(counts.exec1||0)===1?'':'s'} waiting for Executive 1 scoring · <span class="k">${counts.exec2||0}</span> task${(counts.exec2||0)===1?'':'s'} waiting for Executive 2 scoring.`:'Scoring basket is clear.';
-  const host=document.getElementById('scoringBody'); if(!host)return;
-  const summary=`<div class="kstat"><div class="c act" onclick="opotOpenScoringExec(1)" title="Open Executive 1 awaiting approvals"><div class="l">Executive 1 waiting</div><div class="v">${counts.exec1||0}</div><div class="s">Tickets awaiting approval</div></div><div class="c act" onclick="opotOpenScoringExec(2)" title="Open Executive 2 awaiting approvals"><div class="l">Executive 2 waiting</div><div class="v">${counts.exec2||0}</div><div class="s">Tickets awaiting approval</div></div><div class="c flat"><div class="l">Current view</div><div class="v">${q.length}</div><div class="s">Executive ${EXECUTIVE_LEVEL}</div></div></div>`;
+  var q=scoringQueue||[];
+  var counts=window.OPOT_SCORING_COUNTS||{exec1:(EXECUTIVE_LEVEL===1?q.length:0),exec2:(EXECUTIVE_LEVEL===2?q.length:0),total:q.length};
+  var c=document.getElementById('c-scoring'); if(c)c.textContent='Executive 1: '+(counts.exec1||0)+' pending · Executive 2: '+(counts.exec2||0)+' pending';
+  var h=document.getElementById('hl-scoring'); if(h)h.innerHTML=(counts.total||q.length)?'<span class="k">'+(counts.exec1||0)+'</span> task'+((counts.exec1||0)===1?'':'s')+' waiting for Executive 1 scoring · <span class="k">'+(counts.exec2||0)+'</span> task'+((counts.exec2||0)===1?'':'s')+' waiting for Executive 2 scoring.':'Scoring basket is clear.';
+  var host=document.getElementById('scoringBody'); if(!host)return;
+  var summary='<div class="kstat"><div class="c act" onclick="opotOpenScoringExec(1)" title="Open Executive 1 awaiting approvals"><div class="l">Executive 1 waiting</div><div class="v">'+(counts.exec1||0)+'</div><div class="s">Tickets awaiting approval</div></div><div class="c act" onclick="opotOpenScoringExec(2)" title="Open Executive 2 awaiting approvals"><div class="l">Executive 2 waiting</div><div class="v">'+(counts.exec2||0)+'</div><div class="s">Tickets awaiting approval</div></div><div class="c flat"><div class="l">Current view</div><div class="v">'+q.length+'</div><div class="s">Executive '+EXECUTIVE_LEVEL+'</div></div></div>';
   if(!q.length){host.innerHTML=summary+'<div class="tablecard"><div class="empty"><div class="ic">✓</div><h3>No scoring pending for this executive</h3><p>Submitted and updated tasks will appear here for Executive 1 first, then Executive 2.</p></div></div>';return;}
-  host.innerHTML=summary+`<div class="tablecard scroll"><table><thead><tr><th>Ticket / Task</th><th>User / Assignee</th><th>Department</th><th>Due date</th><th>Submitted / updated</th><th>Exec 1 guide</th><th>Stage</th><th>Score</th><th class="no-print">Decision</th></tr></thead><tbody>${q.map(a=>{const cur=opotNormalizeScore(EXECUTIVE_LEVEL===1?a.score1:a.score2);const t=opotTaskForScoring(a.raw||{},a);const user=a.assignee||a.by||t.owner||'';const dept=a.dept||t.dept||'';const due=a.due||t.due||'';const upd=a.submittedAt||opotDateTimeFromTask(t);return `<tr class="rowlink" onclick="opotOpenScoringTicket('${esc(a.id)}')"><td class="t-name"><span class="reflink">${esc(a.ref||'')}</span> ${esc(a.item||'')}</td><td><span class="reflink" onclick="event.stopPropagation();opotOpenScoringUser('${esc(a.id)}')">${esc(user||'')}</span></td><td>${esc(dept||'')}</td><td>${due?fmtD(due):'—'}</td><td>${upd?esc(upd):'—'}</td><td><span class="scoredot ${opotNormalizeScore(a.score1)>=4?'s-strong':opotNormalizeScore(a.score1)>=3?'s-ok':opotNormalizeScore(a.score1)?'s-warn':'s-na'}">${opotNormalizeScore(a.score1)?opotScoreLabel(a.score1):'—'}</span></td><td>${esc(a.stage)}</td><td><span class="rscore" onclick="event.stopPropagation()">${[1,2,3,4,5].map(n=>`<button class="rb${cur>=n?' on':''}" onclick="scoreSet('${esc(a.id)}',${n})">${n}</button>`).join('')}</span></td><td class="no-print"><button class="btn sm go" onclick="event.stopPropagation();scoreDecision('${esc(a.id)}',true)">${EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2'}</button> <button class="btn sm ret" onclick="event.stopPropagation();scoreDecision('${esc(a.id)}',false)">Return</button></td></tr>`}).join('')}</tbody></table></div>`;
+  host.innerHTML=summary+'<div class="tablecard scroll"><table><thead><tr><th>Ticket / Task</th><th>User / Assignee</th><th>Department</th><th>Due date</th><th>Submitted / updated</th><th>Exec 1 guide</th><th>Stage</th><th>Score</th><th class="no-print">Decision</th></tr></thead><tbody>'+q.map(function(a){var cur=opotNormalizeScore(EXECUTIVE_LEVEL===1?a.score1:a.score2);var t=opotTaskForScoring(a.raw||{},a);var user=a.assignee||a.by||t.owner||'';var dept=a.dept||t.dept||'';var due=a.due||t.due||'';var upd=a.submittedAt||opotDateTimeFromTask(t);return '<tr class="rowlink" onclick="opotOpenScoringTicket(\''+esc(a.id)+'\')"><td class="t-name"><span class="reflink">'+esc(a.ref||'')+'</span> '+esc(a.item||'')+'</td><td><span class="reflink" onclick="event.stopPropagation();opotOpenScoringUser(\''+esc(a.id)+'\')">'+esc(user||'')+'</span></td><td>'+esc(dept||'')+'</td><td>'+(due?fmtD(due):'—')+'</td><td>'+(upd?esc(upd):'—')+'</td><td><span class="scoredot '+(opotNormalizeScore(a.score1)>=4?'s-strong':opotNormalizeScore(a.score1)>=3?'s-ok':opotNormalizeScore(a.score1)?'s-warn':'s-na')+'">'+(opotNormalizeScore(a.score1)?opotScoreLabel(a.score1):'—')+'</span></td><td>'+esc(a.stage)+'</td><td><span class="rscore" onclick="event.stopPropagation()">'+[1,2,3,4,5].map(function(n){return '<button class="rb'+(cur>=n?' on':'')+'" onclick="scoreSet(\''+esc(a.id)+'\','+n+')">'+n+'</button>';}).join('')+'</span></td><td class="no-print"><button class="btn sm go" onclick="event.stopPropagation();scoreDecision(\''+esc(a.id)+'\',true)">'+(EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2')+'</button> <button class="btn sm ret" onclick="event.stopPropagation();scoreDecision(\''+esc(a.id)+'\',false)">Return</button></td></tr>';}).join('')+'</tbody></table></div>';
 };
-scoreSet=function(id,n){const a=scoringQueue.find(x=>x.id===id); if(!a)return; if(EXECUTIVE_LEVEL===1){a.score1=n;a.exec1Pct=opotScorePercent(n);} else a.score2=n; const t=T.find(x=>x.ref===a.ref); if(t)scores[t.ref]=Object.assign({},scores[t.ref],{score:n}); renderScoring(); if(state.tab==='reports')renderReport();};
-doScoreDecision=function(id,ok,reason){const i=scoringQueue.findIndex(x=>x.id===id); if(i<0)return; const a=scoringQueue.splice(i,1)[0]; const t=T.find(x=>x.ref===a.ref); if(ok&&EXECUTIVE_LEVEL===1){sheetWrite('score_exec1_approved',{sheet:'Score_approvals',taskId:a.ref,score:a.score1,scorePercent:opotScorePercent(a.score1),nextStage:'Scoring Executive 2'}); logAudit('Executive 1 scored',a.item,'Score '+a.score1+'/5 · '+opotScorePercent(a.score1)+'% · moved to Executive 2'); toast('Scored and moved to Executive 2');}
+scoreSet=function(id,n){var a=scoringQueue.find(function(x){return x.id===id;}); if(!a)return; if(EXECUTIVE_LEVEL===1){a.score1=n;a.exec1Pct=opotScorePercent(n);} else a.score2=n; var t=T.find(function(x){return x.ref===a.ref;}); if(t)scores[t.ref]=Object.assign({},scores[t.ref],{score:n}); renderScoring(); if(state.tab==='reports')renderReport();};
+doScoreDecision=function(id,ok,reason){var i=scoringQueue.findIndex(function(x){return x.id===id;}); if(i<0)return; var a=scoringQueue.splice(i,1)[0]; var t=T.find(function(x){return x.ref===a.ref;}); if(ok&&EXECUTIVE_LEVEL===1){sheetWrite('score_exec1_approved',{sheet:'Score_approvals',taskId:a.ref,score:a.score1,scorePercent:opotScorePercent(a.score1),nextStage:'Scoring Executive 2'}); logAudit('Executive 1 scored',a.item,'Score '+a.score1+'/5 · '+opotScorePercent(a.score1)+'% · moved to Executive 2'); toast('Scored and moved to Executive 2');}
   else if(ok&&EXECUTIVE_LEVEL===2){if(t){opotApplyClosedFromSubmission(t,a);} sheetWrite('score_exec2_approved_close',{sheet:'Score_approvals',taskId:a.ref,score:a.score2,scorePercent:opotScorePercent(a.score2),exec1Score:a.score1,exec1ScorePercent:a.exec1Pct||opotScorePercent(a.score1),nextStage:'Closed',closedDate:t?t.closed:'',closedOnTime:opotClosedOnTimeValue(t)}); logAudit('Executive 2 scored & closed',a.item,'Score '+a.score2+'/5'); toast('Approved, scored and closed');}
-  else {if(t){t.status='Open';t.closed='';} sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason,nextStage:'Returned / Reopened'}); logAudit('Scoring returned',a.item,reason||''); toast('Returned and ticket reopened','warn');}
+  else {if(t){t.status='Open';t.workflowStatus='Open';t.closed='';} sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason:reason,nextStage:'Returned / Reopened'}); logAudit('Scoring returned',a.item,reason||''); toast('Returned and ticket reopened','warn');}
   recomputeData(); renderScoring(); renderTiles(); headlines(); if(state.tab==='activity')renderActivity();};
 
 
 /* ---------- Final scoring/dash linkage patch 2026-06-17 ---------- */
 function opotFindTaskByRef(ref){
   ref=String(ref||'').trim();
-  return T.find(t=>String(t.ref||'').trim()===ref)
-    || T.find(t=>String(t.ticketNumber||'').trim()===ref)
-    || T.find(t=>String(t.rawTaskId||'').trim()===ref)
+  return T.find(function(t){return String(t.ref||'').trim()===ref;})
+    || T.find(function(t){return String(t.ticketNumber||'').trim()===ref;})
+    || T.find(function(t){return String(t.rawTaskId||'').trim()===ref;})
     || null;
 }
 opotOpenScoringTicket=function(id){
-  const q=scoringQueue||[];
-  const a=q.find(x=>x.id===id||x.ref===id);
+  var q=scoringQueue||[];
+  var a=q.find(function(x){return x.id===id||x.ref===id;});
   if(!a){toast('No linked ticket');return;}
-  const refs=q.map(x=>x.ref).filter(Boolean);
+  var refs=q.map(function(x){return x.ref;}).filter(Boolean);
   state.drawerList=refs;
   state.drawerIdx=refs.indexOf(a.ref);
   openTicket(a.ref,true);
 };
 opotTaskForScoring=function(r,a){
-  const ref=String((a&&a.ref)||_pick(r,['Ticket Number','Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
-  const title=String(_pick(r,['Task Name','Task','Title','taskName','title'],'')).trim();
-  return opotFindTaskByRef(ref) || T.find(t=>String(t.name||'').trim()===title) || {};
+  var ref=String((a&&a.ref)||_pick(r,['Ticket Number','Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
+  var title=String(_pick(r,['Task Name','Task','Title','taskName','title'],'')).trim();
+  return opotFindTaskByRef(ref) || T.find(function(t){return String(t.name||'').trim()===title;}) || {};
 };
 scoringFromRow=function(r,source){
-  const rawRef=String(_pick(r,['Ticket Number','Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
-  const t=opotFindTaskByRef(rawRef) || {};
-  const ref=String((t&&t.ref)||rawRef||_pick(r,['Task','Task Name','Title'],'')).trim();
-  const stage=_stage(r)||String(_pick(r,['Scoring Status','Status','Stage'],'Scoring Executive 1')).trim()||'Scoring Executive 1';
-  const score1=opotNormalizeScore(_pick(r,['Executive 1 Score','Exec 1 Score','Score 1'],0));
-  const score2=opotNormalizeScore(_pick(r,['Executive 2 Score','Exec 2 Score','Score 2'],0));
-  const assignee=String(t.owner||_pick(r,['Assigned To','Assignee','Owner','assignedTo','Submitted By','Updated By','User','Employee'],'')).trim();
-  return {id:ref||('SCORE-'+Math.random().toString(36).slice(2,8).toUpperCase()),ref,item:String(t.name||_pick(r,['Task Name','Task','Title','taskName','title','Item'],'Task update')).trim(),by:assignee,assignee,due:_asDate(t.due||_pick(r,['Due Date','Due','Deadline','dueDate'],'')),dept:String(t.dept||_pick(r,['Department','Dept','department'],'')).trim(),detail:String(t.response||t.upComment||_pick(r,['Task Response','Assignee Comment','Update Comment','Comment','Details','Description'],'Submitted / updated for scoring')).trim(),stage,score1,score2,exec1Pct:Number(_pick(r,['Executive 1 %','Exec 1 %','Executive 1 Score %','Score 1 %'],0))||opotScorePercent(score1),submittedAt:_asDate(t.upTs||t.lastResp||t.compReq||_pick(r,['Update Timestamp','Submitted Date','Updated At','Update Date','Timestamp','Last Updated'],'')),source,raw:r};
+  var rawRef=String(_pick(r,['Ticket Number','Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();
+  var t=opotFindTaskByRef(rawRef) || {};
+  var ref=String((t&&t.ref)||rawRef||_pick(r,['Task','Task Name','Title'],'')).trim();
+  var stage=_stage(r)||String(_pick(r,['Scoring Status','Status','Stage'],'Scoring Executive 1')).trim()||'Scoring Executive 1';
+  var score1=opotNormalizeScore(_pick(r,['Executive 1 Score','Exec 1 Score','Score 1'],0));
+  var score2=opotNormalizeScore(_pick(r,['Executive 2 Score','Exec 2 Score','Score 2'],0));
+  var assignee=String(t.owner||_pick(r,['Assigned To','Assignee','Owner','assignedTo','Submitted By','Updated By','User','Employee'],'')).trim();
+  return {id:ref||('SCORE-'+Math.random().toString(36).slice(2,8).toUpperCase()),ref:ref,item:String(t.name||_pick(r,['Task Name','Task','Title','taskName','title','Item'],'Task update')).trim(),by:assignee,assignee:assignee,due:_asDate(t.due||_pick(r,['Due Date','Due','Deadline','dueDate'],'')),dept:String(t.dept||_pick(r,['Department','Dept','department'],'')).trim(),detail:String(t.response||t.upComment||_pick(r,['Task Response','Assignee Comment','Update Comment','Comment','Details','Description'],'Submitted / updated for scoring')).trim(),stage:stage,score1:score1,score2:score2,exec1Pct:Number(_pick(r,['Executive 1 %','Exec 1 %','Executive 1 Score %','Score 1 %'],0))||opotScorePercent(score1),submittedAt:_asDate(t.upTs||t.lastResp||t.compReq||_pick(r,['Update Timestamp','Submitted Date','Updated At','Update Date','Timestamp','Last Updated'],'')),source:source,raw:r};
 };
 buildWorkflowQueues=function(rows){
-  const approvalRows=(rows.approvals||[]).map(r=>approvalFromRow(r,'Approval')).concat((rows.extensions||[]).map(r=>approvalFromRow(r,'Extension')),(rows.hiring||[]).map(r=>approvalFromRow(r,'Hiring')));
+  var approvalRows=(rows.approvals||[]).map(function(r){return approvalFromRow(r,'Approval');}).concat((rows.extensions||[]).map(function(r){return approvalFromRow(r,'Extension');}),(rows.hiring||[]).map(function(r){return approvalFromRow(r,'Hiring');}));
   approvalsQueue=approvalRows.filter(_statusForExec);
-  const existing=(rows.scoring||[]).map(r=>scoringFromRow(r,'Score_approvals'));
-  const taskReview=(rows.tasks||[]).filter(r=>/awaiting\s*review|completed\s*-\s*awaiting|scoring\s*executive/i.test(String(_pick(r,['Status','Update Status','Workflow Stage','Scoring Status'],'')))).map(r=>scoringFromRow(r,'Tasks'));
-  const updates=(rows.updates||[]).filter(r=>/submitted|updated|complete|completed|awaiting/i.test(Object.values(r).join(' '))).map(r=>scoringFromRow(r,'Task Updates'));
-  const seen=new Set();
-  const allScoring=existing.concat(taskReview,updates).filter(x=>{const k=(x.ref||x.id)+'|'+(x.stage||''); if(!x.ref||seen.has(k))return false; seen.add(k); return !_isClosedStage(x.raw||x);});
+  var existing=(rows.scoring||[]).map(function(r){return scoringFromRow(r,'Score_approvals');});
+  var taskReview=(rows.tasks||[]).filter(function(r){return /awaiting\s*review|completed\s*-\s*awaiting|scoring\s*executive/i.test(String(_pick(r,['Status','Update Status','Workflow Stage','Scoring Status'],'')));}).map(function(r){return scoringFromRow(r,'Tasks');});
+  var updates=(rows.updates||[]).filter(function(r){return /submitted|updated|complete|completed|awaiting/i.test(Object.values(r).join(' '));}).map(function(r){return scoringFromRow(r,'Task Updates');});
+  var seen=new Set();
+  var allScoring=existing.concat(taskReview,updates).filter(function(x){var k=(x.ref||x.id)+'|'+(x.stage||''); if(!x.ref||seen.has(k))return false; seen.add(k); return !_isClosedStage(x.raw||x);});
   window.OPOT_ALL_SCORING_QUEUE=allScoring;
-  window.OPOT_SCORING_COUNTS={exec1:allScoring.filter(x=>!_isExec2(x)&&!_isExec2(x.raw)).length,exec2:allScoring.filter(x=>_isExec2(x)||_isExec2(x.raw)).length,total:allScoring.length};
-  scoringQueue=allScoring.filter(x=>EXECUTIVE_LEVEL===2?(_isExec2(x)||_isExec2(x.raw)):(!_isExec2(x)&&!_isExec2(x.raw)));
+  window.OPOT_SCORING_COUNTS={exec1:allScoring.filter(function(x){return !_isExec2(x)&&!_isExec2(x.raw);}).length,exec2:allScoring.filter(function(x){return _isExec2(x)||_isExec2(x.raw);}).length,total:allScoring.length};
+  scoringQueue=allScoring.filter(function(x){return EXECUTIVE_LEVEL===2?(_isExec2(x)||_isExec2(x.raw)):(!_isExec2(x)&&!_isExec2(x.raw));});
 };
 /* Keep submitted/completed proof workflow visible in ticket drawer and send users to assigned tickets. */
-const _opotRequestedOriginalSubmitTaskUpdate = submitTaskUpdate;
+var _opotRequestedOriginalSubmitTaskUpdate = submitTaskUpdate;
 submitTaskUpdate=async function(ref){ await _opotRequestedOriginalSubmitTaskUpdate(ref); routePanel('assigned',{person:currentUserName()}); };
 
 
@@ -3241,41 +3301,41 @@ submitTaskUpdate=async function(ref){ await _opotRequestedOriginalSubmitTaskUpda
 /* ---------- Scoring ticket drawer actions patch 2026-06-17 ----------
    Limited change: when a scoring ticket is opened, show Due date plus functional Approve and Return buttons in the ticket drawer. */
 function opotScoringActionForRef(ref){
-  const q=scoringQueue||[];
-  return q.find(x=>String(x.ref||'')===String(ref||'')) || null;
+  var q=scoringQueue||[];
+  return q.find(function(x){return String(x.ref||'')===String(ref||'');}) || null;
 }
 function opotScoringDrawerDue(a,t){
-  const due=(a&&a.due)||(t&&t.due)||'';
+  var due=(a&&a.due)||(t&&t.due)||'';
   return due ? fmtD(due) : '—';
 }
 function opotRenderScoringDrawerActions(a,t){
   if(!a)return;
-  const body=document.getElementById('dw-body');
-  const act=document.getElementById('dw-act');
-  const score=opotNormalizeScore(EXECUTIVE_LEVEL===1?a.score1:a.score2);
-  const dueText=opotScoringDrawerDue(a,t);
-  const scoreButtons=[1,2,3,4,5].map(n=>`<button class="sb${score>=n?' on':''}" onclick="scoreSet('${esc(a.id)}',${n});opotRefreshOpenScoringDrawer('${esc(a.id)}')">${n}</button>`).join('');
-  const approveText=EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2';
-  const panel=`<div class="task-submit-box no-print" id="opot-scoring-actions-box"><div class="t">Scoring approval</div><div class="dwgrid" style="margin-top:8px"><div class="c"><div class="l">Due date</div><div class="v">${dueText}</div></div><div class="c"><div class="l">Current stage</div><div class="v">${esc(a.stage||('Executive '+EXECUTIVE_LEVEL))}</div></div></div><div class="scorepick" style="margin-top:10px">${scoreButtons}</div><div class="scorehint">Select a score, then approve or return the ticket. Return will reopen the ticket for correction.</div></div>`;
+  var body=document.getElementById('dw-body');
+  var act=document.getElementById('dw-act');
+  var score=opotNormalizeScore(EXECUTIVE_LEVEL===1?a.score1:a.score2);
+  var dueText=opotScoringDrawerDue(a,t);
+  var scoreButtons=[1,2,3,4,5].map(function(n){return '<button class="sb'+(score>=n?' on':'')+'" onclick="scoreSet(\''+esc(a.id)+'\','+n+');opotRefreshOpenScoringDrawer(\''+esc(a.id)+'\')">'+n+'</button>';}).join('');
+  var approveText=EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2';
+  var panel='<div class="task-submit-box no-print" id="opot-scoring-actions-box"><div class="t">Scoring approval</div><div class="dwgrid" style="margin-top:8px"><div class="c"><div class="l">Due date</div><div class="v">'+dueText+'</div></div><div class="c"><div class="l">Current stage</div><div class="v">'+esc(a.stage||('Executive '+EXECUTIVE_LEVEL))+'</div></div></div><div class="scorepick" style="margin-top:10px">'+scoreButtons+'</div><div class="scorehint">Select a score, then approve or return the ticket. Return will reopen the ticket for correction.</div></div>';
   if(body && !document.getElementById('opot-scoring-actions-box')) body.insertAdjacentHTML('beforeend',panel);
   if(act){
-    act.innerHTML=`<button class="btn go" onclick="scoreDecision('${esc(a.id)}',true);closeTicket()">${approveText}</button><button class="btn ret" onclick="scoreDecision('${esc(a.id)}',false);closeTicket()">Return</button>`;
+    act.innerHTML='<button class="btn go" onclick="scoreDecision(\''+esc(a.id)+'\',true);closeTicket()">'+approveText+'</button><button class="btn ret" onclick="scoreDecision(\''+esc(a.id)+'\',false);closeTicket()">Return</button>';
   }
 }
 function opotRefreshOpenScoringDrawer(id){
-  const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id);
+  var a=(scoringQueue||[]).find(function(x){return x.id===id||x.ref===id;});
   if(!a)return;
-  const t=opotFindTaskByRef(a.ref)||{};
-  const old=document.getElementById('opot-scoring-actions-box');
+  var t=opotFindTaskByRef(a.ref)||{};
+  var old=document.getElementById('opot-scoring-actions-box');
   if(old)old.remove();
   opotRenderScoringDrawerActions(a,t);
 }
-const _opotDueApproveReturnOpenTicket=openTicket;
+var _opotDueApproveReturnOpenTicket=openTicket;
 openTicket=function(ref,keepList){
   _opotDueApproveReturnOpenTicket(ref,keepList);
-  const a=opotScoringActionForRef(ref);
+  var a=opotScoringActionForRef(ref);
   if(!a)return;
-  const t=opotFindTaskByRef(ref)||{};
+  var t=opotFindTaskByRef(ref)||{};
   opotRenderScoringDrawerActions(a,t);
 };
 
@@ -3283,98 +3343,98 @@ openTicket=function(ref,keepList){
 /* ---------- Requested scoring change: system submission % + Exec 1 + Exec 2 final average ---------- */
 function opotSubmissionSystemPercent(t,a){
   t=t||{};
-  const submittedAt=opotSubmissionDateForTicket(t,a);
+  var submittedAt=opotSubmissionDateForTicket(t,a);
   if(!submittedAt)return 0;
-  const due=(a&&a.due)||t.due||'';
+  var due=(a&&a.due)||t.due||'';
   return (due && submittedAt>due) ? 50 : 100;
 }
 function opotScoringRecordForRef(ref){
   ref=String(ref||'').trim();
-  const arr=[];
-  if(typeof scoringQueue!=='undefined'&&scoringQueue)arr.push(...scoringQueue);
-  if(window.OPOT_ALL_SCORING_QUEUE)arr.push(...window.OPOT_ALL_SCORING_QUEUE);
-  return arr.find(x=>String(x.ref||'').trim()===ref) || null;
+  var arr=[];
+  if(typeof scoringQueue!=='undefined'&&scoringQueue)arr.push.apply(arr,scoringQueue);
+  if(window.OPOT_ALL_SCORING_QUEUE)arr.push.apply(arr,window.OPOT_ALL_SCORING_QUEUE);
+  return arr.find(function(x){return String(x.ref||'').trim()===ref;}) || null;
 }
 function opotTaskScoreParts(t,a){
   t=t||{}; a=a||opotScoringRecordForRef(t.ref)||{};
-  const saved=(scores&&scores[t.ref])?scores[t.ref]:{};
-  const systemPct=Number(saved.systemPct!=null?saved.systemPct:opotSubmissionSystemPercent(t,a));
-  const exec1Score=opotNormalizeScore(saved.exec1Score!=null?saved.exec1Score:a.score1);
-  const exec2Score=opotNormalizeScore(saved.exec2Score!=null?saved.exec2Score:a.score2);
-  const exec1Pct=exec1Score?opotScorePercent(exec1Score):(saved.exec1Pct!=null?Number(saved.exec1Pct):null);
-  const exec2Pct=exec2Score?opotScorePercent(exec2Score):(saved.exec2Pct!=null?Number(saved.exec2Pct):null);
-  const finalPct=(exec1Pct==null||exec2Pct==null)?null:Math.round((systemPct+exec1Pct+exec2Pct)/3);
-  return {systemPct,exec1Score,exec1Pct,exec2Score,exec2Pct,finalPct,finalScore:finalPct==null?0:finalPct/20};
+  var saved=(scores&&scores[t.ref])?scores[t.ref]:{};
+  var systemPct=Number(saved.systemPct!=null?saved.systemPct:opotSubmissionSystemPercent(t,a));
+  var exec1Score=opotNormalizeScore(saved.exec1Score!=null?saved.exec1Score:a.score1);
+  var exec2Score=opotNormalizeScore(saved.exec2Score!=null?saved.exec2Score:a.score2);
+  var exec1Pct=exec1Score?opotScorePercent(exec1Score):(saved.exec1Pct!=null?Number(saved.exec1Pct):null);
+  var exec2Pct=exec2Score?opotScorePercent(exec2Score):(saved.exec2Pct!=null?Number(saved.exec2Pct):null);
+  var finalPct=(exec1Pct==null||exec2Pct==null)?null:Math.round((systemPct+exec1Pct+exec2Pct)/3);
+  return {systemPct:systemPct,exec1Score:exec1Score,exec1Pct:exec1Pct,exec2Score:exec2Score,exec2Pct:exec2Pct,finalPct:finalPct,finalScore:finalPct==null?0:finalPct/20};
 }
 function opotPersistTaskScore(t,a){
   if(!t||!t.ref)return null;
-  const p=opotTaskScoreParts(t,a);
+  var p=opotTaskScoreParts(t,a);
   scores[t.ref]=Object.assign({},scores[t.ref]||{},p,{score:p.finalScore||0});
   return p;
 }
 function opotPctCell(v){return v==null?'<span class="muted2">—</span>':(Math.round(v)+'%');}
 function opotTaskPerformanceRows(){
-  return T.slice().sort((a,b)=>String(a.owner||'').localeCompare(String(b.owner||''))||String(a.ref||'').localeCompare(String(b.ref||''))).map(t=>{
-    const a=opotScoringRecordForRef(t.ref)||{};
-    const p=opotTaskScoreParts(t,a);
-    return `<tr class="rowlink" onclick="openTicket('${esc(t.ref)}')"><td class="t-ref">${esc(t.ref)}</td><td class="t-name">${esc(t.name||'')}</td><td>${esc(t.owner||'')}</td><td class="num">${opotPctCell(p.systemPct)}</td><td class="num">${p.exec1Pct==null?'<span class="muted2">—</span>':opotScoreLabel(p.exec1Score)}</td><td class="num">${p.exec2Pct==null?'<span class="muted2">—</span>':opotScoreLabel(p.exec2Score)}</td><td class="num"><b>${opotPctCell(p.finalPct)}</b></td></tr>`;
+  return T.slice().sort(function(a,b){return String(a.owner||'').localeCompare(String(b.owner||''))||String(a.ref||'').localeCompare(String(b.ref||''));}).map(function(t){
+    var a=opotScoringRecordForRef(t.ref)||{};
+    var p=opotTaskScoreParts(t,a);
+    return '<tr class="rowlink" onclick="openTicket(\''+esc(t.ref)+'\')"><td class="t-ref">'+esc(t.ref)+'</td><td class="t-name">'+esc(t.name||'')+'</td><td>'+esc(t.owner||'')+'</td><td class="num">'+opotPctCell(p.systemPct)+'</td><td class="num">'+(p.exec1Pct==null?'<span class="muted2">—</span>':opotScoreLabel(p.exec1Score))+'</td><td class="num">'+(p.exec2Pct==null?'<span class="muted2">—</span>':opotScoreLabel(p.exec2Score))+'</td><td class="num"><b>'+opotPctCell(p.finalPct)+'</b></td></tr>';
   }).join('');
 }
-const _opotSystemScoreOriginalScoreSet=scoreSet;
+var _opotSystemScoreOriginalScoreSet=scoreSet;
 scoreSet=function(id,n){
-  const a=(scoringQueue||[]).find(x=>x.id===id); if(!a)return;
+  var a=(scoringQueue||[]).find(function(x){return x.id===id;}); if(!a)return;
   if(EXECUTIVE_LEVEL===1){a.score1=n;a.exec1Pct=opotScorePercent(n);} else {a.score2=n;a.exec2Pct=opotScorePercent(n);}
-  const t=opotFindTaskByRef(a.ref)||T.find(x=>x.ref===a.ref);
+  var t=opotFindTaskByRef(a.ref)||T.find(function(x){return x.ref===a.ref;});
   if(t)opotPersistTaskScore(t,a);
   renderScoring(); if(state.tab==='reports')renderReport(); if(state.tab==='perf')renderPerf();
 };
-const _opotSystemScoreOriginalDoScoreDecision=doScoreDecision;
+var _opotSystemScoreOriginalDoScoreDecision=doScoreDecision;
 doScoreDecision=function(id,ok,reason){
-  const i=(scoringQueue||[]).findIndex(x=>x.id===id); if(i<0)return;
-  const a=scoringQueue.splice(i,1)[0];
-  const t=opotFindTaskByRef(a.ref)||T.find(x=>x.ref===a.ref);
+  var i=(scoringQueue||[]).findIndex(function(x){return x.id===id;}); if(i<0)return;
+  var a=scoringQueue.splice(i,1)[0];
+  var t=opotFindTaskByRef(a.ref)||T.find(function(x){return x.ref===a.ref;});
   if(ok&&EXECUTIVE_LEVEL===1){
     if(t)opotPersistTaskScore(t,a);
-    const p=t?opotTaskScoreParts(t,a):{systemPct:0,exec1Pct:opotScorePercent(a.score1)};
+    var p=t?opotTaskScoreParts(t,a):{systemPct:0,exec1Pct:opotScorePercent(a.score1)};
     sheetWrite('score_exec1_approved',{sheet:'Score_approvals',taskId:a.ref,score:a.score1,scorePercent:opotScorePercent(a.score1),systemSubmissionPercent:p.systemPct,nextStage:'Scoring Executive 2'});
     logAudit('Executive 1 scored',a.item,'System '+p.systemPct+'% · Exec 1 '+opotScorePercent(a.score1)+'% · moved to Executive 2'); toast('Scored and moved to Executive 2');
   } else if(ok&&EXECUTIVE_LEVEL===2){
     if(t){opotApplyClosedFromSubmission(t,a);}
-    const p=t?opotPersistTaskScore(t,a):{systemPct:0,exec1Pct:opotScorePercent(a.score1),exec2Pct:opotScorePercent(a.score2),finalPct:null};
+    var p=t?opotPersistTaskScore(t,a):{systemPct:0,exec1Pct:opotScorePercent(a.score1),exec2Pct:opotScorePercent(a.score2),finalPct:null};
     sheetWrite('score_exec2_approved_close',{sheet:'Score_approvals',taskId:a.ref,score:a.score2,scorePercent:opotScorePercent(a.score2),exec1Score:a.score1,exec1ScorePercent:a.exec1Pct||opotScorePercent(a.score1),systemSubmissionPercent:p.systemPct,finalScorePercent:p.finalPct,nextStage:'Closed',closedDate:t?t.closed:'',closedOnTime:opotClosedOnTimeValue(t)});
     logAudit('Executive 2 scored & closed',a.item,'System '+p.systemPct+'% · Exec 1 '+(p.exec1Pct==null?'—':p.exec1Pct+'%')+' · Exec 2 '+(p.exec2Pct==null?'—':p.exec2Pct+'%')+' · Final '+(p.finalPct==null?'—':p.finalPct+'%')); toast('Approved, scored and closed');
   } else {
-    if(t){t.status='Open';t.closed='';t.closedOnTimePendingReview=false;}
-    sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason,nextStage:'Returned / Reopened'}); logAudit('Scoring returned',a.item,reason||''); toast('Returned and ticket reopened','warn');
+    if(t){t.status='Open';t.workflowStatus='Open';t.closed='';t.closedOnTimePendingReview=false;}
+    sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason:reason,nextStage:'Returned / Reopened'}); logAudit('Scoring returned',a.item,reason||''); toast('Returned and ticket reopened','warn');
   }
   recomputeData(); renderTiles(); renderScoring(); if(state.tab==='reports')renderReport(); if(state.tab==='perf')renderPerf(); if(state.tab==='activity')renderActivity();
 };
-const _opotSystemScoreOriginalScoringFromRow=scoringFromRow;
+var _opotSystemScoreOriginalScoringFromRow=scoringFromRow;
 scoringFromRow=function(r,source){
-  const a=_opotSystemScoreOriginalScoringFromRow(r,source);
-  const t=opotTaskForScoring(r,a)||opotFindTaskByRef(a.ref)||{};
+  var a=_opotSystemScoreOriginalScoringFromRow(r,source);
+  var t=opotTaskForScoring(r,a)||opotFindTaskByRef(a.ref)||{};
   a.systemPct=Number(_pick(r,['System Submission %','Time Submission %','Submission %','System %'],''));
   if(!a.systemPct && a.systemPct!==0)a.systemPct=opotSubmissionSystemPercent(t,a);
   a.exec2Pct=Number(_pick(r,['Executive 2 %','Exec 2 %','Executive 2 Score %','Score 2 %'],0))||opotScorePercent(a.score2);
   a.finalPct=Number(_pick(r,['Final Score %','Final %','Average Score %'],0))||((a.score1&&a.score2)?Math.round((((a.systemPct||0)/100)*(((a.score1/5)+(a.score2/5))/2))*100):null);
   return a;
 };
-const _opotSystemScoreOriginalRenderScoring=renderScoring;
+var _opotSystemScoreOriginalRenderScoring=renderScoring;
 renderScoring=function(){
-  const counts=window.OPOT_SCORING_COUNTS||{exec1:scoringQueue.length,exec2:0,total:scoringQueue.length};
-  const q=scoringQueue||[]; const host=document.getElementById('scoringBody'); if(!host)return;
-  const c=document.getElementById('c-scoring'); if(c)c.textContent=`Executive 1: ${counts.exec1||0} pending · Executive 2: ${counts.exec2||0} pending`;
-  const h=document.getElementById('hl-scoring'); if(h)h.innerHTML=(counts.total||q.length)?`<span class="k">${counts.exec1||0}</span> task${(counts.exec1||0)===1?'':'s'} waiting for Executive 1 scoring · <span class="k">${counts.exec2||0}</span> task${(counts.exec2||0)===1?'':'s'} waiting for Executive 2 scoring.`:'Scoring basket is clear.';
-  const summary=`<div class="kstat"><div class="c act" onclick="opotOpenScoringExec(1)" title="Open Executive 1 awaiting approvals"><div class="l">Executive 1 waiting</div><div class="v">${counts.exec1||0}</div><div class="s">Tickets awaiting approval</div></div><div class="c act" onclick="opotOpenScoringExec(2)" title="Open Executive 2 awaiting approvals"><div class="l">Executive 2 waiting</div><div class="v">${counts.exec2||0}</div><div class="s">Tickets awaiting approval</div></div><div class="c flat"><div class="l">Current view</div><div class="v">${q.length}</div><div class="s">Executive ${EXECUTIVE_LEVEL}</div></div></div>`;
+  var counts=window.OPOT_SCORING_COUNTS||{exec1:scoringQueue.length,exec2:0,total:scoringQueue.length};
+  var q=scoringQueue||[]; var host=document.getElementById('scoringBody'); if(!host)return;
+  var c=document.getElementById('c-scoring'); if(c)c.textContent='Executive 1: '+(counts.exec1||0)+' pending · Executive 2: '+(counts.exec2||0)+' pending';
+  var h=document.getElementById('hl-scoring'); if(h)h.innerHTML=(counts.total||q.length)?'<span class="k">'+(counts.exec1||0)+'</span> task'+((counts.exec1||0)===1?'':'s')+' waiting for Executive 1 scoring · <span class="k">'+(counts.exec2||0)+'</span> task'+((counts.exec2||0)===1?'':'s')+' waiting for Executive 2 scoring.':'Scoring basket is clear.';
+  var summary='<div class="kstat"><div class="c act" onclick="opotOpenScoringExec(1)" title="Open Executive 1 awaiting approvals"><div class="l">Executive 1 waiting</div><div class="v">'+(counts.exec1||0)+'</div><div class="s">Tickets awaiting approval</div></div><div class="c act" onclick="opotOpenScoringExec(2)" title="Open Executive 2 awaiting approvals"><div class="l">Executive 2 waiting</div><div class="v">'+(counts.exec2||0)+'</div><div class="s">Tickets awaiting approval</div></div><div class="c flat"><div class="l">Current view</div><div class="v">'+q.length+'</div><div class="s">Executive '+EXECUTIVE_LEVEL+'</div></div></div>';
   if(!q.length){host.innerHTML=summary+'<div class="tablecard"><div class="empty"><div class="ic">✓</div><h3>No scoring pending for this executive</h3><p>Submitted and updated tasks will appear here for Executive 1 first, then Executive 2.</p></div></div>';return;}
-  host.innerHTML=summary+`<div class="tablecard scroll"><table><thead><tr><th>Ticket / Task</th><th>User / Assignee</th><th>Department</th><th>Due date</th><th>Submitted / updated</th><th class="num">System submission</th><th>Exec 1</th><th>Exec 2</th><th class="num">Final</th><th>Stage</th><th>Score</th><th class="no-print">Decision</th></tr></thead><tbody>${q.map(a=>{const cur=opotNormalizeScore(EXECUTIVE_LEVEL===1?a.score1:a.score2);const t=opotTaskForScoring(a.raw||{},a);const user=a.assignee||a.by||t.owner||'';const dept=a.dept||t.dept||'';const due=a.due||t.due||'';const upd=a.submittedAt||opotDateTimeFromTask(t);const p=opotTaskScoreParts(t,a);return `<tr class="rowlink" onclick="opotOpenScoringTicket('${esc(a.id)}')"><td class="t-name"><span class="reflink">${esc(a.ref||'')}</span> ${esc(a.item||'')}</td><td><span class="reflink" onclick="event.stopPropagation();opotOpenScoringUser('${esc(a.id)}')">${esc(user||'')}</span></td><td>${esc(dept||'')}</td><td>${due?fmtD(due):'—'}</td><td>${upd?esc(upd):'—'}</td><td class="num">${p.systemPct}%</td><td><span class="scoredot ${p.exec1Score>=4?'s-strong':p.exec1Score>=3?'s-ok':p.exec1Score?'s-warn':'s-na'}">${p.exec1Pct==null?'—':opotScoreLabel(p.exec1Score)}</span></td><td><span class="scoredot ${p.exec2Score>=4?'s-strong':p.exec2Score>=3?'s-ok':p.exec2Score?'s-warn':'s-na'}">${p.exec2Pct==null?'—':opotScoreLabel(p.exec2Score)}</span></td><td class="num"><b>${p.finalPct==null?'—':p.finalPct+'%'}</b></td><td>${esc(a.stage)}</td><td><span class="rscore" onclick="event.stopPropagation()">${[1,2,3,4,5].map(n=>`<button class="rb${cur>=n?' on':''}" onclick="scoreSet('${esc(a.id)}',${n})">${n}</button>`).join('')}</span></td><td class="no-print"><button class="btn sm go" onclick="event.stopPropagation();scoreDecision('${esc(a.id)}',true)">${EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2'}</button> <button class="btn sm ret" onclick="event.stopPropagation();scoreDecision('${esc(a.id)}',false)">Return</button></td></tr>`}).join('')}</tbody></table></div>`;
+  host.innerHTML=summary+'<div class="tablecard scroll"><table><thead><tr><th>Ticket / Task</th><th>User / Assignee</th><th>Department</th><th>Due date</th><th>Submitted / updated</th><th class="num">System submission</th><th>Exec 1</th><th>Exec 2</th><th class="num">Final</th><th>Stage</th><th>Score</th><th class="no-print">Decision</th></tr></thead><tbody>'+q.map(function(a){var cur=opotNormalizeScore(EXECUTIVE_LEVEL===1?a.score1:a.score2);var t=opotTaskForScoring(a.raw||{},a);var user=a.assignee||a.by||t.owner||'';var dept=a.dept||t.dept||'';var due=a.due||t.due||'';var upd=a.submittedAt||opotDateTimeFromTask(t);var p=opotTaskScoreParts(t,a);return '<tr class="rowlink" onclick="opotOpenScoringTicket(\''+esc(a.id)+'\')"><td class="t-name"><span class="reflink">'+esc(a.ref||'')+'</span> '+esc(a.item||'')+'</td><td><span class="reflink" onclick="event.stopPropagation();opotOpenScoringUser(\''+esc(a.id)+'\')">'+esc(user||'')+'</span></td><td>'+esc(dept||'')+'</td><td>'+(due?fmtD(due):'—')+'</td><td>'+(upd?esc(upd):'—')+'</td><td class="num">'+p.systemPct+'%</td><td><span class="scoredot '+(p.exec1Score>=4?'s-strong':p.exec1Score>=3?'s-ok':p.exec1Score?'s-warn':'s-na')+'">'+(p.exec1Pct==null?'—':opotScoreLabel(p.exec1Score))+'</span></td><td><span class="scoredot '+(p.exec2Score>=4?'s-strong':p.exec2Score>=3?'s-ok':p.exec2Score?'s-warn':'s-na')+'">'+(p.exec2Pct==null?'—':opotScoreLabel(p.exec2Score))+'</span></td><td class="num"><b>'+(p.finalPct==null?'—':p.finalPct+'%')+'</b></td><td>'+esc(a.stage)+'</td><td><span class="rscore" onclick="event.stopPropagation()">'+[1,2,3,4,5].map(function(n){return '<button class="rb'+(cur>=n?' on':'')+'" onclick="scoreSet(\''+esc(a.id)+'\','+n+')">'+n+'</button>';}).join('')+'</span></td><td class="no-print"><button class="btn sm go" onclick="event.stopPropagation();scoreDecision(\''+esc(a.id)+'\',true)">'+(EXECUTIVE_LEVEL===2?'Approve & close':'Approve to Exec 2')+'</button> <button class="btn sm ret" onclick="event.stopPropagation();scoreDecision(\''+esc(a.id)+'\',false)">Return</button></td></tr>';}).join('')+'</tbody></table></div>';
 };
-const _opotSystemScoreOriginalRenderPerf=renderPerf;
+var _opotSystemScoreOriginalRenderPerf=renderPerf;
 renderPerf=function(){
   _opotSystemScoreOriginalRenderPerf();
-  const host=document.getElementById('perf-body'); if(!host)return;
-  const table=`<div class="exsec">Task scoring performance</div><div class="panel"><table class="dh"><thead><tr><th>Ticket</th><th>Task</th><th>Assignee</th><th class="num">% Time submission by system</th><th class="num">Executive 1 score</th><th class="num">Executive 2 score</th><th class="num">Final score</th></tr></thead><tbody>${opotTaskPerformanceRows()}</tbody></table><div class="phint">System submission score is automatic: 0% for no submission, 100% when submitted on time, and 50% when submitted late. Final score is the average of system submission %, Executive 1 %, and Executive 2 %.</div></div>`;
-  const target=host.querySelector('.exsec:nth-of-type(2)');
+  var host=document.getElementById('perf-body'); if(!host)return;
+  var table='<div class="exsec">Task scoring performance</div><div class="panel"><table class="dh"><thead><tr><th>Ticket</th><th>Task</th><th>Assignee</th><th class="num">% Time submission by system</th><th class="num">Executive 1 score</th><th class="num">Executive 2 score</th><th class="num">Final score</th></tr></thead><tbody>'+opotTaskPerformanceRows()+'</tbody></table><div class="phint">System submission score is automatic: 0% for no submission, 100% when submitted on time, and 50% when submitted late. Final score is the average of system submission %, Executive 1 %, and Executive 2 %.</div></div>';
+  var target=host.querySelector('.exsec:nth-of-type(2)');
   if(target)target.insertAdjacentHTML('beforebegin',table); else host.insertAdjacentHTML('beforeend',table);
 };
 
@@ -3384,55 +3444,56 @@ renderPerf=function(){
    Executive 1 by making Score_approvals the authoritative source per ticket ref,
    updates local counts immediately, and keeps ticket-number clicks opening the drawer. */
 function opotScoringStageText(x){
-  const r=(x&&x.raw)||x||{};
+  var r=(x&&x.raw)||x||{};
   return String((x&&x.stage)||_pick(r,['Scoring Status','Workflow Stage','Stage','Status','Approval Status'],'')).trim();
 }
 function opotScoringIsExec2(x){return /exec(utive)?\s*2|executive two|waiting.*2|2nd/i.test(opotScoringStageText(x));}
 function opotScoringIsClosed(x){return /closed|approved\s*$|complete|done|declined|rejected|returned/i.test(opotScoringStageText(x));}
 function opotScoringRefFromRow(r,a){return String((a&&a.ref)||_pick(r,['Ticket Number','Task ID','Ticket ID','Ref','Reference','ID'],'')).trim();}
 function opotRecountScoringQueues(){
-  const all=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>x&&x.ref&&!opotScoringIsClosed(x));
+  var all=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(function(x){return x&&x.ref&&!opotScoringIsClosed(x)&&!isTicketClosed({ref:x.ref,status:x.stage,workflowStatus:x.stage});});
   window.OPOT_ALL_SCORING_QUEUE=all;
-  window.OPOT_SCORING_COUNTS={exec1:all.filter(x=>!opotScoringIsExec2(x)).length,exec2:all.filter(x=>opotScoringIsExec2(x)).length,total:all.length};
-  scoringQueue=all.filter(x=>EXECUTIVE_LEVEL===2?opotScoringIsExec2(x):!opotScoringIsExec2(x));
+  window.OPOT_SCORING_COUNTS={exec1:all.filter(function(x){return !opotScoringIsExec2(x);}).length,exec2:all.filter(function(x){return opotScoringIsExec2(x);}).length,total:all.length};
+  scoringQueue=all.filter(function(x){return EXECUTIVE_LEVEL===2?opotScoringIsExec2(x):!opotScoringIsExec2(x);});
 }
 function opotSetLocalScoringStage(ref,stage,score,level){
   ref=String(ref||'').trim(); if(!ref)return;
-  const all=window.OPOT_ALL_SCORING_QUEUE||[];
-  let rec=all.find(x=>String(x.ref||'').trim()===ref);
-  if(!rec){rec=scoringQueue.find(x=>String(x.ref||'').trim()===ref)||{id:ref,ref,item:ref,raw:{}};all.push(rec);}
+  var all=window.OPOT_ALL_SCORING_QUEUE||[];
+  var rec=all.find(function(x){return String(x.ref||'').trim()===ref;});
+  if(!rec){rec=scoringQueue.find(function(x){return String(x.ref||'').trim()===ref;})||{id:ref,ref:ref,item:ref,raw:{}};all.push(rec);}
   rec.stage=stage; rec.raw=Object.assign({},rec.raw||{}, {'Stage':stage,'Scoring Status':stage,'Workflow Stage':stage,'Status':stage});
   if(level===1){rec.score1=score;rec.exec1Pct=opotScorePercent(score);}
   if(level===2){rec.score2=score;rec.exec2Pct=opotScorePercent(score);}
-  const t=opotFindTaskByRef(ref);
-  if(t){t.status=stage;t.workflowStage=stage;t.scoringStatus=stage;if(level===2)t.status='Closed';}
+  var t=opotFindTaskByRef(ref);
+  if(t){t.status=stage;t.workflowStage=stage;t.scoringStatus=stage;if(level===2){t.status='Closed';t.workflowStatus='Closed';}}
   opotRecountScoringQueues();
 }
 buildWorkflowQueues=function(rows){
-  const approvalRows=(rows.approvals||[]).map(r=>approvalFromRow(r,'Approval')).concat((rows.extensions||[]).map(r=>approvalFromRow(r,'Extension')),(rows.hiring||[]).map(r=>approvalFromRow(r,'Hiring')));
+  var approvalRows=(rows.approvals||[]).map(function(r){return approvalFromRow(r,'Approval');}).concat((rows.extensions||[]).map(function(r){return approvalFromRow(r,'Extension');}),(rows.hiring||[]).map(function(r){return approvalFromRow(r,'Hiring');}));
   approvalsQueue=approvalRows.filter(_statusForExec);
-  const byRef=new Map();
+  var byRef=new Map();
   function put(a,rank){
     if(!a||!a.ref||opotScoringIsClosed(a))return;
+    if(isTicketClosed({ref:a.ref,status:a.stage,workflowStatus:a.stage}))return;
     a.stage=opotScoringStageText(a)||a.stage||'Scoring Executive 1';
-    const key=String(a.ref).trim().toLowerCase();
-    const prev=byRef.get(key);
-    if(!prev||rank>=prev.rank)byRef.set(key,{rank,a});
+    var key=String(a.ref).trim().toLowerCase();
+    var prev=byRef.get(key);
+    if(!prev||rank>=prev.rank)byRef.set(key,{rank:rank,a:a});
   }
-  (rows.updates||[]).filter(r=>/submitted|updated|complete|completed|awaiting/i.test(Object.values(r).join(' '))).map(r=>scoringFromRow(r,'Task Updates')).forEach(a=>put(a,1));
-  (rows.tasks||[]).filter(r=>/awaiting\s*review|completed\s*-\s*awaiting|scoring\s*executive/i.test(String(_pick(r,['Scoring Status','Workflow Stage','Stage','Status','Update Status'],'')))).map(r=>scoringFromRow(r,'Tasks')).forEach(a=>put(a,2));
-  (rows.scoring||[]).map(r=>scoringFromRow(r,'Score_approvals')).forEach(a=>put(a,3));
-  window.OPOT_ALL_SCORING_QUEUE=[...byRef.values()].map(x=>x.a);
+  (rows.updates||[]).filter(function(r){return /submitted|updated|complete|completed|awaiting/i.test(Object.values(r).join(' '));}).map(function(r){return scoringFromRow(r,'Task Updates');}).forEach(function(a){put(a,1);});
+  (rows.tasks||[]).filter(function(r){return /awaiting\s*review|completed\s*-\s*awaiting|scoring\s*executive/i.test(String(_pick(r,['Scoring Status','Workflow Stage','Stage','Status','Update Status'],'')));}).map(function(r){return scoringFromRow(r,'Tasks');}).forEach(function(a){put(a,2);});
+  (rows.scoring||[]).map(function(r){return scoringFromRow(r,'Score_approvals');}).forEach(function(a){put(a,3);});
+  window.OPOT_ALL_SCORING_QUEUE=Array.from(byRef.values()).map(function(x){return x.a;});
   opotRecountScoringQueues();
 };
-const _opotFinalFlowOriginalDoScoreDecision=doScoreDecision;
+var _opotFinalFlowOriginalDoScoreDecision=doScoreDecision;
 doScoreDecision=function(id,ok,reason){
-  const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id);
+  var a=(scoringQueue||[]).find(function(x){return x.id===id||x.ref===id;});
   if(!a)return;
-  const t=opotFindTaskByRef(a.ref);
+  var t=opotFindTaskByRef(a.ref);
   if(ok&&EXECUTIVE_LEVEL===1){
     if(!opotNormalizeScore(a.score1)){toast('Choose a score from 1 to 5 first.','warn');return;}
-    const p=t?opotPersistTaskScore(t,a):{systemPct:0};
+    var p=t?opotPersistTaskScore(t,a):{systemPct:0};
     sheetWrite('score_exec1_approved',{sheet:'Score_approvals',taskId:a.ref,score:a.score1,scorePercent:opotScorePercent(a.score1),systemSubmissionPercent:p.systemPct,nextStage:'Scoring Executive 2'});
     opotSetLocalScoringStage(a.ref,'Scoring Executive 2',a.score1,1);
     logAudit('Executive 1 scored',a.item,'Score '+a.score1+'/5 · moved to Executive 2');
@@ -3440,21 +3501,21 @@ doScoreDecision=function(id,ok,reason){
   }else if(ok&&EXECUTIVE_LEVEL===2){
     if(!opotNormalizeScore(a.score2)){toast('Choose a score from 1 to 5 first.','warn');return;}
     if(t)opotApplyClosedFromSubmission(t,a);
-    const p=t?opotPersistTaskScore(t,a):{systemPct:0,exec1Pct:opotScorePercent(a.score1),exec2Pct:opotScorePercent(a.score2),finalPct:null};
+    var p=t?opotPersistTaskScore(t,a):{systemPct:0,exec1Pct:opotScorePercent(a.score1),exec2Pct:opotScorePercent(a.score2),finalPct:null};
     sheetWrite('score_exec2_approved_close',{sheet:'Score_approvals',taskId:a.ref,score:a.score2,scorePercent:opotScorePercent(a.score2),exec1Score:a.score1,exec1ScorePercent:a.exec1Pct||opotScorePercent(a.score1),systemSubmissionPercent:p.systemPct,finalScorePercent:p.finalPct,nextStage:'Closed',closedDate:t?t.closed:'',closedOnTime:opotClosedOnTimeValue(t)});
     opotSetLocalScoringStage(a.ref,'Closed',a.score2,2);
     logAudit('Executive 2 scored & closed',a.item,'Final '+(p.finalPct==null?'—':p.finalPct+'%'));
     toast('Approved, scored and closed');
   }else{
-    if(t){t.status='Open';t.closed='';t.closedOnTimePendingReview=false;}
-    sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason,nextStage:'Returned / Reopened'});
+    if(t){t.status='Open';t.workflowStatus='Open';t.closed='';t.closedOnTimePendingReview=false;}
+    sheetWrite('score_returned_reopen',{sheet:'Score_approvals',taskId:a.ref,reason:reason,nextStage:'Returned / Reopened'});
     opotSetLocalScoringStage(a.ref,'Returned / Reopened',0,EXECUTIVE_LEVEL);
     logAudit('Scoring returned',a.item,reason||'');
     toast('Returned and ticket reopened','warn');
   }
   renderTiles();headlines();renderScoring();if(state.tab==='reports')renderReport();if(state.tab==='perf')renderPerf();if(state.tab==='activity')renderActivity();
 };
-const _opotFinalFlowOriginalRenderScoring=renderScoring;
+var _opotFinalFlowOriginalRenderScoring=renderScoring;
 renderScoring=function(){opotRecountScoringQueues();_opotFinalFlowOriginalRenderScoring();};
 
 
@@ -3474,12 +3535,13 @@ function opotClosedTextFromTask(t){
 function opotIsClosedTask(t){return /\bclosed\b/i.test(opotClosedTextFromTask(t));}
 function opotMarkTicketClosedLocal(ref, closedDate){
   ref=String(ref||'').trim(); if(!ref)return;
-  const t=opotFindTaskByRef(ref) || (Array.isArray(T)?T.find(x=>String(x.ref||'').trim()===ref):null);
-  const d=closedDate||new Date().toISOString().slice(0,10);
+  var t=opotFindTaskByRef(ref) || (Array.isArray(T)?T.find(function(x){return String(x.ref||'').trim()===ref;}):null);
+  var d=closedDate||new Date().toISOString().slice(0,10);
   if(t){
     t.status='Closed';
     t.taskStatus='Closed';
     t.workflowStage='Closed';
+    t.workflowStatus='Closed';
     t.scoringStatus='Closed';
     t.approvalStatus='Closed';
     t.closed=t.closed||d;
@@ -3489,41 +3551,42 @@ function opotMarkTicketClosedLocal(ref, closedDate){
     t.daysWaiting=0;
   }
 }
-const _opotLockOriginalScoringIsClosed = opotScoringIsClosed;
+var _opotLockOriginalScoringIsClosed = opotScoringIsClosed;
 opotScoringIsClosed=function(x){
-  const raw=(x&&x.raw)||x||{};
-  const ref=opotScoringRefFromRow(raw,x);
-  const t=ref&&opotFindTaskByRef(ref);
+  var raw=(x&&x.raw)||x||{};
+  var ref=opotScoringRefFromRow(raw,x);
+  var t=ref&&opotFindTaskByRef(ref);
   if(opotIsClosedTask(t))return true;
-  const rowText=[opotScoringStageText(x),_pick(raw,['Status','Task Status','Workflow Stage','Scoring Status','Approval Status','Closed','Closed Date'],'')].filter(Boolean).join(' ');
+  if(t&&isTicketClosed(t))return true;
+  var rowText=[opotScoringStageText(x),_pick(raw,['Status','Task Status','Workflow Stage','Scoring Status','Approval Status','Closed','Closed Date'],'')].filter(Boolean).join(' ');
   if(/\bclosed\b/i.test(rowText))return true;
   return _opotLockOriginalScoringIsClosed(x);
 };
 function opotFilterClosedScoringQueues(){
-  window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>!opotScoringIsClosed(x));
+  window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(function(x){return !opotScoringIsClosed(x) && !isTicketClosed({ref:x.ref,status:x.stage,workflowStatus:x.stage});});
 }
-const _opotLockOriginalRecountScoringQueues = opotRecountScoringQueues;
+var _opotLockOriginalRecountScoringQueues = opotRecountScoringQueues;
 opotRecountScoringQueues=function(){
   opotFilterClosedScoringQueues();
   _opotLockOriginalRecountScoringQueues();
 };
-const _opotLockOriginalBuildWorkflowQueues = buildWorkflowQueues;
+var _opotLockOriginalBuildWorkflowQueues = buildWorkflowQueues;
 buildWorkflowQueues=function(rows){
   _opotLockOriginalBuildWorkflowQueues(rows||{});
   opotFilterClosedScoringQueues();
   opotRecountScoringQueues();
 };
-const _opotLockOriginalDoScoreDecision = doScoreDecision;
+var _opotLockOriginalDoScoreDecision = doScoreDecision;
 doScoreDecision=function(id,ok,reason){
-  const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id);
+  var a=(scoringQueue||[]).find(function(x){return x.id===id||x.ref===id;});
   if(ok && a && EXECUTIVE_LEVEL===2){
-    const score=opotNormalizeScore(a.score2);
+    var score=opotNormalizeScore(a.score2);
     if(!score){toast('Choose a score from 1 to 5 first.','warn');return;}
-    const t=opotFindTaskByRef(a.ref);
+    var t=opotFindTaskByRef(a.ref);
     if(t)opotApplyClosedFromSubmission(t,a);
     _opotLockOriginalDoScoreDecision(id,ok,reason);
     opotMarkTicketClosedLocal(a.ref,(t&&t.closed)||new Date().toISOString().slice(0,10));
-    window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>String(x.ref||'').trim()!==String(a.ref||'').trim());
+    window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(function(x){return String(x.ref||'').trim()!==String(a.ref||'').trim();});
     opotFilterClosedScoringQueues();
     opotRecountScoringQueues();
     renderTiles();headlines();renderScoring();
@@ -3539,15 +3602,15 @@ doScoreDecision=function(id,ok,reason){
    Scope: Executive 2 scoring close only. Keeps Executive 2-approved tickets out of
    Executive 1 and shows Closed On Time / Closed Late in the closed tickets view. */
 function opotClosedStatusText(t){
-  const onTime=!!(t&&t.due&&t.closed&&t.closed<=t.due);
+  var onTime=!!(t&&t.due&&t.closed&&t.closed<=t.due);
   return onTime?'Closed On Time':'Closed Late';
 }
 function opotClosedLateFlag(t){return !!(t&&t.due&&t.closed&&t.closed>t.due);}
 function opotFinalizeExec2ClosedTicket(ref,a){
-  const t=opotFindTaskByRef(ref);
-  const d=(t&&t.closed)||new Date().toISOString().slice(0,10);
+  var t=opotFindTaskByRef(ref);
+  var d=(t&&t.closed)||new Date().toISOString().slice(0,10);
   opotMarkTicketClosedLocal(ref,d);
-  const tt=opotFindTaskByRef(ref);
+  var tt=opotFindTaskByRef(ref);
   if(tt){
     tt.closed=d;
     tt.closedDate=d;
@@ -3558,14 +3621,14 @@ function opotFinalizeExec2ClosedTicket(ref,a){
     tt.daysLate=tt.closedLate?_daysBetween(tt.due,tt.closed):0;
     tt.daysWaiting=0;
   }
-  window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(x=>String(x.ref||'').trim()!==String(ref||'').trim());
-  scoringQueue=(scoringQueue||[]).filter(x=>String(x.ref||'').trim()!==String(ref||'').trim());
+  window.OPOT_ALL_SCORING_QUEUE=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(function(x){return String(x.ref||'').trim()!==String(ref||'').trim();});
+  scoringQueue=(scoringQueue||[]).filter(function(x){return String(x.ref||'').trim()!==String(ref||'').trim();});
   opotFilterClosedScoringQueues();
   opotRecountScoringQueues();
 }
-const _opotClosedStatusOriginalDoScoreDecision=doScoreDecision;
+var _opotClosedStatusOriginalDoScoreDecision=doScoreDecision;
 doScoreDecision=function(id,ok,reason){
-  const a=(scoringQueue||[]).find(x=>x.id===id||x.ref===id);
+  var a=(scoringQueue||[]).find(function(x){return x.id===id||x.ref===id;});
   if(ok&&a&&EXECUTIVE_LEVEL===2){
     _opotClosedStatusOriginalDoScoreDecision(id,ok,reason);
     opotFinalizeExec2ClosedTicket(a.ref,a);
@@ -3574,17 +3637,18 @@ doScoreDecision=function(id,ok,reason){
   }
   _opotClosedStatusOriginalDoScoreDecision(id,ok,reason);
 };
-const _opotClosedStatusOriginalRenderClosed=renderClosed;
+var _opotClosedStatusOriginalRenderClosed=renderClosed;
 renderClosed=function(){
-  const closed=T.filter(t=>t.status==='Closed'&&inPeriod(t.closed));
+  var closed=T.filter(function(t){return t.status==='Closed'&&inPeriod(t.closed);});
   if(!closed.length){_opotClosedStatusOriginalRenderClosed();return;}
-  const onT=closed.filter(t=>t.closed&&t.due&&t.closed<=t.due).length, late=closed.length-onT, rate=Math.round(onT/closed.length*100);
-  $('#c-closed').textContent=`${closed.length} closed · ${onT} on time · ${late} late · ${rate}% on time`;
-  $('#closedBody').innerHTML=`<div class="tablecard scroll"><table>
-    <thead><tr><th>Ref</th><th>Task</th><th>Department</th><th>Owner</th><th>Due</th><th>Closed</th><th>Closed status</th></tr></thead>
-    <tbody>${closed.sort((a,b)=>(a.closed<b.closed?1:-1)).map(t=>{const ot=t.closed&&t.due&&t.closed<=t.due;
-      return `<tr class="rowlink" data-ref="${esc(t.ref)}" data-ball="${ballOf(t)}" onclick="openTicket('${esc(t.ref)}')"><td class="t-ref">${esc(t.ref)}</td><td class="t-name">${esc(t.name)}</td><td>${esc(t.dept)}</td><td>${esc(t.owner)}</td>
-      <td>${fmtD(t.due)}</td><td>${fmtD(t.closed)}</td><td><span class="st"><span class="dot ${ot?'closed':'late'}"></span>${ot?'Closed On Time':'Closed Late'}</span></td></tr>`;}).join('')}</tbody></table></div>`;
+  var onT=closed.filter(function(t){return t.closed&&t.due&&t.closed<=t.due;}).length, late=closed.length-onT, rate=Math.round(onT/closed.length*100);
+  $('#c-closed').textContent=closed.length+' closed · '+onT+' on time · '+late+' late · '+rate+'% on time';
+  $('#closedBody').innerHTML='<div class="tablecard scroll"><table>'+
+    '<thead><tr><th>Ref</th><th>Task</th><th>Department</th><th>Owner</th><th>Due</th><th>Closed</th><th>Closed status</th></tr></thead>'+
+    '<tbody>'+closed.sort(function(a,b){return (a.closed<b.closed?1:-1);}).map(function(t){var ot=t.closed&&t.due&&t.closed<=t.due;
+      return '<tr class="rowlink" data-ref="'+esc(t.ref)+'" data-ball="'+ballOf(t)+'" onclick="openTicket(\''+esc(t.ref)+'\')"><td class="t-ref">'+esc(t.ref)+'</td><td class="t-name">'+esc(t.name)+'</td><td>'+esc(t.dept)+'</td><td>'+esc(t.owner)+'</td>'+
+      '<td>'+fmtD(t.due)+'</td><td>'+fmtD(t.closed)+'</td><td><span class="st"><span class="dot '+(ot?'closed':'late')+'"></span>'+(ot?'Closed On Time':'Closed Late')+'</span></td></tr>';}).join('')+
+    '</tbody></table></div>';
 };
 
 
@@ -3601,20 +3665,20 @@ renderClosed=function(){
 
   // Resilient task lookup (matches ref / ticketNumber / rawTaskId).
   function _findTask(ref){
-    if(typeof opotFindTaskByRef==='function'){const t=opotFindTaskByRef(ref); if(t)return t;}
-    const k=_k(ref);
-    return (Array.isArray(T)?T:[]).find(t=>_k(t.ref)===k||_k(t.ticketNumber)===k||_k(t.rawTaskId)===k)||null;
+    if(typeof opotFindTaskByRef==='function'){var t=opotFindTaskByRef(ref); if(t)return t;}
+    var k=_k(ref);
+    return (Array.isArray(T)?T:[]).find(function(t){return _k(t.ref)===k||_k(t.ticketNumber)===k||_k(t.rawTaskId)===k;})||null;
   }
   // Scoring record for a ref in the CURRENT executive's queue only.
   function _scoringForCurrentExec(ref){
-    const k=_k(ref);
-    return (scoringQueue||[]).find(x=>_k(x.ref)===k||_k(x.id)===k)||null;
+    var k=_k(ref);
+    return (scoringQueue||[]).find(function(x){return _k(x.ref)===k||_k(x.id)===k;})||null;
   }
   // Scoring record across all queues (used only to open an orphan drawer).
   function _scoringAnywhere(ref){
-    const k=_k(ref);
-    return (scoringQueue||[]).find(x=>_k(x.ref)===k||_k(x.id)===k)
-      || (window.OPOT_ALL_SCORING_QUEUE||[]).find(x=>_k(x.ref)===k||_k(x.id)===k)
+    var k=_k(ref);
+    return (scoringQueue||[]).find(function(x){return _k(x.ref)===k||_k(x.id)===k;})
+      || (window.OPOT_ALL_SCORING_QUEUE||[]).find(function(x){return _k(x.ref)===k||_k(x.id)===k;})
       || null;
   }
 
@@ -3622,57 +3686,56 @@ renderClosed=function(){
      A ticket whose task row is Closed is removed from EVERY scoring queue
      after each recount, no matter which stale sheet row tries to revive it. */
   function _refIsClosed(ref){
-    const t=_findTask(ref); if(!t)return false;
-    const s=[t.status,t.taskStatus,t.workflowStage,t.scoringStatus,t.approvalStatus,t.closed,t.closedDate]
-      .filter(Boolean).join(' ');
-    return /\bclosed\b/i.test(s);
+    var t=_findTask(ref); if(!t)return false;
+    return isTicketClosed(t);
   }
-  const _prevRecount=(typeof opotRecountScoringQueues==='function')?opotRecountScoringQueues:null;
+  var _prevRecount=(typeof opotRecountScoringQueues==='function')?opotRecountScoringQueues:null;
   opotRecountScoringQueues=function(){
     if(window.OPOT_ALL_SCORING_QUEUE)
-      window.OPOT_ALL_SCORING_QUEUE=window.OPOT_ALL_SCORING_QUEUE.filter(x=>x&&x.ref&&!_refIsClosed(x.ref));
+      window.OPOT_ALL_SCORING_QUEUE=window.OPOT_ALL_SCORING_QUEUE.filter(function(x){return x&&x.ref&&!_refIsClosed(x.ref);});
     if(_prevRecount)_prevRecount();
     if(Array.isArray(scoringQueue))
-      scoringQueue=scoringQueue.filter(x=>x&&x.ref&&!_refIsClosed(x.ref));
+      scoringQueue=scoringQueue.filter(function(x){return x&&x.ref&&!_refIsClosed(x.ref);});
     // Recompute the Exec 1 / Exec 2 headline counts off the cleaned pool.
     if(window.OPOT_ALL_SCORING_QUEUE && typeof opotScoringIsExec2==='function'){
-      const all=window.OPOT_ALL_SCORING_QUEUE;
+      var all=window.OPOT_ALL_SCORING_QUEUE;
       window.OPOT_SCORING_COUNTS={
-        exec1:all.filter(x=>!opotScoringIsExec2(x)).length,
-        exec2:all.filter(x=>opotScoringIsExec2(x)).length,
+        exec1:all.filter(function(x){return !opotScoringIsExec2(x);}).length,
+        exec2:all.filter(function(x){return opotScoringIsExec2(x);}).length,
         total:all.length
       };
     }
   };
 
   /* ---- (2)+(3) Drawer always opens, with scoring/approval actions ------- */
-  const _prevOpenTicket=openTicket;
+  var _prevOpenTicket=openTicket;
   openTicket=function(ref,keepList){
-    let t=_findTask(ref);
+    var t=_findTask(ref);
     // If the ref is a scoring-only row with no Tasks sheet record, synthesize a
     // minimal task so the drawer renderer has something to show instead of bailing.
     if(!t){
-      const a=_scoringAnywhere(ref);
+      var a=_scoringAnywhere(ref);
       if(a){
         t={ref:a.ref||ref,name:a.item||ref,owner:a.by||a.assignee||'',dept:a.dept||'',
-           prio:'Medium',status:a.stage||'Awaiting review',due:a.due||'',created:a.submittedAt||'',
+           prio:'Medium',status:a.stage||'Awaiting review',workflowStatus:a.stage||'Awaiting review',
+           due:a.due||'',created:a.submittedAt||'',
            desc:a.detail||'',proofs:[],proofNames:[],_synthetic:true};
         if(Array.isArray(T))T.push(t);
       }
     }
-    const useRef=t?t.ref:ref;
+    var useRef=t?t.ref:ref;
     try{ _prevOpenTicket.call(this,useRef,keepList); }catch(e){ console.warn('openTicket base failed',e); }
 
     // Guarantee the drawer is visible even if the base renderer returned early.
-    const dr=document.getElementById('drawer'), sc=document.getElementById('scrim');
+    var dr=document.getElementById('drawer'), sc=document.getElementById('scrim');
     if(dr && !dr.classList.contains('open')){
       dr.classList.add('open'); if(sc)sc.classList.add('open');
-      const rf=document.getElementById('dw-ref'); if(rf&&t)rf.textContent=t.ref;
+      var rf=document.getElementById('dw-ref'); if(rf&&t)rf.textContent=t.ref;
     }
 
     // (3) Show score + Approve/Return only when this ticket is awaiting the
     // CURRENT executive in the scoring queue.
-    const a=_scoringForCurrentExec(useRef);
+    var a=_scoringForCurrentExec(useRef);
     if(a && typeof opotRenderScoringDrawerActions==='function'){
       opotRenderScoringDrawerActions(a,t||{});
     }
@@ -3681,10 +3744,10 @@ renderClosed=function(){
   // Make sure ticket-number clicks everywhere route through the resilient opener.
   if(typeof opotOpenScoringTicket==='function'){
     opotOpenScoringTicket=function(id){
-      const q=scoringQueue||[];
-      const a=q.find(x=>_k(x.id)===_k(id)||_k(x.ref)===_k(id));
-      const ref=a?a.ref:id;
-      if(a){state.drawerList=q.map(x=>x.ref).filter(Boolean);state.drawerIdx=state.drawerList.indexOf(ref);}
+      var q=scoringQueue||[];
+      var a=q.find(function(x){return _k(x.id)===_k(id)||_k(x.ref)===_k(id);});
+      var ref=a?a.ref:id;
+      if(a){state.drawerList=q.map(function(x){return x.ref;}).filter(Boolean);state.drawerIdx=state.drawerList.indexOf(ref);}
       openTicket(ref,true);
     };
   }
