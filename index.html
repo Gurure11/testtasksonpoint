@@ -2291,11 +2291,11 @@ function openReportFor(emp){state.repEmp=emp;if($('#repEmp'))$('#repEmp').value=
 
 /* ---------- Google Sheets live data + two-executive workflow patch ---------- */
 const OPOT_SHEETS = {
-  spreadsheetId: '1KWYWSUmwGYcBVIuDzh7yo86eTrfnMZX35DuGnRAVNv8',
-  workbookName: 'Quick',
+  spreadsheetId: '1xxd1unOolbs_e9dsgcZ7h1UHbymyToTb1srpNs_8cq4',
+  workbookName: 'BaseOnpoint',
   // Deployed Apps Script Web App URL. Used for live read/write access to the Google Sheet.
-  readUrl: 'https://script.google.com/macros/s/AKfycbx0PPIGJfrI17sgvxy9dyzhwTq0u2imI2TfiHL0oUDUpCzTU1P0-TFnQnXjEfD3gPSY/exec',
-  writeUrl: 'https://script.google.com/macros/s/AKfycbx0PPIGJfrI17sgvxy9dyzhwTq0u2imI2TfiHL0oUDUpCzTU1P0-TFnQnXjEfD3gPSY/exec',
+  readUrl: 'https://script.google.com/macros/s/AKfycbyyWNOl2LjbViNT9eNzDwSUdNZPw6uTDX2RJK0TGq3KNJwgPmFt9b96nxhWo34hqMc/exec',
+  writeUrl: 'https://script.google.com/macros/s/AKfycbyyWNOl2LjbViNT9eNzDwSUdNZPw6uTDX2RJK0TGq3KNJwgPmFt9b96nxhWo34hqMc/exec',
   tabs: {
     tasks:['Tasks','Tickets'],
     updates:'Task Updates',
@@ -3688,117 +3688,6 @@ renderClosed=function(){
       openTicket(ref,true);
     };
   }
-})();
-
-/* ================= AUTHORITATIVE WORKFLOW REBUILD 2026-06-25 =================
-   Loop fix — "after Exec 2 approves, the ticket returns to Executive 1".
-
-   Root cause (proven against live data, 27 of 55 closed tickets affected):
-   the queue rebuild DROPPED closed Score_approvals rows, then a leftover
-   'Task Updates' row (which carries no stage) defaulted to 'Scoring Executive
-   1' and resurrected the ticket. The Tasks-sheet 'closed' guard missed it
-   because the backend records closure in Score_approvals, not Tasks.
-
-   Fix: Score_approvals is the SINGLE SOURCE OF TRUTH for a ticket's scoring
-   stage. A ref that Score_approvals (or its Tasks row) shows as Closed / at
-   Exec 2 can never be pulled back into Exec 1 by an Updates/Tasks row. Task
-   Updates / Tasks rows only create NEW Exec-1 inflow for refs Score_approvals
-   has never seen. Defined LAST, so it wins over every earlier patch.
-============================================================================= */
-(function(){
-  function _k(v){return String(v==null?'':v).trim().toLowerCase();}
-
-  // Canonical 3-state classifier for any workflow-stage string.
-  function _wfClass(stageStr){
-    var s=_k(stageStr);
-    if(!s) return 'exec1';
-    if(/return|reopen|declin|reject/.test(s)) return 'closed';                       // out of scoring queue
-    if(/clos|complete|done|approved|signed.?off|finaliz|permanent|ticket created|hr manager|fulfilled|hired/.test(s)) return 'closed';
-    if(/exec(utive)?\s*2|executive two|waiting.*2|2nd|second/.test(s)) return 'exec2';
-    return 'exec1';
-  }
-  function _recClass(a){ return _wfClass(opotScoringStageText(a)); }
-
-  // A Tasks-sheet row that is Closed also forces 'closed' (covers review-basket
-  // closures that never produced a Score_approvals stage change).
-  function _refTaskClosed(ref){
-    var t=(typeof opotFindTaskByRef==='function')?opotFindTaskByRef(ref):null;
-    if(!t) return false;
-    var s=[t.status,t.taskStatus,t.workflowStage,t.scoringStatus,t.approvalStatus,t.closed,t.closedDate].filter(Boolean).join(' ');
-    return /\bclosed\b/i.test(s);
-  }
-
-  // Recognise hiring/extension terminal stages so Exec-2-approved requests do
-  // not return to the Exec-1 approvals basket (latent twin of the scoring bug).
-  _isClosedStage=function(row){
-    return /approved|closed|complete|done|declined|rejected|returned|ticket created|hr manager|waiting hr|fulfilled|hired/i.test(_stage(row));
-  };
-
-  buildWorkflowQueues=function(rows){
-    rows=rows||{};
-
-    /* ---- Approvals (hiring / extension) — unchanged routing, stronger closed test ---- */
-    var approvalRows=(rows.approvals||[]).map(function(r){return approvalFromRow(r,'Approval');})
-      .concat((rows.extensions||[]).map(function(r){return approvalFromRow(r,'Extension');}),
-              (rows.hiring||[]).map(function(r){return approvalFromRow(r,'Hiring');}));
-    approvalsQueue=approvalRows.filter(_statusForExec);
-
-    /* ---- Scoring: build the authoritative per-ref state from Score_approvals ---- */
-    var authClass={}, authRec={};
-    (rows.scoring||[]).map(function(r){return scoringFromRow(r,'Score_approvals');}).forEach(function(a){
-      if(!a||!a.ref) return;
-      var key=_k(a.ref);
-      if(authClass[key]==='closed') return;          // closed is sticky — never revive
-      authClass[key]=_recClass(a);                   // otherwise latest sheet row wins
-      authRec[key]=a;
-    });
-
-    var queueAll=[], known={};
-    Object.keys(authClass).forEach(function(key){
-      known[key]=true;
-      var cls=authClass[key], rec=authRec[key];
-      if(cls==='closed') return;                     // excluded from ALL scoring queues
-      if(_refTaskClosed(rec.ref)) return;
-      queueAll.push(rec);
-    });
-
-    /* ---- New Exec-1 inflow: only refs Score_approvals has NEVER seen ---- */
-    function addNew(a){
-      if(!a||!a.ref) return;
-      var key=_k(a.ref);
-      if(known[key]) return;                         // authoritative class already decided
-      if(_refTaskClosed(a.ref)) return;
-      a.stage=a.stage||'Scoring Executive 1';
-      if(_wfClass(a.stage)==='closed') return;
-      known[key]=true; queueAll.push(a);
-    }
-    (rows.updates||[]).filter(function(r){return /submitted|updated|complete|completed|awaiting/i.test(Object.values(r).join(' '));})
-      .map(function(r){return scoringFromRow(r,'Task Updates');}).forEach(addNew);
-    (rows.tasks||[]).filter(function(r){return /awaiting\s*review|completed\s*-\s*awaiting|scoring\s*executive/i.test(String(_pick(r,['Scoring Status','Workflow Stage','Stage','Status','Update Status'],'')));})
-      .map(function(r){return scoringFromRow(r,'Tasks');}).forEach(addNew);
-
-    window.OPOT_ALL_SCORING_QUEUE=queueAll;
-    _opotApplyScoringSplit();
-  };
-
-  // Shared splitter used by both rebuild and recount, so counts and the active
-  // executive's queue are always derived from the same cleaned pool.
-  function _opotApplyScoringSplit(){
-    var all=(window.OPOT_ALL_SCORING_QUEUE||[]).filter(function(x){
-      return x && x.ref && _wfClass(opotScoringStageText(x))!=='closed' && !_refTaskClosed(x.ref);
-    });
-    window.OPOT_ALL_SCORING_QUEUE=all;
-    window.OPOT_SCORING_COUNTS={
-      exec1:all.filter(function(x){return _wfClass(opotScoringStageText(x))==='exec1';}).length,
-      exec2:all.filter(function(x){return _wfClass(opotScoringStageText(x))==='exec2';}).length,
-      total:all.length
-    };
-    scoringQueue=all.filter(function(x){
-      var c=_wfClass(opotScoringStageText(x));
-      return EXECUTIVE_LEVEL===2 ? c==='exec2' : c==='exec1';
-    });
-  }
-  opotRecountScoringQueues=function(){ _opotApplyScoringSplit(); };
 })();
 
 onpointEnhancedBoot().then(init).catch(function(e){console.warn(e);init();});
