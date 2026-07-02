@@ -1589,7 +1589,7 @@
             SHEET_ID: '1k96YHfBB9R5CYxJZER6aG8xGz2tPJKEdc4N6emXJevk',
             SHEET_NAME: 'SHEQ-reports',
             // IMPORTANT: Replace with your actual deployed Apps Script URL
-            APPSCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwchqgIlIgf6Gvv9y5gHQZyB4yTlO6SbcJpB8d-TLkFHyD8iwh8jkSfWXXoel0dA7VM/exec',
+            APPSCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxGzdBREGnd4twBOtm0jbSLyaBCIq6-6PGKx0CPjWPWR4FkvJnr0aGDuPz4XXmv34BJ/exec',
             USE_MOCK: false, // Set to false when Apps Script is deployed
         };
 
@@ -1820,6 +1820,85 @@
                 };
                 reader.onerror = reject;
                 reader.readAsDataURL(file);
+            });
+        }
+
+
+        // Upload documents by POST instead of JSONP.
+        // JSONP puts the whole file in the URL and fails with large Base64 payloads.
+        // This keeps normal small requests on JSONP, but sends file uploads through a hidden POST form.
+        function postDocumentWithFile(action, sheet, data, id = null) {
+            return new Promise((resolve, reject) => {
+                if (!CONFIG.APPSCRIPT_URL || CONFIG.APPSCRIPT_URL.includes('PASTE_YOUR_DEPLOYED')) {
+                    reject(new Error('Apps Script URL is not set.'));
+                    return;
+                }
+
+                const uploadId = 'sheqUpload_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+                const iframe = document.createElement('iframe');
+                iframe.name = uploadId;
+                iframe.style.display = 'none';
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = CONFIG.APPSCRIPT_URL;
+                form.target = uploadId;
+                form.style.display = 'none';
+                form.enctype = 'application/x-www-form-urlencoded';
+
+                const payload = {
+                    action,
+                    sheet,
+                    sheetId: CONFIG.SHEET_ID,
+                    sheetName: CONFIG.SHEET_NAME,
+                    token: state.token || localStorage.getItem('sheqToken') || '',
+                    userEmail: state.user?.email || '',
+                    id: id || '',
+                    data: { ...data }
+                };
+
+                const fileBase64 = payload.data.fileBase64 || '';
+                delete payload.data.fileBase64;
+
+                const addField = (name, value) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value == null ? '' : String(value);
+                    form.appendChild(input);
+                };
+
+                addField('uploadMode', 'formPost');
+                addField('callbackId', uploadId);
+                addField('payload', JSON.stringify(payload));
+                addField('fileBase64', fileBase64);
+
+                const cleanup = () => {
+                    window.removeEventListener('message', onMessage);
+                    setTimeout(() => {
+                        if (form.parentNode) form.parentNode.removeChild(form);
+                        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+                    }, 200);
+                };
+
+                const timer = setTimeout(() => {
+                    cleanup();
+                    reject(new Error('Upload timed out. Try a smaller file or check Apps Script deployment permissions.'));
+                }, 120000);
+
+                function onMessage(event) {
+                    const msg = event.data || {};
+                    if (!msg || msg.callbackId !== uploadId) return;
+                    clearTimeout(timer);
+                    cleanup();
+                    if (msg.success === false) reject(new Error(msg.error || 'Upload failed'));
+                    else resolve(msg);
+                }
+
+                window.addEventListener('message', onMessage);
+                document.body.appendChild(iframe);
+                document.body.appendChild(form);
+                form.submit();
             });
         }
 
@@ -2804,8 +2883,11 @@
                             docData.mimeType = file.type || 'application/octet-stream';
                             docData.fileBase64 = await fileToBase64(file);
                         }
+                        const hasNewFile = !!docData.fileBase64;
                         if (data) {
-                            const result = await apiRequest('update', 'documents', docData, data.id);
+                            const result = hasNewFile
+                                ? await postDocumentWithFile('update', 'documents', docData, data.id)
+                                : await apiRequest('update', 'documents', docData, data.id);
                             if (result.success !== false) {
                                 showToast('Document updated successfully!', 'success');
                                 loadAllData();
@@ -2813,7 +2895,9 @@
                                 showToast('Failed to update document', 'error');
                             }
                         } else {
-                            const result = await apiRequest('post', 'documents', docData);
+                            const result = hasNewFile
+                                ? await postDocumentWithFile('post', 'documents', docData)
+                                : await apiRequest('post', 'documents', docData);
                             if (result.success !== false) {
                                 showToast('Document uploaded successfully!', 'success');
                                 loadAllData();
