@@ -2,266 +2,1004 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Perspective Collections Online</title>
-  <meta name="description" content="Perspective Collections Online - clothing, footwear, stationery and lifestyle essentials." />
-  
-  <script src="https://www.paypal.com/sdk/js?client-id=AT8N4K7kIeU2jJgKxzPMsOW0k6oSCcrIN519RvHYSrUUNgrrvCz6sZQAsoXJvUsD2gvxGnLhNR9vOg1J&currency=USD"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Distinct Infrastructure · Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
-    :root{--purple:#32104f;--purple2:#4b1d72;--gold:#d4af37;--white:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--soft:#f8fafc;--ok:#16a34a;--danger:#ef4444;--radius:24px;--shadow:0 20px 60px rgba(15,23,42,.14)}
-    *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}html{scroll-behavior:smooth}body{background:#fff;color:var(--ink);overflow-x:hidden}.hide{display:none!important}a{color:inherit;text-decoration:none}button{font:inherit}.container{width:min(1200px,calc(100% - 32px));margin:auto}.admin-login-strip{background:#fff;color:#4b1d72;text-align:right;font-size:11px;padding:5px 16px;border-bottom:1px solid var(--line)}.admin-login-strip button{font-size:11px;padding:4px 9px;border-radius:999px;border:1px solid var(--gold);background:#fff;color:#4b1d72;font-weight:900;cursor:pointer}.top-strip{background:linear-gradient(90deg,var(--purple),#180425);color:#fff;text-align:center;font-size:13px;padding:9px}.top-strip b{color:var(--gold)}
-    header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.94);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}.nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}.brand{display:flex;align-items:center;gap:10px;font-weight:950;letter-spacing:-.04em;font-size:23px}.brand img{width:48px;height:48px;object-fit:cover;border-radius:50%;box-shadow:0 6px 20px rgba(50,16,79,.25)}.brand span{color:var(--gold)}.nav-links{display:flex;gap:16px;align-items:center;font-weight:800;font-size:14px;color:#374151}.nav-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.icon-btn,.btn{border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 15px;font-weight:850;cursor:pointer;transition:.2s}.icon-btn:hover,.btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,0,0,.09)}.btn.primary{background:var(--purple);color:#fff;border-color:var(--purple)}.btn.gold{background:var(--gold);border-color:var(--gold);color:#180425}.btn.danger{background:#fee2e2;color:#991b1b;border-color:#fecaca}.btn.small{padding:7px 10px;font-size:12px}.hamburger{display:none}.dropdown{position:relative}.dropdown-menu{display:none;position:absolute;top:120%;left:0;min-width:240px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);border-radius:18px;padding:8px;z-index:55}.dropdown:hover .dropdown-menu{display:block}.dropdown-menu a{display:block;padding:10px 12px;border-radius:12px}.dropdown-menu a:hover{background:#f8fafc;color:var(--purple)}
-    .hero{position:relative;min-height:660px;display:grid;align-items:center;overflow:hidden;background:#17051f;color:#fff}.hero-slider{position:absolute;inset:0;width:100%;height:100%;z-index:0}.hero-slider img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;animation:heroSlide 30s infinite}.hero-slider img:nth-child(1){animation-delay:0s}.hero-slider img:nth-child(2){animation-delay:5s}.hero-slider img:nth-child(3){animation-delay:10s}.hero-slider img:nth-child(4){animation-delay:15s}.hero-slider img:nth-child(5){animation-delay:20s}.hero-slider img:nth-child(6){animation-delay:25s}@keyframes heroSlide{0%{opacity:0}5%{opacity:.35}25%{opacity:.35}30%{opacity:0}100%{opacity:0}}.hero::after{content:"";position:absolute;inset:0;background:transparent}.hero-content{position:relative;z-index:2;max-width:780px}.pill{display:inline-flex;padding:8px 13px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);font-weight:900;font-size:13px;margin-bottom:16px}.hero h1{font-size:clamp(42px,8vw,92px);line-height:.92;letter-spacing:-.07em;margin-bottom:20px}.hero p{font-size:clamp(17px,2vw,22px);color:#f3f4f6;max-width:650px;margin-bottom:26px}.hero-actions{display:flex;gap:12px;flex-wrap:wrap}.character{position:absolute;z-index:1;font-size:54px;filter:drop-shadow(0 12px 20px rgba(0,0,0,.35));animation:floaty 5s ease-in-out infinite}.c1{right:13%;top:25%}.c2{right:28%;bottom:18%;animation-delay:1s}.c3{left:8%;bottom:10%;animation-delay:1.8s}@keyframes floaty{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-22px) rotate(5deg)}}
-    .section{padding:66px 0}.section-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:24px}.section-head h2{font-size:clamp(27px,4vw,45px);letter-spacing:-.05em}.section-head p{color:var(--muted);line-height:1.6;max-width:650px}.categories{display:grid;grid-template-columns:repeat(7,1fr);gap:12px}.cat-card{position:relative;min-height:145px;border-radius:22px;overflow:hidden;background:linear-gradient(135deg,var(--purple),#0b1120);color:#fff;padding:16px;display:flex;flex-direction:column;justify-content:end;box-shadow:var(--shadow);cursor:pointer}.cat-card::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 80% 10%,rgba(212,175,55,.35),transparent 34%)}.cat-card .emoji{position:absolute;top:12px;right:14px;font-size:30px}.cat-card h3,.cat-card p{position:relative}.cat-card p{font-size:12px;color:#e5e7eb;margin-top:4px}
-    .toolbar,.admin-toolbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px}.toolbar input,.toolbar select,.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:#fff;font-size:14px;width:100%}.toolbar input{flex:1;min-width:230px}.toolbar select{width:220px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}.product{border:1px solid var(--line);border-radius:24px;overflow:hidden;background:#fff;transition:.2s}.product:hover{transform:translateY(-3px);box-shadow:var(--shadow)}.product-img{height:260px;background:#f1f5f9;display:grid;place-items:center;overflow:hidden}.product-img img{width:100%;height:100%;object-fit:cover}.product-body{padding:16px}.product h3{font-size:17px;margin-bottom:6px}.meta{color:var(--muted);font-size:13px;margin-bottom:10px}.price{font-size:22px;font-weight:950;color:var(--purple)}.product-actions{display:flex;gap:8px;margin-top:13px}.product-actions .btn{flex:1;padding:10px 11px;font-size:13px}.badge{display:inline-flex;padding:5px 9px;border-radius:999px;background:#f3f4f6;color:#374151;font-weight:850;font-size:11px;margin-bottom:8px}.showcase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:18px}.feature-band{background:linear-gradient(135deg,#160520,var(--purple));color:#fff}.features{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.feature{padding:22px;border:1px solid rgba(255,255,255,.14);border-radius:24px;background:rgba(255,255,255,.06)}.feature h3{margin:10px 0 8px}.feature p{color:#d1d5db;line-height:1.55;font-size:14px}.ico{font-size:32px}
-    .card{border:1px solid var(--line);border-radius:24px;padding:22px;background:#fff;box-shadow:0 12px 40px rgba(15,23,42,.06)}.field{margin-bottom:14px}.field label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;font-weight:900;color:#374151;margin-bottom:7px}.admin{background:#f8fafc}.admin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.admin-panel{display:none}.admin-panel.show{display:block}.table-wrap{overflow-x:auto}.report-table{width:100%;border-collapse:collapse;font-size:13px}.report-table th,.report-table td{padding:10px;border-bottom:1px solid var(--line);text-align:left}.report-table th{background:#f8fafc}.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}.map{border:0;width:100%;height:380px;border-radius:20px}.footer{background:#0b1120;color:#e5e7eb;padding:50px 0 26px}.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:24px}.footer h3{color:#fff;margin-bottom:12px}.footer a,.footer p{color:#cbd5e1;display:block;margin:8px 0;line-height:1.6}.socials{display:flex;gap:10px;flex-wrap:wrap}.socials a{border:1px solid rgba(255,255,255,.16);padding:9px 12px;border-radius:999px}.copyright{border-top:1px solid rgba(255,255,255,.12);margin-top:28px;padding-top:18px;color:#94a3b8;font-size:13px}
-    .drawer{position:fixed;top:0;right:-450px;width:min(440px,100%);height:100vh;background:#fff;z-index:80;box-shadow:-30px 0 70px rgba(0,0,0,.24);transition:.25s;display:flex;flex-direction:column}.drawer.open{right:0}.drawer-head{padding:18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.drawer-body{padding:18px;overflow:auto;flex:1}.drawer-foot{padding:18px;border-top:1px solid var(--line)}.cart-item{display:grid;grid-template-columns:70px 1fr auto;gap:12px;border-bottom:1px solid var(--line);padding:12px 0}.cart-item img{width:70px;height:70px;object-fit:cover;border-radius:14px}.qty{display:flex;align-items:center;gap:7px;margin-top:8px}.qty button{width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:#fff}.total-row{display:flex;justify-content:space-between;font-size:20px;font-weight:950;margin-bottom:12px}.overlay{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:70;display:none}.overlay.show{display:block}.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100% - 28px));max-height:90vh;overflow:auto;background:#fff;border-radius:26px;box-shadow:var(--shadow);z-index:90;padding:22px;display:none}.modal.show{display:block}.whatsapp-float{position:fixed;right:18px;bottom:18px;z-index:60;background:#25D366;color:#fff;border-radius:999px;padding:14px 17px;font-weight:950;box-shadow:0 14px 40px rgba(37,211,102,.4)}.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111827;color:#fff;padding:12px 18px;border-radius:999px;z-index:100;display:none}.toast.show{display:block}.product-img img{cursor:pointer}.gallery-main{width:100%;height:min(62vh,520px);object-fit:contain;background:#f8fafc;border-radius:18px}.gallery-thumbs{display:flex;gap:10px;overflow-x:auto;margin-top:12px;padding-bottom:6px}.gallery-thumbs img{width:92px;height:92px;object-fit:cover;border-radius:14px;border:2px solid var(--line);cursor:pointer}.gallery-thumbs img.active{border-color:var(--gold)}.delivery-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}.delivery-option{border:1px solid var(--line);border-radius:16px;padding:12px;cursor:pointer;background:#fff}.delivery-option input{width:auto;margin-right:8px}.delivery-option b{display:block;margin-top:4px}.delivery-option small{color:var(--muted)}.empty{padding:30px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:20px}.logo-large{width:92px;height:92px;border-radius:50%;object-fit:cover;margin-bottom:10px}
-    @media(max-width:1040px){.nav-links{display:none}.hamburger{display:inline-flex}.categories{grid-template-columns:repeat(3,1fr)}.grid,.features,.showcase-grid{grid-template-columns:repeat(2,1fr)}.contact-grid,.footer-grid{grid-template-columns:1fr}.hero{min-height:620px}.product-img{height:230px}}
-    @media(max-width:600px){.container{width:min(100% - 22px,1200px)}.brand{font-size:18px}.brand img{width:40px;height:40px}.nav-actions{gap:5px}.icon-btn,.btn{padding:9px 11px}.categories,.grid,.features,.admin-grid,.showcase-grid{grid-template-columns:1fr}.section{padding:46px 0}.toolbar select{width:100%}.hero{min-height:580px}.hero-actions .btn{width:100%;text-align:center}.product-img{height:250px}.section-head{display:block}.section-head p{margin-top:8px}.character{font-size:38px}.footer{padding-bottom:80px}}
-    @media print{header,.top-strip,.hero,.whatsapp-float,.drawer,.overlay,.modal,.btn:not(.print-keep),#shop,#categories,#contact,.footer{display:none!important}.admin{background:#fff}.card{box-shadow:none;border:0}.report-table th{background:#eee!important}}
+    :root {
+      --primary-blue: #0b2f6b;
+      --deep-blue: #071f47;
+      --bright-blue: #1464d2;
+      --soft-blue: #eaf3ff;
+      --gold: #d4af37;
+      --gold-light: #ffe7a3;
+      --gold-deep: #9a7416;
+      --white: #ffffff;
+      --text: #12304f;
+      --muted: #6b7a90;
+      --line: rgba(20,68,126,0.16);
+      --shadow: 0 20px 60px rgba(7,31,71,0.18);
+      --card-radius: 22px;
+      --transition: 0.2s ease;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
+    body {
+      min-height:100vh;
+      background: radial-gradient(circle at top left, rgba(212,175,55,0.32), transparent 30%),
+                  linear-gradient(135deg, var(--deep-blue) 0%, var(--primary-blue) 45%, var(--bright-blue) 100%);
+      padding:24px;
+      color:var(--text);
+      overflow-x:hidden;
+    }
+    body::before {
+      content:"";
+      position:fixed;
+      inset:-30%;
+      background:linear-gradient(120deg, transparent, rgba(255,255,255,0.12), transparent);
+      animation:shine 8s linear infinite;
+      pointer-events:none;
+    }
+    @keyframes shine {
+      0%{transform:translateX(-40%) rotate(10deg)}
+      100%{transform:translateX(40%) rotate(10deg)}
+    }
+    .container {
+      max-width:1400px;
+      margin:auto;
+      background:rgba(255,255,255,0.96);
+      padding:28px;
+      border-radius:26px;
+      box-shadow:var(--shadow);
+      border:1px solid rgba(255,255,255,0.5);
+      animation:pageIn 0.75s ease both;
+    }
+    @keyframes pageIn {
+      from{opacity:0; transform:translateY(18px)}
+      to{opacity:1; transform:translateY(0)}
+    }
+    .header {
+      text-align:center;
+      margin-bottom:28px;
+      padding:28px 20px;
+      border-radius:22px;
+      background:linear-gradient(135deg, var(--primary-blue), var(--bright-blue));
+      color:white;
+      box-shadow:0 14px 35px rgba(11,47,107,0.28);
+      position:relative;
+      overflow:hidden;
+    }
+    .header::after {
+      content:"";
+      position:absolute;
+      width:180px;
+      height:180px;
+      border-radius:50%;
+      background:rgba(212,175,55,0.25);
+      right:-50px;
+      top:-70px;
+      animation:floatOrb 5s ease-in-out infinite alternate;
+    }
+    @keyframes floatOrb {
+      from{transform:translateY(0) scale(1)}
+      to{transform:translateY(22px) scale(1.08)}
+    }
+    .header h1 { color:white; margin-bottom:8px; font-size:clamp(26px, 4vw, 42px); letter-spacing:0.5px; }
+    .header p { color:#eef6ff; font-size:14px; line-height:1.5; position:relative; z-index:1; }
+    .header strong { color:var(--gold-light); }
+
+    /* ----- DASHBOARD CARDS (clickable) ----- */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 18px;
+      margin: 28px 0 24px 0;
+    }
+    .stat-card {
+      background: white;
+      padding: 18px 12px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 18px rgba(11,47,107,0.06);
+      text-align: center;
+      transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+      backdrop-filter: blur(2px);
+      background: rgba(255,255,255,0.85);
+      cursor: pointer;
+      position: relative;
+    }
+    .stat-card:hover {
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 18px 30px rgba(11,47,107,0.18);
+      border-color: var(--gold);
+    }
+    .stat-card:active {
+      transform: scale(0.96);
+    }
+    .stat-card i {
+      font-size: 28px;
+      color: var(--bright-blue);
+      background: var(--soft-blue);
+      padding: 10px;
+      border-radius: 50%;
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+    .stat-card .count {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary-blue);
+      line-height: 1.2;
+    }
+    .stat-card .label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+    .stat-card .sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .stat-card .filter-badge {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      font-size: 10px;
+      background: var(--gold);
+      color: #071f47;
+      padding: 2px 8px;
+      border-radius: 10px;
+      opacity: 0.7;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin: 12px 0 22px 0;
+      gap: 12px;
+    }
+    .action-row .btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+      color: #071f47;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 15px;
+      box-shadow: 0 10px 24px rgba(154,116,22,0.28);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-gold:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 32px rgba(154,116,22,0.36);
+      filter: saturate(1.1);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 2px solid var(--primary-blue);
+      color: var(--primary-blue);
+      padding: 12px 24px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 14px;
+      transition: 0.2s ease;
+      cursor: pointer;
+    }
+    .btn-outline:hover {
+      background: var(--primary-blue);
+      color: white;
+    }
+    .btn-back {
+      background: linear-gradient(135deg, #6c7a8a, #4a5568);
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-back:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.1);
+    }
+
+    /* form section */
+    #entrySection {
+      margin-top: 28px;
+      border-top: 2px dashed var(--line);
+      padding-top: 20px;
+    }
+    #entrySection h2 {
+      color: var(--primary-blue);
+      margin-bottom: 16px;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .form-grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap:16px;
+      margin-bottom:22px;
+    }
+    .form-group {
+      display:flex;
+      flex-direction:column;
+      padding:14px;
+      background:linear-gradient(180deg, #ffffff, var(--soft-blue));
+      border:1px solid var(--line);
+      border-radius:18px;
+      transition:transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+      animation:cardIn 0.45s ease both;
+    }
+    .form-group:hover {
+      transform:translateY(-3px);
+      box-shadow:0 14px 28px rgba(11,47,107,0.12);
+      border-color:rgba(212,175,55,0.7);
+    }
+    @keyframes cardIn {
+      from{opacity:0; transform:translateY(10px)}
+      to{opacity:1; transform:translateY(0)}
+    }
+    label {
+      margin-bottom:7px;
+      font-weight:bold;
+      color:var(--primary-blue);
+      font-size:13px;
+    }
+    input, select, textarea {
+      width:100%;
+      padding:12px 13px;
+      border:1px solid rgba(11,47,107,0.22);
+      border-radius:12px;
+      font-size:14px;
+      background:white;
+      color:var(--text);
+      transition:border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline:none;
+      border-color:var(--gold);
+      box-shadow:0 0 0 4px rgba(212,175,55,0.2);
+      transform:translateY(-1px);
+    }
+    textarea { min-height:44px; resize:vertical; }
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    button {
+      background:linear-gradient(135deg, var(--gold), var(--gold-deep));
+      color:#071f47;
+      border:none;
+      padding:14px 30px;
+      border-radius:999px;
+      cursor:pointer;
+      font-size:15px;
+      font-weight:800;
+      box-shadow:0 12px 26px rgba(154,116,22,0.28);
+      transition:transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+    button:hover {
+      transform:translateY(-3px);
+      box-shadow:0 18px 34px rgba(154,116,22,0.36);
+      filter:saturate(1.1);
+    }
+    .btn-blue {
+      background:linear-gradient(135deg, var(--bright-blue), var(--primary-blue));
+      color:white;
+    }
+    .btn-danger {
+      background:linear-gradient(135deg, #ef4444, #991b1b);
+      color:white;
+    }
+    .status {
+      margin-top:16px;
+      font-weight:bold;
+      color:var(--primary-blue);
+      background:rgba(212,175,55,0.16);
+      border-left:5px solid var(--gold);
+      padding:12px 14px;
+      border-radius:12px;
+      min-height:20px;
+    }
+    .table-wrap {
+      width:100%;
+      overflow-x:auto;
+      border-radius:18px;
+      border:1px solid var(--line);
+      margin-top:28px;
+      box-shadow:0 10px 24px rgba(11,47,107,0.08);
+    }
+    table {
+      width:100%;
+      min-width:980px;
+      border-collapse:collapse;
+      background:white;
+    }
+    th {
+      background:linear-gradient(135deg, var(--primary-blue), var(--bright-blue));
+      color:white;
+      padding:13px;
+      text-align:left;
+      font-size:13px;
+      white-space:nowrap;
+      border-bottom:3px solid var(--gold);
+    }
+    td {
+      padding:11px 13px;
+      border-bottom:1px solid var(--line);
+      font-size:13px;
+      color:var(--text);
+      white-space:nowrap;
+    }
+    tr:hover { background:#f4f8ff; }
+    .hidden { display:none !important; }
+    
+    /* Actions column - moved to right */
+    .action-col {
+      min-width: 160px;
+      text-align: right;
+    }
+    .action-col .row-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .row-actions button {
+      padding: 6px 12px;
+      font-size: 12px;
+      margin: 0;
+      border-radius: 20px;
+    }
+    .row-actions .btn-sm-edit { background: var(--bright-blue); color: white; }
+    .row-actions .btn-sm-edit:hover { filter: brightness(1.1); }
+    .row-actions .btn-sm-upload { background: var(--gold); color: #071f47; }
+    .row-actions .btn-sm-upload:hover { filter: brightness(1.1); }
+    .row-actions .btn-sm-delete { background: #ef4444; color: white; }
+
+    .regbook-link {
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .regbook-link a {
+      color: var(--bright-blue);
+      text-decoration: none;
+      border-bottom: 1px dotted var(--bright-blue);
+    }
+    .regbook-link a:hover { color: var(--gold-deep); }
+
+    .filter-active {
+      border-color: var(--gold) !important;
+      box-shadow: 0 0 0 3px rgba(212,175,55,0.3) !important;
+    }
+
+    @media (max-width: 768px) {
+      body { padding:12px; }
+      .container { padding:16px; border-radius:20px; }
+      .dashboard-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+      .action-row { flex-direction: column; align-items: stretch; }
+      .btn-gold, .btn-outline { justify-content: center; }
+      .form-actions { flex-direction: column; }
+      .form-actions button { width: 100%; justify-content: center; }
+      .action-col .row-actions { justify-content: center; }
+    }
+    @media print {
+      body { background:white; }
+      .header, .action-row, #entrySection, .toolbar, .connection-panel, .status, .btn-gold, .btn-outline { display:none !important; }
+      .container { box-shadow:none; border:none; max-width:none; padding:0; }
+    }
   </style>
 </head>
 <body>
-  <div class="admin-login-strip"><button onclick="openLogin()">Login</button></div>
-  <div class="top-strip">Gold & purple boutique style · WhatsApp support: <b>+27 76 811 4770</b></div>
-  <header><div class="container nav"><a class="brand" href="#home"><img src="perspective.png" alt="Perspective Collections Online logo"><strong>Perspective Collections<span>.</span></strong></a><nav class="nav-links"><div class="dropdown"><a href="#categories">Categories ▾</a><div class="dropdown-menu" id="categoryDropdown"></div></div><a href="#shop">Shop</a><a href="#popular">Popular</a><a href="#contact">Contact</a><a href="#admin" id="adminNav" class="hide">Admin</a></nav><div class="nav-actions"><span id="userChip" class="meta">Guest</span><button class="icon-btn" id="loginBtn" onclick="openLogin()">👤 Login</button><button class="icon-btn hide" id="logoutBtn" onclick="logoutUser()">🚪 Logout</button><button class="icon-btn" onclick="openCart()">🛒 Cart <span id="cartCount">0</span></button><button class="icon-btn hamburger" onclick="toggleMobileNav()">☰</button></div></div><div id="mobileNav" class="hide" style="border-top:1px solid var(--line);padding:12px 16px;background:#fff"><a href="#categories">Categories</a> · <a href="#shop">Shop</a> · <a href="#popular">Popular</a> · <a href="#contact">Contact</a> · <a href="#admin" id="mobileAdminNav" class="hide">Admin</a></div></header>
-  <section class="hero" id="home"><div class="hero-slider"><img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1600&auto=format&fit=crop" alt="Men's clothing section"><img src="https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=1600&auto=format&fit=crop" alt="Women's clothing section"><img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1600&auto=format&fit=crop" alt="Footwear section"><img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1600&auto=format&fit=crop" alt="Children's clothing section"><img src="https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?q=80&w=1600&auto=format&fit=crop" alt="Baby clothing section"><img src="https://images.unsplash.com/photo-1456735190827-d1262f71b8a3?q=80&w=1600&auto=format&fit=crop" alt="Stationery section"></div><div class="character c1">🛍️</div><div class="character c2">👗</div><div class="character c3">👟</div><div class="container hero-content"><img class="logo-large" src="perspective.png" alt="Perspective logo"><div class="pill">Perspective Collections Online</div><h1>Fresh fashion, school essentials & lifestyle finds.</h1><p>Shop men's, women's, children's, babies, footwear, stationery and miscellaneous collections with a mobile-first modern storefront.</p><div class="hero-actions"><a class="btn gold" href="#shop">Shop Now</a><button class="btn" onclick="openLogin()">Login / Register</button><a class="btn" href="https://wa.me/27768114770" target="_blank" rel="noopener">WhatsApp Us</a></div></div></section>
-  <section class="section" id="categories"><div class="container"><div class="section-head"><div><h2>Shop by category</h2><p>Categories are available as a dropdown menu and can also be created by admin users from the backend.</p></div><button class="btn" onclick="loadProducts()">Refresh Products</button></div><div class="categories" id="categoryGrid"></div></div></section>
-  <section class="section" id="popular"><div class="container"><div class="section-head"><div><h2>Store highlights</h2><p>Popular items, selling fast, least selling and new arrivals are calculated from Google Sheet sales data when connected.</p></div></div><div class="showcase-grid"><div><h3>🔥 Popular items selling fast</h3><div class="grid" id="popularGrid" style="grid-template-columns:1fr"></div></div><div><h3>🌱 New arrivals just posted</h3><div class="grid" id="newGrid" style="grid-template-columns:1fr"></div></div><div><h3>📉 Least selling products</h3><div class="grid" id="leastGrid" style="grid-template-columns:1fr"></div></div></div></div></section>
-  <section class="section" id="shop"><div class="container"><div class="section-head"><div><h2>Shop online</h2><p class="hide"></p></div></div><div class="toolbar"><input id="searchInput" placeholder="Search products..." oninput="renderProducts()"><select id="categoryFilter" onchange="renderProducts()"><option value="">All categories</option></select><select id="sortFilter" onchange="renderProducts()"><option value="latest">Latest</option><option value="popular">Popular</option><option value="low">Price: Low to High</option><option value="high">Price: High to Low</option></select></div><div class="grid" id="productGrid"></div></div></section>
-  <section class="section feature-band"><div class="container features"><div class="feature"><div class="ico">🔐</div><h3>Login rights</h3><p>Users are fetched from the Users tab and rights are controlled by the backend.</p></div><div class="feature"><div class="ico">💳</div><h3>Payment options</h3><p>PayPal checkout plus EFT/manual and cash-on-delivery options.</p></div><div class="feature"><div class="ico">🖼️</div><h3>Drive images</h3><p>Admin uploads images to Google Drive and links them in the Products tab.</p></div><div class="feature"><div class="ico">📊</div><h3>Printable reports</h3><p>Sales reports by day, week, month, quarter and year.</p></div></div></section>
-  <section class="section admin hide" id="admin"><div class="container"><div class="section-head"><div><h2>Admin dashboard</h2><p>Admin users can add categories, upload images, change prices, update products and print reports.</p></div><button class="btn" onclick="backendInit()">Create / Verify Tabs</button></div><div id="adminLocked" class="card"><h3>Admin login required</h3><p class="meta">Login with an admin account from the Users tab to manage products and reports.</p></div><div id="adminPanel" class="admin-panel"><div class="card"><h3>Add or update product</h3><div class="admin-grid"><div class="field"><label>Existing Product</label><select id="editProduct" onchange="loadProductForEdit()"><option value="">New product</option></select></div><div class="field"><label>Product Name</label><input id="adminName" placeholder="Product name"></div><div class="field"><label>Category</label><select id="adminCategory"></select></div><div class="field"><label>New Category</label><input id="newCategoryName" placeholder="Optional new category"></div><div class="field"><label>Price ZAR</label><input id="adminPrice" type="number" min="0" step="0.01"></div><div class="field"><label>Stock Quantity</label><input id="adminStock" type="number" min="0"></div><div class="field"><label>SKU</label><input id="adminSku"></div><div class="field"><label>Product Image</label><input id="adminImage" type="file" accept="image/*"></div><div class="field"><label>Image URL</label><input id="adminImageUrl" placeholder="https://..."></div><div class="field"><label>Image URL 2</label><input id="adminImageUrl2" placeholder="Optional same-colour image link"></div><div class="field"><label>Image URL 3</label><input id="adminImageUrl3" placeholder="Optional same-colour image link"></div><div class="field"><label>Fixed Shipping Fee ZAR</label><input id="adminShippingFee" type="number" min="0" step="0.01" placeholder="0.00"></div></div><div class="field"><label>Description</label><textarea id="adminDescription" rows="3"></textarea></div><button class="btn primary" onclick="saveProductAdmin()">Save Product</button><button class="btn gold" onclick="saveShippingFeeAdmin()">Save Shipping Fee</button><button class="btn danger" onclick="deleteProductAdmin()">Delete Product</button><button class="btn gold" onclick="addCategoryAdmin()">Create Category</button><div id="adminMessage" class="meta" style="margin-top:12px"></div></div><div class="card" style="margin-top:18px"><h3>Sales reports</h3><div class="admin-toolbar"><select id="reportPeriod"><option value="day">Today / Daily</option><option value="week">This Week</option><option value="month">This Month</option><option value="quarter">This Quarter</option><option value="year">This Year</option></select><button class="btn primary" onclick="loadSalesReport()">Generate Report</button><button class="btn gold print-keep" onclick="window.print()">Print Report</button></div><div id="reportSummary" class="meta"></div><div class="table-wrap"><table class="report-table" id="reportTable"></table></div></div></div></div></section>
-  <section class="section" id="contact"><div class="container"><div class="section-head"><div><h2>Contact & location</h2><p>Messages send to WhatsApp number +27768114770 and are also saved to Contacts when the backend is connected.</p></div></div><div class="contact-grid"><div class="card"><div class="field"><label>Name</label><input id="contactName"></div><div class="field hide"><label>Email</label><input id="contactEmail" type="email"></div><div class="field"><label>Message</label><textarea id="contactMessage" rows="5"></textarea></div><button class="btn primary" onclick="sendContactWhatsApp()">Send to WhatsApp</button></div><div class="card" id="map"><iframe class="map" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=South%20Africa&output=embed"></iframe></div></div></div></section>
-  <footer class="footer"><div class="container"><div class="footer-grid"><div><h3 class="brand"><img src="perspective.png" alt="Perspective logo">Perspective<span>.</span></h3><p>Perspective Collection Online sells clothing, footwear, children's wear, stationery and everyday essentials.</p><div class="socials"><a href="https://facebook.com" target="_blank">Facebook</a><a href="https://instagram.com" target="_blank">Instagram</a><a href="https://tiktok.com" target="_blank">TikTok</a><a href="https://wa.me/27768114770" target="_blank">WhatsApp</a></div></div><div><h3>Categories</h3><div id="footerCategories"></div></div><div><h3>Account</h3><a onclick="openLogin()">Login</a><a href="#shop">Shop</a><a onclick="openCart()">View Cart</a></div><div><h3>Payments</h3><p>PayPal</p><p>EFT / Bank Transfer</p><p>Cash on Delivery</p><p>Card gateway placeholder</p></div></div><div class="copyright">© <span id="year"></span> Perspective Collection Online. All rights reserved.</div></div></footer>
-  <a class="whatsapp-float" href="https://wa.me/27768114770" target="_blank" rel="noopener">WhatsApp</a><div class="overlay" id="overlay" onclick="closeAll()"></div><div class="toast" id="toast"></div>
-  <aside class="drawer" id="cartDrawer"><div class="drawer-head"><h2>Your Cart</h2><button class="icon-btn" onclick="closeCart()">✕</button></div><div class="drawer-body" id="cartItems"></div><div class="drawer-foot"><div class="total-row" style="font-size:15px"><span>Subtotal</span><span id="cartSubtotal">R0.00</span></div><div class="total-row" style="font-size:15px"><span>Shipping</span><span id="cartShipping">R0.00</span></div><div class="total-row"><span>Total</span><span id="cartTotal">R0.00</span></div><button class="btn primary" style="width:100%;margin-bottom:8px" onclick="openCheckout()">View Cart / Checkout</button><button class="btn danger" style="width:100%" onclick="clearCart()">Clear Cart</button></div></aside>
-  <div class="modal" id="loginModal"><h2>Login / Register</h2><p class="meta">Admin and client rights are controlled from the Users tab.</p><div class="field"><label>Email</label><input id="loginEmail" type="email"></div><div class="field"><label>Password</label><input id="loginPassword" type="password"></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" onclick="loginUser()">Login</button><button class="btn" onclick="registerClient()">Register Client</button><button class="btn" onclick="closeAll()">Close</button></div><div id="loginMessage" class="meta" style="margin-top:10px"></div></div>
-  <div class="modal" id="productViewModal"><h2 id="productViewTitle">Product Images</h2><img id="galleryMain" class="gallery-main" alt="Product image"><div id="galleryThumbs" class="gallery-thumbs"></div><button class="btn" style="width:100%;margin-top:12px" onclick="closeAll()">Close</button></div>
-  <div class="modal" id="checkoutModal"><h2>Checkout</h2><div id="checkoutLines" class="meta" style="margin:10px 0"></div><div class="field"><label>Delivery Option</label><div class="delivery-options"><label class="delivery-option"><input type="radio" name="deliveryOption" id="deliveryCollect" value="collect" checked onchange="updateDeliveryChoice()"><b>Collect</b><small>No shipping fee</small></label><label class="delivery-option"><input type="radio" name="deliveryOption" id="deliveryShip" value="ship" onchange="updateDeliveryChoice()"><b>Ship</b><small>Once-off shipping fee applies</small></label></div></div><div class="field"><label>Name</label><input id="checkoutName"></div><div class="field"><label>Phone / WhatsApp</label><input id="checkoutPhone"></div><div class="field"><label>Email</label><input id="checkoutEmail" type="email"></div><div class="field"><label>Delivery Address</label><textarea id="checkoutAddress" rows="3" placeholder="Required for shipping; optional for collection"></textarea></div><div id="paypal-button-container" style="margin-bottom:12px"></div><button class="btn primary" style="width:100%;margin-bottom:8px" onclick="checkout('EFT / Manual Payment')">Checkout: EFT / Manual</button><button class="btn" style="width:100%;margin-bottom:8px" onclick="checkout('Cash on Delivery')">Checkout: Cash on Delivery</button><button class="btn" style="width:100%" onclick="closeAll()">Close</button></div>
+<div class="container" id="appContainer">
+  <div class="header">
+    <h1>Distinct Infrastructure</h1>
+    <p>Vehicle & Asset Register · Dashboard</p>
+    <p><strong>Google Storage:</strong> Asset Register O/a Distinct Infrastructure</p>
+  </div>
+
+  <!-- DASHBOARD CARDS (clickable) - Focus on Drilling, Yellow, and Small Plant -->
+  <div class="dashboard-grid" id="dashboardCards">
+    <div class="stat-card" data-filter="Drilling"><i class="fas fa-oil-can"></i><div class="count" id="cntDrilling">0</div><div class="label">Drilling Plant</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Yellow Plant"><i class="fas fa-digging"></i><div class="count" id="cntYellow">0</div><div class="label">Yellow Plant</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Small Plant"><i class="fas fa-th-list"></i><div class="count" id="cntSmallPlant">0</div><div class="label">Small Plant</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Trucks"><i class="fas fa-truck"></i><div class="count" id="cntTrucks">0</div><div class="label">Trucks</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Trailers"><i class="fas fa-trailer"></i><div class="count" id="cntTrailers">0</div><div class="label">Trailers</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Executive"><i class="fas fa-car"></i><div class="count" id="cntExecutive">0</div><div class="label">Executive Cars</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Bowser"><i class="fas fa-gas-pump"></i><div class="count" id="cntBowser">0</div><div class="label">Bowsers</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Admin"><i class="fas fa-building"></i><div class="count" id="cntAdmin">0</div><div class="label">Admin</div><span class="filter-badge">click</span></div>
+    <div class="stat-card" data-filter="Projects &amp; Tender"><i class="fas fa-briefcase"></i><div class="count" id="cntProjects">0</div><div class="label">Projects &amp; Tender</div><span class="filter-badge">click</span></div>
+  </div>
+
+  <!-- ACTION ROW -->
+  <div class="action-row">
+    <div class="btn-group">
+      <button class="btn-gold" id="newEntryBtn"><i class="fas fa-plus-circle"></i> New Entry</button>
+      <button class="btn-outline" id="refreshDashBtn"><i class="fas fa-sync-alt"></i> Refresh</button>
+      <button class="btn-outline" id="clearFilterBtn"><i class="fas fa-times-circle"></i> Clear Filter</button>
+    </div>
+    <div class="btn-group">
+      <button class="btn-outline" id="printBtn"><i class="fas fa-print"></i> Print</button>
+      <button class="btn-outline" id="excelBtn"><i class="fas fa-file-excel"></i> CSV</button>
+    </div>
+  </div>
+
+  <!-- ENTRY SECTION -->
+  <div id="entrySection" class="hidden">
+    <h2>
+      <span><i class="fas fa-pen-alt" style="color:var(--gold);"></i> New Asset Entry</span>
+      <button class="btn-back" id="backToDashboardBtn"><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+    </h2>
+      </button>
+                <button class="action-btn" onclick="window.location.href='insurance.html'">
+                    <span>🚛</span>
+                    Insurance Report
+                </button>
+    <form id="assetForm">
+      <div class="form-grid">
+        <div class="form-group"><label>Code</label><select id="code"><option value="">Select Code</option><option>73803</option><option>73802</option><option>73801</option><option>73800</option></select></div>
+        <div class="form-group"><label>Asset Class</label><select id="assetClass"><option value="">Select Asset Class</option><option>Admin</option><option>Bowser</option><option>Drilling</option><option>Executive</option><option>Projects &amp; Tender</option><option>Small Plant</option><option>Trailers</option><option>Trucks</option><option>Yellow Plant</option></select></div>
+        <div class="form-group"><label>Purchase Date</label><input type="date" id="purchaseDate"></div>
+        <div class="form-group"><label>Purchased by</label><select id="purchasedBy"><option value="">Select Purchased By</option><option>Onpoint</option><option>Aqua Telecoms</option><option>Nkanyezi</option><option>Distinct</option></select></div>
+        <div class="form-group"><label>Financing</label><input type="text" id="financing"></div>
+        <div class="form-group"><label>Description</label><input type="text" id="description"></div>
+        <div class="form-group"><label>Model</label><select id="model"><option value="">Select Model Year</option><option value="2000">2000</option><option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option><option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option><option value="2007">2007</option><option value="2008">2008</option><option value="2009">2009</option><option value="2010">2010</option><option value="2011">2011</option><option value="2012">2012</option><option value="2013">2013</option><option value="2014">2014</option><option value="2015">2015</option><option value="2016">2016</option><option value="2017">2017</option><option value="2018">2018</option><option value="2019">2019</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option><option value="2031">2031</option><option value="2032">2032</option><option value="2033">2033</option><option value="2034">2034</option><option value="2035">2035</option><option value="2036">2036</option><option value="2037">2037</option><option value="2038">2038</option><option value="2039">2039</option><option value="2040">2040</option><option value="2041">2041</option><option value="2042">2042</option><option value="2043">2043</option><option value="2044">2044</option><option value="2045">2045</option></select></div>
+        <div class="form-group"><label>Make of Vehicle</label><select id="makeOfVehicle"><option value="">Select Make</option><option>Toyota</option><option>Faw</option><option>Ford</option><option>Foton</option><option>Mahindra</option><option>Isuzu</option><option>Mercedes Benz</option><option>VW</option><option>Nissan</option></select></div>
+        <div class="form-group"><label>Body Type</label><select id="bodyType"><option value="">Select Body Type</option><option>Sedan</option><option>Hatchback</option><option>Truck</option><option>Minibus</option><option>SUV</option><option>Bakkie</option><option>Lorry</option></select></div>
+        <div class="form-group"><label>Registration no</label><input type="text" id="registrationNo"></div>
+        <div class="form-group"><label>Engine no</label><input type="text" id="engineNo"></div>
+        <div class="form-group"><label>Vin no</label><input type="text" id="vinNo"></div>
+        <div class="form-group"><label>Cost</label><input type="number" id="cost"></div>
+        <div class="form-group"><label>Market Value</label><input type="number" id="marketValue"></div>
+        <div class="form-group"><label>ZOHO</label><select id="zoho"><option value="">Select ZOHO</option><option>Yes</option><option>No</option></select></div>
+        <div class="form-group"><label>Location</label><input type="text" id="location"></div>
+        <div class="form-group"><label>Driver/Operator</label><input type="text" id="driverOperator"></div>
+        <div class="form-group"><label>Allocation/Dept</label><input type="text" id="allocationDept"></div>
+        <div class="form-group"><label>Registered Entity</label><input type="text" id="registeredEntity"></div>
+        <div class="form-group"><label>Covered by</label><select id="coveredBy"><option value="">Select Insurance</option><option>Outsurance</option><option>Auto General</option><option>Standard Bank</option><option>Other</option></select></div>
+        <div class="form-group"><label>TRACKING COMPANY</label><select id="trackingCompany"><option value="">Select Tracking</option><option>Netstar</option><option>Car Tracker</option><option>The Both(Car Tracker & Netstar)</option></select></div>
+        <div class="form-group"><label>Installment Amount</label><input type="number" id="installmentAmount"></div>
+        <div class="form-group"><label>Last Installment date</label><input type="date" id="lastInstallmentDate"></div>
+        <div class="form-group"><label>eTag Toll</label><select id="eTagToll"><option value="">Select eTag</option><option>Yes</option><option>No</option></select></div>
+        <div class="form-group"><label>NOTES</label><textarea id="notes"></textarea></div>
+        <div class="form-group"><label>Reg. Boo</label><input type="text" id="regBoo"></div>
+        <div class="form-group"><label>Useful life</label><input type="number" id="usefulLife"></div>
+        <div class="form-group"><label>Recharge</label><input type="number" id="recharge"></div>
+        <div class="form-group"><label>Monthly dpn</label><input type="number" id="monthlyDpn"></div>
+        <div class="form-group"><label>Year</label><select id="year"><option value="">Select Year</option><option value="2000">2000</option><option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option><option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option><option value="2007">2007</option><option value="2008">2008</option><option value="2009">2009</option><option value="2010">2010</option><option value="2011">2011</option><option value="2012">2012</option><option value="2013">2013</option><option value="2014">2014</option><option value="2015">2015</option><option value="2016">2016</option><option value="2017">2017</option><option value="2018">2018</option><option value="2019">2019</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option><option value="2028">2028</option><option value="2029">2029</option><option value="2030">2030</option><option value="2031">2031</option><option value="2032">2032</option><option value="2033">2033</option><option value="2034">2034</option><option value="2035">2035</option><option value="2036">2036</option><option value="2037">2037</option><option value="2038">2038</option><option value="2039">2039</option><option value="2040">2040</option><option value="2041">2041</option><option value="2042">2042</option><option value="2043">2043</option><option value="2044">2044</option><option value="2045">2045</option></select></div>
+        <div class="form-group"><label>Months Dpn</label><input type="number" id="monthsDpn"></div>
+        <div class="form-group"><label>Accum dpn</label><input type="number" id="accumDpn"></div>
+        <div class="form-group"><label>NBV</label><input type="number" id="nbv"></div>
+        <div class="form-group"><label>Outstanding VAF</label><input type="number" id="oustandingVaf"></div>
+        <div class="form-group"><label>Value</label><input type="number" id="value"></div>
+        <div class="form-group"><label>Vehicle Reg Book Upload</label><input type="file" id="vehicleRegBookFile" accept="image/*,application/pdf,.doc,.docx"></div>
+        <div class="form-group"><label>Tracking Certificate Upload</label><input type="file" id="trackingCertificateFile" accept="image/*,application/pdf,.doc,.docx"></div>
+        <input type="hidden" id="rowNumber">
+        <input type="hidden" id="vehicleRegBookLink">
+        <input type="hidden" id="trackingCertificateLink">
+        <input type="hidden" id="regBookLink">
+      </div>
+      <div class="form-actions">
+        <button type="submit" id="saveBtn">Save Asset</button>
+        <button type="button" class="btn-blue" id="clearBtn">Clear Form</button>
+        <button type="button" class="btn-outline" id="cancelEntryBtn">Cancel</button>
+      </div>
+    </form>
+    <div class="status" id="status"></div>
+  </div>
+
+  <!-- transaction journal -->
+  <div class="table-wrap">
+    <h2 style="color:var(--primary-blue);margin-top:28px;margin-bottom:10px;">
+      Transaction Journal
+      <span id="filterIndicator" style="font-size:14px;font-weight:normal;color:var(--muted);margin-left:12px;"></span>
+    </h2>
+    <table id="assetTable">
+      <thead><tr>
+        <th>Code</th><th>Asset Class</th><th>Purchase Date</th><th>Purchased by</th><th>Financing</th><th>Description</th><th>Model</th><th>Make of Vehicle</th><th>Body Type</th><th>Registration no</th><th>Engine no</th><th>Vin no</th><th>Cost</th><th>Market Value</th><th>ZOHO</th><th>Location</th><th>Driver/Operator</th>
+        <th>Allocation/Dept</th><th>Registered Entity</th><th>Covered by</th><th>TRACKING COMPANY</th><th>Installment Amount</th><th>Last Installment date</th><th>eTag Toll</th><th>NOTES</th><th>Reg. Boo</th><th>Useful life</th><th>Recharge</th><th>Monthly dpn</th><th>Year</th><th>Months Dpn</th><th>Accum dpn</th><th>NBV</th><th>Outstanding VAF</th><th>Value</th><th>Vehicle Reg Book</th><th>Tracking Certificate</th>
+        <th class="action-col">Actions</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
 <script>
-const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxZajSuOa6WKPdpP7D-sC8VgvEvQG6rFqr8zPGxByfxrdLWNmP8IS27ev0s5dZ1VInetA/exec';
-function backendUrl(){return APPS_SCRIPT_URL || (location.href.includes('script.google.com/macros/s/') ? location.href.split('?')[0] : '');}
-const PRODUCT_SHEET_ID='1QE4xz4z3BabA62Se-DtL_TOD2ZfGj7PRyg0D9ofbHcU';
-const PRODUCT_TAB='Products';
-const PRODUCT_HEADINGS=['ProductID','SKU','Name','Category','Description','Price','Stock','ImageURL','DriveFileID','Status','SalesCount','CreatedAt','UpdatedAt','ImageURL2','ImageURL3'];
-const WHATSAPP_NUMBER='27768114770';
-let CATEGORIES=["Men's Clothes", "Womens' Clothes", "Children's Clothes", "Baby's Clothes", "Mens, Shoes", "Women's shoes", "Children's shoes", "babys' shoes", "Stationery", "Electronics", "Miscallaneous"];
-const CATEGORY_EMOJI={'Mens section':'👔',"Women's section":'👗','Childrens':'🧒','Babies':'🍼','Footwear':'👟','Miscallaneous':'🛍️','Stationery':'✏️'};
-let products=[],currentUser=JSON.parse(localStorage.getItem('perspective_user')||'null'),cart=[],shippingFee=0,deliveryMode=localStorage.getItem('perspective_delivery_mode')||'collect';function cartStorageKey(){return 'perspective_cart_'+(currentUser&&currentUser.Email?String(currentUser.Email).trim().toLowerCase():'guest')}function loadCart(){cart=JSON.parse(localStorage.getItem(cartStorageKey())||'[]')}loadCart();
-function hasServer(){return (typeof google!=='undefined'&&google.script&&google.script.run)||!!backendUrl();}
-document.getElementById('year').textContent=new Date().getFullYear();
-function money(v){return 'R'+Number(v||0).toFixed(2)}function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000)}function startSync(label='Synchronising...'){const btn=document.activeElement&&document.activeElement.tagName==='BUTTON'?document.activeElement:null;if(!btn)return()=>{};const original=btn.innerHTML;btn.disabled=true;btn.innerHTML='⏳ '+label;return()=>{btn.disabled=false;btn.innerHTML=original}}function toggleMobileNav(){mobileNav.classList.toggle('hide')}function isAdmin(){if(!currentUser)return false;const v=`${currentUser.Role||''} ${currentUser.Rights||''} ${currentUser.Status||''}`.toLowerCase();return v.includes('admin')}function userRoleLabel(){if(!currentUser)return 'Client';return currentUser.Role||currentUser.Rights||currentUser.Status||'Client'}function updateUserUI(){const loggedIn=!!currentUser;const adminUser=isAdmin();const displayName=currentUser?(currentUser.Name||currentUser.Email||'Logged in user'):'Guest';userChip.textContent=loggedIn?`${displayName} · ${userRoleLabel()}`:'Guest';loginBtn.classList.toggle('hide',loggedIn);logoutBtn.classList.toggle('hide',!loggedIn);adminNav.classList.toggle('hide',!adminUser);if(typeof mobileAdminNav!=='undefined')mobileAdminNav.classList.toggle('hide',!adminUser);document.getElementById('admin').classList.toggle('hide',!adminUser);adminPanel.classList.toggle('show',adminUser);adminLocked.classList.toggle('hide',true);if(!adminUser&&location.hash==='#admin')location.hash='home'}function logoutUser(){currentUser=null;localStorage.removeItem('perspective_user');loadCart();updateUserUI();renderCart();toast('Logged out successfully');if(location.hash==='#admin')location.hash='home'}function driveImageUrl(value){const raw=String(value||'').trim();if(!raw)return '';let id='';let m=raw.match(/\/d\/([a-zA-Z0-9_-]+)/);if(m)id=m[1];if(!id){m=raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);if(m)id=m[1];}if(!id&&/^[a-zA-Z0-9_-]{20,}$/.test(raw))id=raw;if(id)return 'https://drive.google.com/thumbnail?id='+encodeURIComponent(id)+'&sz=w1000';return raw}function imgSrc(p){const driveId=p.DriveFileID||p.driveFileId||p['Drive File ID']||p.FileID||'';return driveImageUrl(p.ImageURL||p.ImageUrl||p.imageUrl||p['Image URL']||p.Image||driveId)||'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=900&auto=format&fit=crop'}function productImages(p){const arr=[imgSrc(p),p.ImageURL2||p.ImageUrl2||p['Image URL 2']||'',p.ImageURL3||p.ImageUrl3||p['Image URL 3']||''].map(driveImageUrl).filter(Boolean);return [...new Set(arr)]}function productId(p){return p.ProductID||p.ProductId||p.ID||p.SKU||p.Name}
-function initUI(){renderCategories();renderCart();updateUserUI();loadSettings();loadProducts();}function renderCategories(){const opts=CATEGORIES.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');categoryFilter.innerHTML='<option value="">All categories</option>'+opts;adminCategory.innerHTML=opts;categoryDropdown.innerHTML=CATEGORIES.map(c=>`<a href="#shop" onclick="selectCategory('${jsq(c)}')">${CATEGORY_EMOJI[c]||'🛍️'} ${esc(c)}</a>`).join('');footerCategories.innerHTML=CATEGORIES.map(c=>`<a href="#shop" onclick="selectCategory('${jsq(c)}')">${esc(c)}</a>`).join('');categoryGrid.innerHTML=CATEGORIES.map(c=>`<div class="cat-card" onclick="selectCategory('${jsq(c)}')"><span class="emoji">${CATEGORY_EMOJI[c]||'🛍️'}</span><h3>${esc(c)}</h3><p>View section →</p></div>`).join('')}function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}function jsq(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}function selectCategory(cat){categoryFilter.value=cat;location.hash='shop';renderProducts()}
-async function loadProducts(){const stopSync=startSync();try{if(hasServer()){let pj;if(typeof google!=='undefined'&&google.script&&google.script.run){pj=await runServer('getProducts',{sheetId:PRODUCT_SHEET_ID,tab:PRODUCT_TAB,headings:PRODUCT_HEADINGS});}else{let pr=await fetch(`${backendUrl()}?action=products&sheetId=${encodeURIComponent(PRODUCT_SHEET_ID)}&tab=${encodeURIComponent(PRODUCT_TAB)}&headings=${encodeURIComponent(PRODUCT_HEADINGS.join(','))}&_=${Date.now()}`);pj=await pr.json();}products=normalizeProducts(Array.isArray(pj)?pj:(pj.data||[]));let cats=[...new Set(products.map(x=>x.Category).filter(Boolean))];if(cats.length){CATEGORIES=[...new Set([...CATEGORIES,...cats])];renderCategories()}}else products=demoProducts()}catch(e){products=demoProducts();toast('Could not load live products. Showing local sample products.')}finally{stopSync()}renderProducts();renderHighlights();populateEditProducts();setTimeout(initPayPal,1000);}
-function normalizeProducts(rows){return (rows||[]).map(r=>{let o={};PRODUCT_HEADINGS.forEach(h=>o[h]=r[h]??'');return o})}
-function demoProducts(){const data=[];const imgs={
-'Mens section':['photo-1516257984-b1b4d707412e','photo-1602810318383-e386cc2a3ccf','photo-1506629905607-d9de51c72fdb','photo-1515886657613-9f3515b0c78f','photo-1520975954732-35dd22299614','photo-1523398002811-999ca8dec234','photo-1617137968427-85924c800a22','photo-1611312449408-fcece27cdbb7','photo-1552374196-1ab2a1c593e8','photo-1593032465175-481ac7f401a0'],
-"Women's section":['photo-1496747611176-843222e1e57c','photo-1483985988355-763728e1935b','photo-1503342217505-b0a15ec3261c','photo-1529139574466-a303027c1d8b','photo-1485968579580-b6d095142e6e','photo-1515372039744-b8f02a3ae446','photo-1515886657613-9f3515b0c78f','photo-1520975954732-35dd22299614','photo-1539008835657-9e8e9680c956','photo-1509631179647-0177331693ae'],
-'Childrens':['photo-1503454537195-1dcabb73ffb9','photo-1514090458221-65bb69cf63e6','photo-1522771930-78848d9293e8','photo-1542037104857-ffbb0b9155fb','photo-1519689680058-324335c77eba','photo-1503919545889-aef636e10ad4','photo-1607453998774-d533f65dac99','photo-1608889175123-8ee362201f81','photo-1519238263530-99bdd11df2ea','photo-1519340241574-2cec6aef0c01'],
-'Babies':['photo-1515488042361-ee00e0ddd4e4','photo-1520986606214-8b456906c813','photo-1546015720-b8b30df5aa27','photo-1522771930-78848d9293e8','photo-1519689680058-324335c77eba','photo-1596462502278-27bfdc403348','photo-1522335789203-aabd1fc54bc9','photo-1604467794349-0b74285de7e7','photo-1492725764893-90b379c2b6e7','photo-1555252333-9f8e92e65df9'],
-'Footwear':['photo-1542291026-7eec264c27ff','photo-1549298916-b41d501d3772','photo-1543508282-6319a3e2621f','photo-1560769629-975ec94e6a86','photo-1552346154-21d32810aba3','photo-1600185365483-26d7a4cc7519','photo-1511556532299-8f662fc26c06','photo-1525966222134-fcfa99b8ae77','photo-1460353581641-37baddab0fa2','photo-1595950653106-6c9ebd614d3a'],
-'Miscallaneous':['photo-1441986300917-64674bd600d8','photo-1472851294608-062f824d29cc','photo-1526170375885-4d8ecf77b99f','photo-1516321318423-f06f85e504b3','photo-1513519245088-0e12902e5a38','photo-1515562141207-7a88fb7ce338','photo-1505740420928-5e560c06d30e','photo-1585386959984-a41552231658','photo-1491553895911-0055eca6402d','photo-1516762689617-e1cffcef479d'],
-'Stationery':['photo-1456735190827-d1262f71b8a3','photo-1517971129774-8a2b38fa128e','photo-1516321318423-f06f85e504b3','photo-1517842645767-c639042777db','photo-1497032628192-86f99bcd76bc','photo-1484480974693-6ca0a78fb36b','photo-1500530855697-b586d89ba3ee','photo-1503676260728-1c00da094a0b','photo-1522202176988-66273c2fd55f','photo-1506784983877-45594efa4cbe']};
-Object.keys(imgs).forEach(cat=>imgs[cat].forEach((id,i)=>data.push({ProductID:`${cat.slice(0,3).toUpperCase()}-${i+1}`,SKU:`${cat.replace(/\W/g,'').toUpperCase()}-${i+1}`,Name:`${cat} Item ${i+1}`,Category:cat,Price:99+(i+1)*35,Stock:Math.max(2,25-i),SalesCount:(i*3)%17,Description:`Quality ${cat.toLowerCase()} product for Perspective Collection Online.`,ImageURL:`https://images.unsplash.com/${id}?q=80&w=900&auto=format&fit=crop`,CreatedAt:new Date(Date.now()-i*86400000).toISOString()})));return data}
-function renderProducts(){const q=searchInput.value.toLowerCase(),cat=categoryFilter.value,sort=sortFilter.value;let items=products.filter(p=>(!cat||String(p.Category||'')===cat)&&(`${p.Name||''} ${p.Description||''} ${p.Category||''}`.toLowerCase().includes(q)));if(sort==='low')items.sort((a,b)=>Number(a.Price||0)-Number(b.Price||0));if(sort==='high')items.sort((a,b)=>Number(b.Price||0)-Number(a.Price||0));if(sort==='popular')items.sort((a,b)=>Number(b.SalesCount||0)-Number(a.SalesCount||0));productGrid.innerHTML=items.length?items.map(productCard).join(''):'<div class="empty">No products found.</div>'}function productCard(p){return `<article class="product"><div class="product-img"><img onclick='openProductView(${JSON.stringify(productId(p))})' src="${esc(imgSrc(p))}" alt="${esc(p.Name||'Product')}"></div><div class="product-body"><span class="badge">${esc(p.Category||'Product')}</span><h3>${esc(p.Name||'Unnamed product')}</h3><div class="meta">${esc(p.Description||'Available now')} · Stock: ${esc(p.Stock||0)}</div><div class="price">${money(p.Price)}</div><div class="product-actions"><button class="btn primary" onclick='addToCart(${JSON.stringify(productId(p))})'>Add to cart</button><button class="btn" onclick='quickWhatsApp(${JSON.stringify(productId(p))})'>Ask</button></div></div></article>`}function openProductView(id){const p=getProduct(id);if(!p)return;const imgs=productImages(p);productViewTitle.textContent=p.Name||'Product Images';galleryMain.src=imgs[0]||imgSrc(p);galleryThumbs.innerHTML=imgs.map((src,i)=>`<img class="${i===0?'active':''}" src="${esc(src)}" onclick="galleryMain.src='${jsq(src)}';document.querySelectorAll('#galleryThumbs img').forEach(x=>x.classList.remove('active'));this.classList.add('active')">`).join('');overlay.classList.add('show');productViewModal.classList.add('show')}function renderHighlights(){const bySales=[...products].sort((a,b)=>Number(b.SalesCount||0)-Number(a.SalesCount||0));const newItems=[...products].sort((a,b)=>new Date(b.CreatedAt||0)-new Date(a.CreatedAt||0));const least=[...products].sort((a,b)=>Number(a.SalesCount||0)-Number(b.SalesCount||0));popularGrid.innerHTML=bySales.slice(0,3).map(productCard).join('')||'<div class="empty">No data</div>';newGrid.innerHTML=newItems.slice(0,3).map(productCard).join('')||'<div class="empty">No data</div>';leastGrid.innerHTML=least.slice(0,3).map(productCard).join('')||'<div class="empty">No data</div>'}
-function getProduct(id){return products.find(p=>String(productId(p))===String(id))}function addToCart(id){const p=getProduct(id);if(!p)return;let item=cart.find(i=>String(i.id)===String(id));if(item)item.qty++;else cart.push({id,qty:1});saveCart();toast('Added to cart')}function saveCart(){localStorage.setItem(cartStorageKey(),JSON.stringify(cart));renderCart()}function clearCart(){cart=[];saveCart();toast('Cart cleared')}function selectedShippingFee(){return (cart.length&&deliveryMode==='ship')?Number(shippingFee||0):0}function totalInvoice(){return subtotalCart()+selectedShippingFee()}function updateDeliveryChoice(){const checked=document.querySelector('input[name="deliveryOption"]:checked');deliveryMode=checked?checked.value:'collect';localStorage.setItem('perspective_delivery_mode',deliveryMode);renderCart();renderCheckoutSummary();if(checkoutModal.classList.contains('show')){destroyPayPalButtons();setTimeout(initPayPal,300)}}function renderCart(){cartCount.textContent=cart.reduce((s,i)=>s+i.qty,0);let subtotal=0;cartItems.innerHTML=cart.length?cart.map(i=>{const p=getProduct(i.id)||{};const sub=Number(p.Price||0)*i.qty;subtotal+=sub;return `<div class="cart-item"><img onclick="openProductView('${jsq(i.id)}')" src="${esc(imgSrc(p))}"><div><b>${esc(p.Name||i.id)}</b><div class="meta">${money(p.Price)} each</div><div class="qty"><button onclick="changeQty('${jsq(i.id)}',-1)">−</button><span>${i.qty}</span><button onclick="changeQty('${jsq(i.id)}',1)">+</button></div></div><button class="icon-btn" onclick="removeCart('${jsq(i.id)}')">🗑️</button></div>`}).join(''):'<div class="empty">Your cart is empty.</div>';document.getElementById('cartSubtotal').textContent=money(subtotal);document.getElementById('cartShipping').textContent=money(selectedShippingFee());document.getElementById('cartTotal').textContent=money(totalInvoice())}function subtotalCart(){return cart.reduce((s,i)=>{const p=getProduct(i.id)||{};return s+Number(p.Price||0)*i.qty},0)}function totalCart(){return totalInvoice()}function changeQty(id,d){let item=cart.find(i=>String(i.id)===String(id));if(!item)return;item.qty+=d;if(item.qty<=0)cart=cart.filter(i=>String(i.id)!==String(id));saveCart()}function removeCart(id){cart=cart.filter(i=>String(i.id)!==String(id));saveCart()}function openCart(){overlay.classList.add('show');cartDrawer.classList.add('open');renderCart()}function closeCart(){overlay.classList.remove('show');cartDrawer.classList.remove('open')}function closeAll(){destroyPayPalButtons();overlay.classList.remove('show');cartDrawer.classList.remove('open');loginModal.classList.remove('show');checkoutModal.classList.remove('show');productViewModal.classList.remove('show')}function openLogin(){overlay.classList.add('show');loginModal.classList.add('show')}function quickWhatsApp(id){const p=getProduct(id);window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hi Perspective Collection, I am interested in: '+(p?.Name||id))}`,'_blank')}
+  // ======================== CONFIG =========================
+  const SHEET_ID = "1eM_UPV9MRaEU9lDoNk-D2FHac9PXTpHzOUBBXvzEAfw";
+  const DRIVE_FOLDER_ID = "1wMxg8AdipSeDI5lmL8PNECzD_U3CVC8W";
+  const MAIN_SHEET_NAME = "Assert Reg";       // Backend also falls back to "Asssert Reg" if that is the real tab name
+  const EQUIPMENT_SHEET_NAME = "Drilling_Equipment";
+  const EQUIPMENT_FILTERS = ["Drilling", "Yellow Plant", "Small Plant"];
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwirRwCjWCZwdUABSvbTQEg5I-3V9GE41YhFdQXqnml_o8fSElRaNC99apNFRs5m7gI/exec";
 
-// ============================================================
-// UPDATED CHECKOUT FUNCTION - MATCHES SAMANGILE VERSION
-// ============================================================
-
-async function checkout(method) {
-  if (!cart.length) return toast('Cart is empty.');
-
-  const order = {
-    orderId: 'PO-' + Date.now(),
-    customerName: checkoutName.value?.trim() || currentUser?.Name || '',
-    phone: checkoutPhone.value?.trim() || '',
-    email: checkoutEmail.value?.trim() || currentUser?.Email || '',
-    address: checkoutAddress.value?.trim() || '',
-    paymentMethod: method,
-    paymentStatus: method.includes('PayPal') ? 'Paid' : 'Pending',
-    subtotal: subtotalCart(),
-    deliveryOption: deliveryMode,
-    shippingFee: selectedShippingFee(),
-    total: totalInvoice(),
-    items: cart.map(i => {
-      const p = getProduct(i.id) || {};
-      return { id: i.id, name: p.Name || i.id, category: p.Category, price: p.Price, qty: i.qty };
-    })
-  };
-
-  if (!order.customerName) {
-    toast('Please enter customer name.');
-    return;
-  }
-  if (deliveryMode === 'ship' && !order.address) {
-    toast('Please enter delivery address for shipping.');
-    return;
-  }
-
-  try {
-    if (hasServer()) await postBackend('order', order);
-  } catch (e) {
-    console.warn('Order could not be saved to Google Sheet:', e);
-    toast('Order received locally, but Google Sheet save failed: ' + e.message);
-  }
-
-  // WhatsApp notification
-  const msg = `New Perspective Collection Order%0AOrder: ${order.orderId}%0AName: ${order.customerName}%0APayment: ${method}%0ADelivery: ${deliveryMode==='ship'?'Ship':'Collect'}%0ASubtotal: ${money(order.subtotal)}%0AShipping: ${money(order.shippingFee)}%0ATotal: ${money(order.total)}%0AItems:%0A` +
-    order.items.map(i => `${i.qty} x ${i.name} - ${money(Number(i.price) * i.qty)}`).join('%0A');
-
-  window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, '_blank');
-
-  // Clear cart
-  cart = [];
-  saveCart();
-  closeAll();
-
-  alert('✅ Thank you! Your order was received. Perspective Collection Online will contact you shortly.');
-}
-
-// ============================================================
-// PAYPAL INTEGRATION WITH LIVE CURRENCY CONVERSION (FROM SAMANGILE)
-// ============================================================
-
-let paypalButtonsInstance = null;
-
-// Multiple fallback exchange rate sources
-async function getRate() {
-  const fallbacks = [
-    () => fetch("https://api.exchangerate-api.com/v4/latest/ZAR").then(r => r.ok ? r.json() : Promise.reject()),
-    () => fetch("https://open.er-api.com/v6/latest/ZAR").then(r => r.ok ? r.json() : Promise.reject()),
+  const FIELD_IDS = [
+    "code","assetClass","purchaseDate","purchasedBy","financing","description",
+    "model","makeOfVehicle","bodyType","registrationNo","engineNo","vinNo","cost","marketValue",
+    "zoho","location","driverOperator",
+    "allocationDept","registeredEntity","coveredBy","trackingCompany","installmentAmount",
+    "lastInstallmentDate","eTagToll","notes","regBoo","usefulLife","recharge",
+    "monthlyDpn","year","monthsDpn","accumDpn","nbv","oustandingVaf","value"
   ];
 
-  for (const fn of fallbacks) {
-    try {
-      const data = await fn();
-      const rate = data.rates?.USD || data.conversion_rates?.USD;
-      if (rate && rate > 0) return rate;
-    } catch (e) {}
+  const FIELD_ALIASES = {
+    code: ["code","Code"],
+    assetClass: ["assetClass","Asset Class","AssetClass"],
+    purchaseDate: ["purchaseDate","Purchase Date"],
+    purchasedBy: ["purchasedBy","Purchased by","Purchased By"],
+    financing: ["financing","Financing"],
+    description: ["description","Description"],
+    model: ["model","Model"],
+    makeOfVehicle: ["makeOfVehicle","Make of Vehicle","Make Of Vehicle"],
+    bodyType: ["bodyType","Body Type"],
+    registrationNo: ["registrationNo","Registration no","Registration No"],
+    engineNo: ["engineNo","Engine no","Engine No"],
+    vinNo: ["vinNo","Vin no","Vin No"],
+    cost: ["cost","Cost"],
+    marketValue: ["marketValue","Market Value"],
+    zoho: ["zoho","ZOHO"],
+    location: ["location","Location"],
+    driverOperator: ["driverOperator","Driver/Operator","Driver Operator"],
+    allocationDept: ["allocationDept","Allocation/Dept","Allocation Dept"],
+    registeredEntity: ["registeredEntity","Registered Entity"],
+    coveredBy: ["coveredBy","Covered by","Covered By"],
+    trackingCompany: ["trackingCompany","TRACKING COMPANY","Tracking Company"],
+    installmentAmount: ["installmentAmount","Installment Amount"],
+    lastInstallmentDate: ["lastInstallmentDate","Last Installment date","Last Installment Date"],
+    eTagToll: ["eTagToll","eTag Toll","ETag Toll"],
+    notes: ["notes","NOTES","Notes"],
+    regBoo: ["regBoo","Reg. Boo","Reg Book"],
+    usefulLife: ["usefulLife","Useful life","Useful Life"],
+    recharge: ["recharge","Recharge"],
+    monthlyDpn: ["monthlyDpn","Monthly dpn","Monthly Dpn"],
+    year: ["year","Year"],
+    monthsDpn: ["monthsDpn","Months Dpn"],
+    accumDpn: ["accumDpn","Accum dpn","Accum Dpn"],
+    nbv: ["nbv","NBV"],
+    oustandingVaf: ["oustandingVaf","Outstanding VAF","Outstanding Vaf"],
+    value: ["value","Value"],
+    vehicleRegBookLink: ["vehicleRegBookLink","Vehicle Reg Book","Vehicle Reg Book Link","regBookLink"],
+    trackingCertificateLink: ["trackingCertificateLink","Tracking Certificate","Tracking Certificate Link"]
+  };
+
+  let mainAssets = [];
+  let equipmentAssets = [];
+  let allAssets = [];
+  let currentFilter = null;
+
+  function getField(row, field) {
+    const aliases = FIELD_ALIASES[field] || [field];
+    for (const key of aliases) {
+      if (row && row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
+    }
+    return "";
   }
 
-  console.warn('All exchange rate APIs failed - using fallback 0.055');
-  return 0.055; // ~18.18 ZAR = 1 USD
-}
-
-function destroyPayPalButtons() {
-  if (paypalButtonsInstance) {
-    try { paypalButtonsInstance.close(); } catch(e){}
-    paypalButtonsInstance = null;
-  }
-}
-
-function initPayPal() {
-  const container = document.getElementById('paypal-button-container');
-  if (!container) return;
-
-  destroyPayPalButtons();
-  container.innerHTML = '<small style="color:#666;">Loading PayPal...</small>';
-
-  if (typeof paypal === 'undefined') {
-    setTimeout(initPayPal, 800);
-    return;
+  function valueOrBlank(v) {
+    if (v === undefined || v === null) return "";
+    if (typeof v === "string" && v.includes("T")) {
+      const d = new Date(v);
+      if (!isNaN(d)) return d.toISOString().split('T')[0];
+    }
+    return v;
   }
 
-  if (!cart || cart.length === 0) {
-    container.innerHTML = '<small style="color:#666;">Add items to your cart to use PayPal.</small>';
-    return;
+  function isEquipmentFilter(filter) {
+    return EQUIPMENT_FILTERS.some(f => f.toLowerCase() === String(filter || "").toLowerCase());
   }
 
-  paypal.Buttons({
-    style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
+  function sheetForAsset(asset) {
+    const cls = String(getField(asset, "assetClass") || "").toLowerCase();
+    return EQUIPMENT_FILTERS.some(f => cls.includes(f.toLowerCase())) ? EQUIPMENT_SHEET_NAME : MAIN_SHEET_NAME;
+  }
 
-    createOrder: async (data, actions) => {
-      try {
-        const rate = await getRate();
-        const zarTotal = totalInvoice();
-        let usdAmount = zarTotal * rate;
-        if (usdAmount < 1) usdAmount = 1;
+  function apiPost(payload) {
+    return fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    }).then(res => res.json());
+  }
 
-        const finalUsd = usdAmount.toFixed(2);
+  function fileToPayload(file) {
+    return new Promise((resolve, reject) => {
+      if (!file) return resolve(null);
+      const reader = new FileReader();
+      reader.onload = ev => resolve({
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        fileData: String(ev.target.result).split(',')[1]
+      });
+      reader.onerror = () => reject(new Error("Could not read file: " + file.name));
+      reader.readAsDataURL(file);
+    });
+  }
 
-        console.log(`💱 ZAR ${zarTotal.toFixed(2)} → USD ${finalUsd} (rate: ${rate})`);
+  function linkCell(link, label) {
+    return link ? `<div class="regbook-link"><a href="${link}" target="_blank"><i class="fas fa-file-alt"></i> ${label || 'View'}</a></div>` : `<span style="color:#aaa;">—</span>`;
+  }
 
-        return actions.order.create({
-          purchase_units: [{
-            description: 'Perspective Collection Online Order',
-            amount: { currency_code: "USD", value: finalUsd },
-            custom_id: 'PO-' + Date.now()
-          }]
-        });
-      } catch (err) {
-        console.error(err);
-        toast('Failed to prepare PayPal payment. Try another method.');
-        throw err;
-      }
-    },
+  function normaliseRows(response, sheetName) {
+    let rows = [];
+    if (Array.isArray(response)) rows = response;
+    else if (response && Array.isArray(response.data)) rows = response.data;
+    else if (response && Array.isArray(response.rows)) rows = response.rows;
+    else if (response && Array.isArray(response.assets)) rows = response.assets;
+    return rows.map(r => ({ ...r, _sheetName: r._sheetName || sheetName }));
+  }
 
-    onApprove: async (data, actions) => {
-      try {
-        const details = await actions.order.capture();
-        const payerName = details.payer?.name?.given_name || 'Customer';
+  function showStatus(msg, isError = false) {
+    const statusEl = document.getElementById("status");
+    statusEl.innerHTML = msg || "";
+    statusEl.style.borderLeftColor = isError ? "#ef4444" : "var(--gold)";
+    statusEl.style.background = isError ? "rgba(239,68,68,0.1)" : "rgba(212,175,55,0.16)";
+  }
 
-        toast(`✅ Payment successful! Thank you ${payerName}`);
+  function updateDashboard() {
+    const classMap = {
+      'Drilling': ['drilling', 'drilling plant'],
+      'Yellow Plant': ['yellow plant', 'yellow', 'yellowplant'],
+      'Small Plant': ['small plant', 'smallplant', 'small'],
+      'Trucks': ['truck', 'trucks'],
+      'Trailers': ['trailer', 'trailers'],
+      'Executive': ['executive', 'executive cars', 'exec'],
+      'Bowser': ['bowser', 'bowsers'],
+      'Admin': ['admin', 'administration'],
+      'Projects & Tender': ['projects', 'projects & tender', 'projects and tender', 'project & tender', 'project and tender', 'tender']
+    };
+    const counts = {};
+    Object.keys(classMap).forEach(key => counts[key] = 0);
 
-        // Complete order flow
-        checkout('PayPal (USD)');
+    Object.keys(classMap).forEach(key => {
+      const source = isEquipmentFilter(key) ? equipmentAssets : mainAssets;
+      source.forEach(a => {
+        const cls = String(getField(a, "assetClass")).trim().toLowerCase();
+        if (classMap[key].some(kw => cls.includes(kw) || cls === kw)) counts[key]++;
+      });
+    });
 
-      } catch (err) {
-        console.error('Capture error:', err);
-        toast('Payment failed to complete. Please contact us.');
-      }
-    },
+    document.getElementById("cntDrilling").textContent = counts['Drilling'];
+    document.getElementById("cntYellow").textContent = counts['Yellow Plant'];
+    document.getElementById("cntSmallPlant").textContent = counts['Small Plant'];
+    document.getElementById("cntTrucks").textContent = counts['Trucks'];
+    document.getElementById("cntTrailers").textContent = counts['Trailers'];
+    document.getElementById("cntExecutive").textContent = counts['Executive'];
+    document.getElementById("cntBowser").textContent = counts['Bowser'];
+    document.getElementById("cntAdmin").textContent = counts['Admin'];
+    document.getElementById("cntProjects").textContent = counts['Projects & Tender'];
 
-    onCancel: () => toast('Payment cancelled.'),
-    onError: (err) => {
-      console.error(err);
-      toast('PayPal error occurred. Please try EFT/Cash on Delivery or refresh the page.');
+    document.querySelectorAll('.stat-card').forEach(card => {
+      const filter = card.dataset.filter;
+      card.onclick = () => applyFilter(filter);
+    });
+  }
+
+  function applyFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.toggle('filter-active', c.dataset.filter === filter));
+    document.getElementById('filterIndicator').textContent = `Filter: ${filter}`;
+
+    const source = isEquipmentFilter(filter) ? equipmentAssets : mainAssets;
+    renderTable(source, filter);
+  }
+
+  function clearFilter() {
+    currentFilter = null;
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('filter-active'));
+    document.getElementById('filterIndicator').textContent = '';
+    renderTable(allAssets);
+  }
+
+  function renderTable(assets, filter) {
+    const tbody = document.querySelector("#assetTable tbody");
+    let rows = assets || allAssets;
+    if (filter) {
+      const filterLower = filter.toLowerCase();
+      rows = rows.filter(a => String(getField(a, "assetClass")).trim().toLowerCase().includes(filterLower));
+    }
+    tbody.innerHTML = "";
+    if (!rows.length) {
+      const colCount = document.querySelector("#assetTable thead tr").children.length;
+      tbody.innerHTML = `<tr><td colspan="${colCount}">No entries found${filter ? ' for filter: '+filter : ''}.</td></tr>`;
+      return;
     }
 
-  }).render('#paypal-button-container')
-    .then(instance => {
-      paypalButtonsInstance = instance;
-    })
-    .catch(err => {
-      console.error(err);
-      container.innerHTML = `<small style="color:#dc2626;">PayPal failed to load.<br><button onclick="initPayPal()" class="btn small">Retry</button></small>`;
+    rows.forEach(function(data){
+      const row = document.createElement("tr");
+      const displayFields = FIELD_IDS.filter(id => id !== "licenced" && id !== "typeOfLicence" && id !== "validityOfLicence");
+      displayFields.forEach(field => {
+        const td = document.createElement("td");
+        td.textContent = valueOrBlank(getField(data, field));
+        row.appendChild(td);
+      });
+
+      const regTd = document.createElement("td");
+      regTd.innerHTML = linkCell(getField(data, "vehicleRegBookLink"), "View Reg Book");
+      row.appendChild(regTd);
+
+      const trackingTd = document.createElement("td");
+      trackingTd.innerHTML = linkCell(getField(data, "trackingCertificateLink"), "View Tracking");
+      row.appendChild(trackingTd);
+
+      const actionCell = document.createElement("td");
+      actionCell.className = "action-col";
+      const actionDiv = document.createElement("div");
+      actionDiv.className = "row-actions";
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "btn-sm-edit";
+      editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+      editBtn.title = "Edit row";
+      editBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        FIELD_IDS.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = valueOrBlank(getField(data, id));
+        });
+        document.getElementById("rowNumber").value = data.rowNumber || "";
+        document.getElementById("vehicleRegBookLink").value = getField(data, "vehicleRegBookLink") || "";
+        document.getElementById("trackingCertificateLink").value = getField(data, "trackingCertificateLink") || "";
+        document.getElementById("regBookLink").value = data.regBookLink || "";
+        document.getElementById("saveBtn").textContent = "Update Asset";
+        document.getElementById("entrySection").classList.remove("hidden");
+        window.scrollTo({ top: document.getElementById("entrySection").offsetTop - 20, behavior: "smooth" });
+      });
+
+      function makeUploadButton(docType, title, fieldName) {
+        const btn = document.createElement("button");
+        btn.className = "btn-sm-upload";
+        btn.innerHTML = '<i class="fas fa-upload"></i>';
+        btn.title = "Upload " + title;
+        btn.addEventListener("click", function(e) {
+          e.stopPropagation();
+          const fileInput = document.createElement("input");
+          fileInput.type = "file";
+          fileInput.accept = "image/*,application/pdf,.doc,.docx";
+          fileInput.onchange = function(ev) {
+            const file = ev.target.files[0];
+            if (!file) return showStatus("No file selected", true);
+            showStatus("Uploading " + file.name + "...");
+            fileToPayload(file).then(filePayload => {
+              return apiPost({
+                action: "uploadDocument",
+                rowNumber: data.rowNumber,
+                docType,
+                sheetField: fieldName,
+                sheetId: SHEET_ID,
+                sheetName: data._sheetName || sheetForAsset(data),
+                folderId: DRIVE_FOLDER_ID,
+                ...filePayload
+              });
+            }).then(res => {
+              if (res.status === "success") {
+                showStatus("✅ " + title + " uploaded and link posted to Google Sheet");
+                data[fieldName] = res.fileLink;
+                loadAssets();
+              } else {
+                showStatus("❌ Upload failed: " + (res.message || "unknown error"), true);
+              }
+            }).catch(err => {
+              console.error(err);
+              showStatus("❌ Upload error: " + err.message, true);
+            });
+          };
+          fileInput.click();
+        });
+        return btn;
+      }
+
+      const uploadRegBtn = makeUploadButton("Vehicle Reg Book", "Vehicle Reg Book", "vehicleRegBookLink");
+      const uploadTrackingBtn = makeUploadButton("Tracking Certificate", "Tracking Certificate", "trackingCertificateLink");
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn-sm-delete";
+      delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      delBtn.title = "Delete row";
+      delBtn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        if (!confirm("Delete this asset entry?")) return;
+        apiPost({
+          action: "deleteAsset",
+          rowNumber: data.rowNumber,
+          sheetId: SHEET_ID,
+          sheetName: data._sheetName || sheetForAsset(data)
+        }).then(res => {
+          if (res.status === "success") {
+            showStatus("✅ Deleted successfully");
+            loadAssets();
+          } else {
+            showStatus("❌ Delete failed: " + res.message, true);
+          }
+        }).catch(err => showStatus("❌ Delete error: " + err.message, true));
+      });
+
+      actionDiv.appendChild(editBtn);
+      actionDiv.appendChild(uploadRegBtn);
+      actionDiv.appendChild(uploadTrackingBtn);
+      actionDiv.appendChild(delBtn);
+      actionCell.appendChild(actionDiv);
+      row.appendChild(actionCell);
+      tbody.appendChild(row);
     });
-}
-
-// Enhanced openCheckout
-function renderCheckoutSummary() {
-  if (typeof checkoutLines === 'undefined') return;
-  const ship = deliveryMode === 'ship';
-  checkoutLines.innerHTML = cart.map(i => {
-    const p = getProduct(i.id) || {};
-    return `${i.qty} × ${esc(p.Name || i.id)} - ${money(Number(p.Price||0) * i.qty)}`;
-  }).join('<br>') +
-  `<hr style="margin:12px 0"><div>Delivery Option: <b>${ship ? 'Ship' : 'Collect'}</b></div><div>Subtotal: ${money(subtotalCart())}</div><div>Shipping: ${money(selectedShippingFee())}</div><b>Total: ${money(totalInvoice())}</b>`;
-}
-
-function openCheckout() {
-  if (!cart.length) return toast('Cart is empty.');
-
-  if (typeof deliveryCollect !== 'undefined' && typeof deliveryShip !== 'undefined') {
-    deliveryCollect.checked = deliveryMode !== 'ship';
-    deliveryShip.checked = deliveryMode === 'ship';
   }
-  renderCheckoutSummary();
 
-  overlay.classList.add('show');
-  checkoutModal.classList.add('show');
+  function loadSheetAssets(sheetName) {
+    const url = `${SCRIPT_URL}?action=list&sheetId=${encodeURIComponent(SHEET_ID)}&sheetName=${encodeURIComponent(sheetName)}`;
+    return fetch(url)
+      .then(res => {
+        if (!res.ok) throw new Error("Network response was not ok");
+        return res.json();
+      })
+      .then(response => {
+        if (response && response.status === "error") throw new Error(response.message || "Sheet load failed");
+        return normaliseRows(response, sheetName);
+      });
+  }
 
-  // Render PayPal after modal is visible
-  setTimeout(initPayPal, 300);
-}
+  async function loadAssets() {
+    showStatus("Loading dashboard from Assert Reg and Drilling_Equipment...");
+    try {
+      const results = await Promise.allSettled([
+        loadSheetAssets(MAIN_SHEET_NAME),
+        loadSheetAssets(EQUIPMENT_SHEET_NAME)
+      ]);
+      mainAssets = results[0].status === "fulfilled" ? results[0].value : [];
+      equipmentAssets = results[1].status === "fulfilled" ? results[1].value : [];
+      allAssets = [...mainAssets, ...equipmentAssets];
 
+      updateDashboard();
+      if (currentFilter) applyFilter(currentFilter);
+      else renderTable(allAssets);
 
-async function loadSettings(){try{const json=await postBackend('getSettings',{});shippingFee=Number(json.shippingFee||0);if(typeof adminShippingFee!=='undefined')adminShippingFee.value=shippingFee;renderCart()}catch(e){shippingFee=0}}
-async function saveShippingFeeAdmin(){const stopSync=startSync();if(!isAdmin()){stopSync();return toast('Admin rights required.')}try{const fee=Number(adminShippingFee.value||0);const json=await postBackend('setShippingFee',{shippingFee:fee});shippingFee=Number(json.shippingFee||fee||0);renderCart();toast('Shipping fee saved.')}catch(e){toast(e.message)}finally{stopSync()}}
-function runServer(functionName,payload){return new Promise((resolve,reject)=>{google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[functionName](payload)})}async function postBackend(action,payload){const productActions=['products','addProduct','updateProduct','deleteProduct','uploadProductImage'];const request={action,payload};if(productActions.includes(action)){request.sheetId=PRODUCT_SHEET_ID;request.tab=PRODUCT_TAB;request.headings=PRODUCT_HEADINGS}if(typeof google!=='undefined'&&google.script&&google.script.run){return await runServer('handleAction',request)}const url=backendUrl();if(!url)throw new Error('Apps Script connection is not set. Deploy the matching Code.gs as a Web App and paste its URL into APPS_SCRIPT_URL, or serve this HTML from Apps Script.');const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(request)});const json=await res.json();if(json.success===false)throw new Error(json.message||'Backend error');return json}async function loginUser(){const stopSync=startSync();loginMessage.textContent='Synchronising login...';try{if(!loginEmail.value||!loginPassword.value)return toast('Email and password required.');const json=await postBackend('login',{email:loginEmail.value,password:loginPassword.value});currentUser=json.user;if(!currentUser)throw new Error('Invalid login response.');localStorage.setItem('perspective_user',JSON.stringify(currentUser));loadCart();updateUserUI();renderCart();closeAll();toast(`Logged in as ${currentUser.Name||currentUser.Email}`)}catch(e){loginMessage.textContent=e.message}finally{stopSync()}}async function registerClient(){const stopSync=startSync();try{const payload={Name:prompt('Your name:')||'',Email:loginEmail.value,Password:loginPassword.value,Role:'Client',Rights:'Client',Status:'Active'};if(!payload.Email||!payload.Password)return toast('Email and password required.');await postBackend('register',payload);toast('Client registered. You can login now.')}catch(e){toast(e.message)}finally{stopSync()}}async function backendInit(){const stopSync=startSync();try{const res=await postBackend('init',{});toast((res&&res.spreadsheetUrl)?'Backend tabs verified. Google Sheet connected.':'Backend tabs verified.')}catch(e){toast(e.message)}finally{stopSync()}}function fileToBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]);r.onerror=reject;r.readAsDataURL(file)})}function populateEditProducts(){editProduct.innerHTML='<option value="">New product</option>'+products.map(p=>`<option value="${esc(productId(p))}">${esc(p.Name||productId(p))}</option>`).join('')}function loadProductForEdit(){const p=getProduct(editProduct.value);if(!p)return;adminName.value=p.Name||'';adminCategory.value=p.Category||'';adminPrice.value=p.Price||'';adminStock.value=p.Stock||'';adminSku.value=p.SKU||'';adminDescription.value=p.Description||'';adminImageUrl.value=p.ImageURL||imgSrc(p)||'';adminImageUrl2.value=p.ImageURL2||'';adminImageUrl3.value=p.ImageURL3||''}async function saveProductAdmin(){const stopSync=startSync();if(!isAdmin()){stopSync();return toast('Admin rights required.')}let file=adminImage.files[0];let now=new Date().toISOString();let existing=getProduct(editProduct.value)||{};let payload={ProductID:editProduct.value||existing.ProductID||'',SKU:adminSku.value,Name:adminName.value,Category:adminCategory.value,Description:adminDescription.value,Price:adminPrice.value,Stock:adminStock.value,ImageURL:adminImageUrl.value||existing.ImageURL||'',DriveFileID:existing.DriveFileID||'',Status:existing.Status||'Active',ImageURL2:adminImageUrl2.value||existing.ImageURL2||'',ImageURL3:adminImageUrl3.value||existing.ImageURL3||'',SalesCount:existing.SalesCount||0,CreatedAt:existing.CreatedAt||now,UpdatedAt:now};if(newCategoryName.value){payload.Category=newCategoryName.value;if(!CATEGORIES.includes(payload.Category)){CATEGORIES.push(payload.Category);renderCategories()}}try{if(file){let upload=await postBackend('uploadProductImage',{ProductID:payload.ProductID,SKU:payload.SKU,Name:payload.Name,imageBase64:await fileToBase64(file),imageMimeType:file.type,imageName:file.name});payload.ImageURL=upload.ImageURL||upload.imageUrl||payload.ImageURL;payload.DriveFileID=upload.DriveFileID||upload.driveFileId||payload.DriveFileID}payload=Object.fromEntries(PRODUCT_HEADINGS.map(h=>[h,payload[h]??'']));await postBackend(editProduct.value?'updateProduct':'addProduct',payload);adminMessage.textContent='Product saved successfully.';adminImage.value='';await loadProducts()}catch(e){adminMessage.textContent=e.message}finally{stopSync()}}async function deleteProductAdmin(){const stopSync=startSync();if(!isAdmin()){stopSync();return toast('Admin rights required.')}const id=editProduct.value;if(!id){stopSync();return toast('Select an existing product to delete.')}const p=getProduct(id)||{};if(!confirm('Delete '+(p.Name||id)+' permanently from Google Sheet?')){stopSync();return}try{await postBackend('deleteProduct',{ProductID:id});products=products.filter(x=>String(productId(x))!==String(id));populateEditProducts();renderProducts();renderHighlights();editProduct.value='';adminMessage.textContent='Product deleted successfully.'}catch(e){adminMessage.textContent=e.message}finally{stopSync()}}async function addCategoryAdmin(){const stopSync=startSync();if(!isAdmin()){stopSync();return toast('Admin rights required.')}const name=newCategoryName.value.trim();if(!name){stopSync();return toast('Enter new category name.')}try{await postBackend('addCategory',{Category:name});if(!CATEGORIES.includes(name)){CATEGORIES.push(name);renderCategories()}toast('Category created.')}catch(e){toast(e.message)}finally{stopSync()}}async function loadSalesReport(){const stopSync=startSync();try{let json;if(hasServer())json=await postBackend('report',{period:reportPeriod.value});else json=demoReport(reportPeriod.value);reportSummary.innerHTML=`<b>${esc(json.periodLabel||reportPeriod.value)}</b> · Orders: ${json.orderCount||0} · Sales: ${money(json.totalSales||0)}`;reportTable.innerHTML='<thead><tr><th>Product</th><th>Category</th><th>Qty Sold</th><th>Total Sales</th></tr></thead><tbody>'+((json.items||[]).map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.category)}</td><td>${esc(r.qty)}</td><td>${money(r.total)}</td></tr>`).join('')||'<tr><td colspan="4">No sales found</td></tr>')+'</tbody>'}catch(e){toast(e.message)}finally{stopSync()}}function demoReport(period){return{periodLabel:'Demo '+period,orderCount:4,totalSales:2450,items:[{name:'Mens section Item 1',category:'Mens section',qty:3,total:650},{name:"Women's section Item 2",category:"Women's section",qty:2,total:900},{name:'Stationery Item 1',category:'Stationery',qty:6,total:900}]}}function sendContactWhatsApp(){const msg=`Perspective Collection enquiry%0AName: ${contactName.value}%0AEmail: ${contactEmail.value}%0AMessage: ${contactMessage.value}`;window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`,'_blank');if(hasServer())postBackend('contact',{name:contactName.value,email:contactEmail.value,message:contactMessage.value}).catch(()=>{})}
-initUI();
+      const failures = results.filter(r => r.status === "rejected").map(r => r.reason.message).join("; ");
+      if (failures) showStatus("⚠️ Loaded with warning: " + failures, true);
+      else showStatus(`✅ Loaded ${mainAssets.length} Assert Reg entries and ${equipmentAssets.length} Drilling_Equipment entries`);
+      return allAssets;
+    } catch (err) {
+      console.error(err);
+      showStatus("❌ Could not load data: " + err.message, true);
+      return [];
+    }
+  }
+
+  document.getElementById("assetForm").addEventListener("submit", async function(e){
+    e.preventDefault();
+    const data = {};
+    FIELD_IDS.forEach(id => { data[id] = document.getElementById(id).value; });
+    const rowNum = document.getElementById("rowNumber").value;
+    if (rowNum) data.rowNumber = rowNum;
+    data.vehicleRegBookLink = document.getElementById("vehicleRegBookLink").value || "";
+    data.trackingCertificateLink = document.getElementById("trackingCertificateLink").value || "";
+    data.regBookLink = document.getElementById("regBookLink").value || "";
+    data.action = "saveAsset";
+    data.sheetId = SHEET_ID;
+    data.sheetName = sheetForAsset(data);
+    data.folderId = DRIVE_FOLDER_ID;
+
+    try {
+      showStatus("Saving asset and documents...");
+      data.vehicleRegBookFile = await fileToPayload(document.getElementById("vehicleRegBookFile").files[0]);
+      data.trackingCertificateFile = await fileToPayload(document.getElementById("trackingCertificateFile").files[0]);
+      const response = await apiPost(data);
+      if (response.status !== "success") throw new Error(response.message || "Save failed");
+      showStatus(rowNum ? "✅ Asset Updated Successfully" : "✅ Asset Saved Successfully");
+      document.getElementById("assetForm").reset();
+      document.getElementById("rowNumber").value = "";
+      document.getElementById("vehicleRegBookLink").value = "";
+      document.getElementById("trackingCertificateLink").value = "";
+      document.getElementById("regBookLink").value = "";
+      document.getElementById("saveBtn").textContent = "Save Asset";
+      await loadAssets();
+    } catch (err) {
+      console.error(err);
+      showStatus("❌ Error Saving Asset: " + err.message, true);
+    }
+  });
+
+  document.getElementById("clearBtn").addEventListener("click", function(){
+    document.getElementById("assetForm").reset();
+    document.getElementById("rowNumber").value = "";
+    document.getElementById("vehicleRegBookLink").value = "";
+    document.getElementById("trackingCertificateLink").value = "";
+    document.getElementById("regBookLink").value = "";
+    document.getElementById("saveBtn").textContent = "Save Asset";
+    showStatus("Form cleared.");
+  });
+
+  document.getElementById("newEntryBtn").addEventListener("click", function(){
+    document.getElementById("entrySection").classList.remove("hidden");
+    document.getElementById("assetForm").reset();
+    document.getElementById("rowNumber").value = "";
+    document.getElementById("vehicleRegBookLink").value = "";
+    document.getElementById("trackingCertificateLink").value = "";
+    document.getElementById("regBookLink").value = "";
+    document.getElementById("saveBtn").textContent = "Save Asset";
+    window.scrollTo({ top: document.getElementById("entrySection").offsetTop - 20, behavior: "smooth" });
+  });
+
+  document.getElementById("backToDashboardBtn").addEventListener("click", function(){
+    document.getElementById("entrySection").classList.add("hidden");
+    document.getElementById("assetForm").reset();
+    document.getElementById("rowNumber").value = "";
+    document.getElementById("vehicleRegBookLink").value = "";
+    document.getElementById("trackingCertificateLink").value = "";
+    document.getElementById("regBookLink").value = "";
+    document.getElementById("saveBtn").textContent = "Save Asset";
+    showStatus("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (currentFilter) applyFilter(currentFilter); else renderTable(allAssets);
+  });
+
+  document.getElementById("cancelEntryBtn").addEventListener("click", function(){
+    document.getElementById("entrySection").classList.add("hidden");
+    document.getElementById("assetForm").reset();
+    document.getElementById("rowNumber").value = "";
+    document.getElementById("vehicleRegBookLink").value = "";
+    document.getElementById("trackingCertificateLink").value = "";
+    document.getElementById("regBookLink").value = "";
+    document.getElementById("saveBtn").textContent = "Save Asset";
+    showStatus("");
+    if (currentFilter) applyFilter(currentFilter); else renderTable(allAssets);
+  });
+
+  document.getElementById("refreshDashBtn").addEventListener("click", loadAssets);
+  document.getElementById("clearFilterBtn").addEventListener("click", clearFilter);
+  document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+  document.getElementById("excelBtn").addEventListener("click", function(){
+    let rows = allAssets;
+    if (currentFilter) {
+      rows = (isEquipmentFilter(currentFilter) ? equipmentAssets : mainAssets).filter(a => String(getField(a, "assetClass")).toLowerCase().includes(currentFilter.toLowerCase()));
+    }
+    const displayFields = FIELD_IDS.filter(id => id !== "licenced" && id !== "typeOfLicence" && id !== "validityOfLicence");
+    const headers = [...displayFields, "vehicleRegBookLink", "trackingCertificateLink"];
+    const csvRows = [headers, ...rows.map(row => {
+      const vals = displayFields.map(id => valueOrBlank(getField(row, id)));
+      vals.push(getField(row, "vehicleRegBookLink"));
+      vals.push(getField(row, "trackingCertificateLink"));
+      return vals;
+    })];
+    const csv = csvRows.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("
+");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "asset-register-report.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.addEventListener("DOMContentLoaded", loadAssets);
 </script>
 </body>
 </html>
